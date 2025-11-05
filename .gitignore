@@ -1,0 +1,13 @@
+# Visual Studio cache and temp
+.vs/
+*.vsidx
+*.VC.db
+*.VC.opendb
+
+# VSCode & JetBrains (на всякий случай)
+.vscode/
+.idea/
+
+# OS junk
+.DS_Store
+Thumbs.db

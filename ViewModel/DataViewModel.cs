@@ -1,0 +1,175 @@
+using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.Globalization;
+using System.IO;
+using System.Linq;
+using System.Runtime.CompilerServices;
+using System.Text;
+using Nivtropy.Models;
+using Nivtropy.Services;
+
+namespace Nivtropy.ViewModels
+{
+    public class DataViewModel : INotifyPropertyChanged
+    {
+        public ObservableCollection<MeasurementRecord> Records { get; } = new();
+        public ObservableCollection<LineSummary> Runs { get; } = new();
+
+        private string? _sourcePath;
+        public string? SourcePath
+        {
+            get => _sourcePath;
+            private set
+            {
+                if (_sourcePath != value)
+                {
+                    _sourcePath = value;
+                    OnPropertyChanged();
+                    OnPropertyChanged(nameof(FileName));
+                }
+            }
+        }
+
+        public string? FileName => string.IsNullOrWhiteSpace(SourcePath) ? null : Path.GetFileName(SourcePath);
+
+        public event PropertyChangedEventHandler? PropertyChanged;
+        private void OnPropertyChanged([CallerMemberName] string? name = null) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+
+        public void LoadFromFile(string path)
+        {
+            SourcePath = path;
+            Records.Clear();
+
+            var parser = new DatParser();
+            var parsed = parser.Parse(path).ToList();
+            AnnotateRuns(parsed);
+
+            foreach (var rec in parsed)
+            {
+                Records.Add(rec);
+            }
+        }
+
+        private void AnnotateRuns(IList<MeasurementRecord> records)
+        {
+            Runs.Clear();
+            if (records.Count == 0)
+                return;
+
+            var groups = new List<List<MeasurementRecord>>();
+            var current = new List<MeasurementRecord>();
+            MeasurementRecord? previous = null;
+            foreach (var record in records)
+            {
+                if (previous != null && ShouldStartNewLine(previous, record))
+                {
+                    if (current.Count > 0)
+                    {
+                        groups.Add(current);
+                        current = new List<MeasurementRecord>();
+                    }
+                }
+
+                current.Add(record);
+                previous = record;
+            }
+
+            if (current.Count > 0)
+            {
+                groups.Add(current);
+            }
+
+            int index = 1;
+            foreach (var group in groups)
+            {
+                var summary = BuildSummary(index, group);
+                Runs.Add(summary);
+
+                var start = group.FirstOrDefault(g => g.Rb_m.HasValue) ?? group.First();
+                var end = group.LastOrDefault(g => g.Rf_m.HasValue) ?? group.Last();
+
+                for (int i = 0; i < group.Count; i++)
+                {
+                    var rec = group[i];
+                    rec.LineSummary = summary;
+                    rec.ShotIndexWithinLine = i + 1;
+                    rec.IsLineStart = ReferenceEquals(rec, start);
+                    rec.IsLineEnd = ReferenceEquals(rec, end);
+                }
+
+                index++;
+            }
+        }
+
+        private static bool ShouldStartNewLine(MeasurementRecord previous, MeasurementRecord current)
+        {
+            if (current.Seq.HasValue && previous.Seq.HasValue)
+            {
+                if (current.Seq.Value <= previous.Seq.Value)
+                    return true;
+
+                if (current.Seq.Value - previous.Seq.Value > 50)
+                    return true;
+            }
+
+            if (!string.Equals(previous.Mode, current.Mode, StringComparison.OrdinalIgnoreCase))
+            {
+                if (current.Mode != null && current.Mode.IndexOf("line", StringComparison.OrdinalIgnoreCase) >= 0)
+                    return true;
+            }
+
+            if (int.TryParse(previous.StationCode, out var prevStation) && int.TryParse(current.StationCode, out var curStation))
+            {
+                if (curStation < prevStation)
+                    return true;
+            }
+
+            if (!string.IsNullOrWhiteSpace(previous.Target) && !string.IsNullOrWhiteSpace(current.Target))
+            {
+                if (string.Equals(previous.Target.Trim(), current.Target.Trim(), StringComparison.OrdinalIgnoreCase))
+                {
+                    if (previous.Rf_m.HasValue && !current.Rb_m.HasValue)
+                        return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static LineSummary BuildSummary(int index, IReadOnlyList<MeasurementRecord> group)
+        {
+            var start = group.FirstOrDefault(r => r.Rb_m.HasValue) ?? group.First();
+            var end = group.LastOrDefault(r => r.Rf_m.HasValue) ?? group.Last();
+
+            double? deltaSum = null;
+            foreach (var rec in group)
+            {
+                if (rec.DeltaH.HasValue)
+                {
+                    deltaSum = (deltaSum ?? 0d) + rec.DeltaH.Value;
+                }
+            }
+
+            return new LineSummary(index, start.Target, start.StationCode, end.Target, end.StationCode, group.Count, deltaSum);
+        }
+
+        public void ExportCsv(string path)
+        {
+            using var w = new StreamWriter(path, false, new UTF8Encoding(true));
+            w.WriteLine("Seq,Mode,Target,StationCode,Rb_m,Rf_m,HD_m,Z_m,DeltaH,IsValid,Line,ShotIndex");
+            foreach (var r in Records)
+            {
+                string Line(object? v) => Convert.ToString(v, CultureInfo.InvariantCulture) ?? string.Empty;
+                w.WriteLine(string.Join(',', new[]
+                {
+                    Line(r.Seq), r.Mode, r.Target, r.StationCode,
+                    Line(r.Rb_m), Line(r.Rf_m), Line(r.HD_m), Line(r.Z_m),
+                    Line(r.DeltaH), Line(r.IsValid),
+                    r.LineSummary?.DisplayName, Line(r.ShotIndexWithinLine)
+                }));
+            }
+        }
+    }
+}
