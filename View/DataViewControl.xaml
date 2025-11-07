@@ -15,106 +15,261 @@
                 <PropertyGroupDescription PropertyName="GroupKey" />
             </CollectionViewSource.GroupDescriptions>
         </CollectionViewSource>
+
+        <Style x:Key="BadgeBorderStyle" TargetType="Border">
+            <Setter Property="Background" Value="#FFF1F5F9" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Padding" Value="10,4" />
+            <Setter Property="Margin" Value="0,0,8,8" />
+        </Style>
+        <Style x:Key="BadgeTextStyle" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="#FF1F2937" />
+            <Setter Property="FontSize" Value="12" />
+        </Style>
     </UserControl.Resources>
 
-    <Grid>
+    <Grid Background="#F4F7FB">
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="8,8,8,4">
-            <TextBlock Text="Данные из файла" FontWeight="SemiBold"/>
-            <TextBlock Margin="12,0,0,0"
-                       Text="{Binding FileName, TargetNullValue=«Файл не выбран»}"/>
-            <TextBlock Margin="12,0,0,0"
-                       Text="{Binding Runs.Count, StringFormat=• Ходов: {0}}"/>
-            <TextBlock Margin="12,0,0,0"
-                       Text="{Binding Records.Count, StringFormat=• Отсчётов: {0}}"/>
-        </StackPanel>
+        <Border Grid.Row="0"
+                Margin="16,16,16,12"
+                Padding="16"
+                Background="#FFFFFFFF"
+                CornerRadius="12"
+                BorderBrush="#FFE0E7FF"
+                BorderThickness="1">
+            <StackPanel>
+                <TextBlock Text="Данные из файла"
+                           FontWeight="SemiBold"
+                           FontSize="18"
+                           Foreground="#FF1F2937" />
+                <TextBlock Margin="0,8,0,0"
+                           Text="{Binding FileName, TargetNullValue=«Файл не выбран»}"
+                           FontSize="14"
+                           Foreground="#FF4B5563" />
+                <WrapPanel Margin="0,12,0,0">
+                    <Border Style="{StaticResource BadgeBorderStyle}">
+                        <TextBlock Style="{StaticResource BadgeTextStyle}"
+                                   Text="{Binding Runs.Count, StringFormat=Ходы: {0}}" />
+                    </Border>
+                    <Border Style="{StaticResource BadgeBorderStyle}">
+                        <TextBlock Style="{StaticResource BadgeTextStyle}"
+                                   Text="{Binding RecordsCount, StringFormat=Отсчёты: {0}}" />
+                    </Border>
+                    <Border Style="{StaticResource BadgeBorderStyle}">
+                        <TextBlock Style="{StaticResource BadgeTextStyle}"
+                                   Text="{Binding ValidRecordsCount, StringFormat=Валидных: {0}}" />
+                    </Border>
+                    <Border Style="{StaticResource BadgeBorderStyle}">
+                        <TextBlock Style="{StaticResource BadgeTextStyle}"
+                                   Text="{Binding InvalidRecordsCount, StringFormat=Пропусков: {0}}" />
+                    </Border>
+                </WrapPanel>
+            </StackPanel>
+        </Border>
 
-        <DataGrid Grid.Row="1"
-                  ItemsSource="{Binding Source={StaticResource RecordsGrouped}}"
-                  AutoGenerateColumns="False"
-                  CanUserAddRows="False"
-                  IsReadOnly="True"
-                  Margin="8"
-                  RowHeaderWidth="0"
-                  HeadersVisibility="Column"
-                  GridLinesVisibility="Horizontal"
-                  AlternationCount="2"
-                  EnableRowVirtualization="True"
-                  SelectionUnit="FullRow">
-            <DataGrid.RowStyle>
-                <Style TargetType="DataGridRow">
-                    <Setter Property="Margin" Value="0,0,0,2" />
-                    <Setter Property="Background" Value="Transparent" />
-                    <Style.Triggers>
-                        <Trigger Property="IsSelected" Value="True">
-                            <Setter Property="Background" Value="{DynamicResource {x:Static SystemColors.HighlightBrushKey}}" />
-                            <Setter Property="Foreground" Value="{DynamicResource {x:Static SystemColors.HighlightTextBrushKey}}" />
-                        </Trigger>
-                        <MultiDataTrigger>
-                            <MultiDataTrigger.Conditions>
-                                <Condition Binding="{Binding IsLineStart}" Value="True" />
-                                <Condition Binding="{Binding RelativeSource={RelativeSource Self}, Path=IsSelected}" Value="False" />
-                            </MultiDataTrigger.Conditions>
-                            <Setter Property="FontWeight" Value="SemiBold" />
-                            <Setter Property="Background" Value="#FFE8F5FF" />
-                        </MultiDataTrigger>
-                        <MultiDataTrigger>
-                            <MultiDataTrigger.Conditions>
-                                <Condition Binding="{Binding IsLineEnd}" Value="True" />
-                                <Condition Binding="{Binding RelativeSource={RelativeSource Self}, Path=IsSelected}" Value="False" />
-                            </MultiDataTrigger.Conditions>
-                            <Setter Property="FontWeight" Value="SemiBold" />
-                            <Setter Property="Background" Value="#FFFFF4E5" />
-                        </MultiDataTrigger>
-                    </Style.Triggers>
+        <ItemsControl Grid.Row="1"
+                      Margin="16,0,16,12"
+                      ItemsSource="{Binding QuickStats}">
+            <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <WrapPanel />
+                </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemContainerStyle>
+                <Style TargetType="ContentPresenter">
+                    <Setter Property="Margin" Value="0,0,12,12" />
                 </Style>
-            </DataGrid.RowStyle>
+            </ItemsControl.ItemContainerStyle>
+            <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                    <Border Background="#FFFFFFFF"
+                            BorderBrush="{Binding AccentHex}"
+                            BorderThickness="1"
+                            CornerRadius="12"
+                            Padding="12"
+                            MinWidth="190">
+                        <StackPanel>
+                            <TextBlock Text="{Binding Title}"
+                                       Foreground="#FF4B5563"
+                                       FontSize="13"
+                                       FontWeight="SemiBold" />
+                            <TextBlock Text="{Binding Value}"
+                                       Margin="0,6,0,4"
+                                       FontSize="24"
+                                       FontWeight="Bold"
+                                       Foreground="{Binding AccentHex}" />
+                            <TextBlock Text="{Binding Description}"
+                                       TextWrapping="Wrap"
+                                       Foreground="#FF6B7280" />
+                        </StackPanel>
+                    </Border>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
 
-            <DataGrid.GroupStyle>
-                <GroupStyle>
-                    <GroupStyle.ContainerStyle>
-                        <Style TargetType="GroupItem">
-                            <Setter Property="Margin" Value="0,4,0,0" />
-                        </Style>
-                    </GroupStyle.ContainerStyle>
-                    <GroupStyle.HeaderTemplate>
-                        <DataTemplate>
-                            <Border Background="#FFF2F2F2" BorderBrush="#FFE0E0E0" BorderThickness="1" Padding="8" CornerRadius="4">
-                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                    <TextBlock Text="{Binding Items[0].LineSummary.DisplayName}" FontWeight="SemiBold" />
-                                    <TextBlock Text="{Binding Items[0].LineSummary.RangeDisplay}" Margin="12,0,0,0" />
-                                    <TextBlock Text="{Binding Items[0].LineSummary.CombinedStats}" Margin="24,0,0,0" Foreground="#FF606060" />
-                                </StackPanel>
-                            </Border>
-                        </DataTemplate>
-                    </GroupStyle.HeaderTemplate>
-                    <GroupStyle.Panel>
-                        <ItemsPanelTemplate>
-                            <DataGridRowsPresenter />
-                        </ItemsPanelTemplate>
-                    </GroupStyle.Panel>
-                </GroupStyle>
-            </DataGrid.GroupStyle>
+        <Border Grid.Row="2"
+                Margin="16,0,16,12"
+                Padding="16"
+                Background="#FFFFFFFF"
+                CornerRadius="12"
+                BorderBrush="#FFE0E7FF"
+                BorderThickness="1">
+            <StackPanel>
+                <TextBlock Text="Экспресс-анализ"
+                           FontWeight="SemiBold"
+                           Foreground="#FF1F2937" />
+                <TextBlock Margin="0,6,0,0"
+                           Text="{Binding ExpressAnalysis}"
+                           TextWrapping="Wrap"
+                           Foreground="#FF374151" />
+            </StackPanel>
+        </Border>
 
-            <DataGrid.Columns>
-                <DataGridTextColumn Header="#" Binding="{Binding SeqDisplay}" Width="60"/>
-                <DataGridTextColumn Header="Ход" Binding="{Binding LineSummary.DisplayName}" Width="80"/>
-                <DataGridTextColumn Header="Порядок" Binding="{Binding ShotIndexWithinLine}" Width="70"/>
-                <DataGridTextColumn Header="Тип" Binding="{Binding ShotType}" Width="80"/>
-                <DataGridTextColumn Header="Mode" Binding="{Binding Mode}" Width="90"/>
-                <DataGridTextColumn Header="Точка" Binding="{Binding PointLabel}" Width="150"/>
-                <DataGridTextColumn Header="Station" Binding="{Binding StationCode}" Width="110"/>
-                <DataGridTextColumn Header="Rb, м" Binding="{Binding Rb_m, StringFormat=F4}" Width="90"/>
-                <DataGridTextColumn Header="Rf, м" Binding="{Binding Rf_m, StringFormat=F4}" Width="90"/>
-                <DataGridTextColumn Header="HD, м" Binding="{Binding HD_m, StringFormat=F2}" Width="90"/>
-                <DataGridTextColumn Header="Z, м" Binding="{Binding Z_m, StringFormat=F4}" Width="110"/>
-                <DataGridTextColumn Header="Δh, м" Binding="{Binding DeltaH, StringFormat=F4}" Width="90"/>
-            </DataGrid.Columns>
-        </DataGrid>
+        <Border Grid.Row="3"
+                Margin="16,0,16,16"
+                Background="#FFFFFFFF"
+                CornerRadius="12"
+                BorderBrush="#FFE0E7FF"
+                BorderThickness="1"
+                Padding="8">
+            <DataGrid x:Name="RecordsGrid"
+                      ItemsSource="{Binding Source={StaticResource RecordsGrouped}}"
+                      AutoGenerateColumns="False"
+                      CanUserAddRows="False"
+                      IsReadOnly="True"
+                      Margin="0"
+                      RowHeaderWidth="0"
+                      HeadersVisibility="Column"
+                      GridLinesVisibility="Horizontal"
+                      AlternationCount="2"
+                      EnableRowVirtualization="True"
+                      SelectionUnit="FullRow"
+                      SelectionMode="Single"
+                      Background="Transparent"
+                      RowBackground="#FFF8FAFF"
+                      AlternatingRowBackground="#FFFFFFFF"
+                      HorizontalGridLinesBrush="#FFE2E8F0">
+                <DataGrid.Resources>
+                    <SolidColorBrush x:Key="{x:Static SystemColors.HighlightBrushKey}" Color="#FF2563EB" />
+                    <SolidColorBrush x:Key="{x:Static SystemColors.ControlBrushKey}" Color="#FF2563EB" />
+                    <SolidColorBrush x:Key="{x:Static SystemColors.HighlightTextBrushKey}" Color="#FFFFFFFF" />
+                </DataGrid.Resources>
+
+                <DataGrid.ColumnHeaderStyle>
+                    <Style TargetType="DataGridColumnHeader">
+                        <Setter Property="Background" Value="#FFEEF2FF" />
+                        <Setter Property="Foreground" Value="#FF1F2937" />
+                        <Setter Property="FontWeight" Value="SemiBold" />
+                        <Setter Property="Padding" Value="8,6" />
+                        <Setter Property="BorderBrush" Value="#FFD0D7FF" />
+                        <Setter Property="BorderThickness" Value="0,0,1,1" />
+                    </Style>
+                </DataGrid.ColumnHeaderStyle>
+
+                <DataGrid.CellStyle>
+                    <Style TargetType="DataGridCell">
+                        <Setter Property="BorderThickness" Value="0" />
+                        <Setter Property="Padding" Value="6,4" />
+                    </Style>
+                </DataGrid.CellStyle>
+
+                <DataGrid.RowStyle>
+                    <Style TargetType="DataGridRow">
+                        <Setter Property="FontSize" Value="13" />
+                        <Setter Property="Margin" Value="0,0,0,4" />
+                        <Setter Property="Background" Value="Transparent" />
+                        <Setter Property="SnapsToDevicePixels" Value="True" />
+                        <Style.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#FFE2E8F0" />
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter Property="Background" Value="{DynamicResource {x:Static SystemColors.HighlightBrushKey}}" />
+                                <Setter Property="Foreground" Value="{DynamicResource {x:Static SystemColors.HighlightTextBrushKey}}" />
+                            </Trigger>
+                            <MultiDataTrigger>
+                                <MultiDataTrigger.Conditions>
+                                    <Condition Binding="{Binding IsLineStart}" Value="True" />
+                                    <Condition Binding="{Binding RelativeSource={RelativeSource Self}, Path=IsSelected}" Value="False" />
+                                </MultiDataTrigger.Conditions>
+                                <Setter Property="FontWeight" Value="SemiBold" />
+                                <Setter Property="Background" Value="#FFE6F0FF" />
+                            </MultiDataTrigger>
+                            <MultiDataTrigger>
+                                <MultiDataTrigger.Conditions>
+                                    <Condition Binding="{Binding IsLineEnd}" Value="True" />
+                                    <Condition Binding="{Binding RelativeSource={RelativeSource Self}, Path=IsSelected}" Value="False" />
+                                </MultiDataTrigger.Conditions>
+                                <Setter Property="FontWeight" Value="SemiBold" />
+                                <Setter Property="Background" Value="#FFFFF4DD" />
+                            </MultiDataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </DataGrid.RowStyle>
+
+                <DataGrid.GroupStyle>
+                    <GroupStyle>
+                        <GroupStyle.ContainerStyle>
+                            <Style TargetType="GroupItem">
+                                <Setter Property="Margin" Value="0,8,0,0" />
+                            </Style>
+                        </GroupStyle.ContainerStyle>
+                        <GroupStyle.HeaderTemplate>
+                            <DataTemplate>
+                                <Border Background="#FFEEF2FF"
+                                        BorderBrush="#FFD0D7FF"
+                                        BorderThickness="1"
+                                        CornerRadius="10"
+                                        Padding="10"
+                                        Margin="0,4,0,4">
+                                    <StackPanel>
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="{Binding Items[0].LineSummary.DisplayName}"
+                                                       FontWeight="SemiBold"
+                                                       Foreground="#FF1F2937" />
+                                            <TextBlock Text="{Binding Items[0].LineSummary.RangeDisplay}"
+                                                       Margin="12,0,0,0"
+                                                       Foreground="#FF374151" />
+                                        </StackPanel>
+                                        <TextBlock Text="{Binding Items[0].LineSummary.CombinedStats}"
+                                                   Margin="0,6,0,0"
+                                                   Foreground="#FF4B5563" />
+                                        <TextBlock Text="{Binding Items[0].LineSummary.BalanceComment}"
+                                                   Margin="0,2,0,0"
+                                                   Foreground="#FF6366F1" />
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </GroupStyle.HeaderTemplate>
+                        <GroupStyle.Panel>
+                            <ItemsPanelTemplate>
+                                <DataGridRowsPresenter />
+                            </ItemsPanelTemplate>
+                        </GroupStyle.Panel>
+                    </GroupStyle>
+                </DataGrid.GroupStyle>
+
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="#" Binding="{Binding SeqDisplay}" Width="60" />
+                    <DataGridTextColumn Header="Ход" Binding="{Binding LineSummary.DisplayName}" Width="80" />
+                    <DataGridTextColumn Header="Порядок" Binding="{Binding ShotIndexWithinLine}" Width="70" />
+                    <DataGridTextColumn Header="Тип" Binding="{Binding ShotType}" Width="80" />
+                    <DataGridTextColumn Header="Mode" Binding="{Binding Mode}" Width="90" />
+                    <DataGridTextColumn Header="Точка" Binding="{Binding PointLabel}" Width="150" />
+                    <DataGridTextColumn Header="Station" Binding="{Binding StationCode}" Width="110" />
+                    <DataGridTextColumn Header="Rb, м" Binding="{Binding Rb_m, StringFormat=F4}" Width="90" />
+                    <DataGridTextColumn Header="Rf, м" Binding="{Binding Rf_m, StringFormat=F4}" Width="90" />
+                    <DataGridTextColumn Header="HD, м" Binding="{Binding HD_m, StringFormat=F2}" Width="90" />
+                    <DataGridTextColumn Header="Z, м" Binding="{Binding Z_m, StringFormat=F4}" Width="110" />
+                    <DataGridTextColumn Header="Δh, м" Binding="{Binding DeltaH, StringFormat=F4}" Width="90" />
+                </DataGrid.Columns>
+            </DataGrid>
+        </Border>
     </Grid>
 </UserControl>

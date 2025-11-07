@@ -27,9 +27,11 @@
                     </ToolBar>
                     <ToolBar>
                         <Label Content="Ход:"/>
-                        <ComboBox Width="220"
-                                  ItemsSource="{Binding Lines}"
-                                  SelectedItem="{Binding SelectedLine}"/>
+                        <ComboBox Width="240"
+                                  ItemsSource="{Binding DataViewModel.Runs}"
+                                  SelectedItem="{Binding SelectedRun}"
+                                  DisplayMemberPath="Header"
+                                  ToolTipService.ShowDuration="20000"/>
                         <Separator/>
                         <Button Content="Проверка допуска"
                                 Command="{Binding CheckToleranceCommand}"/>

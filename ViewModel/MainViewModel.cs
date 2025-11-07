@@ -1,11 +1,11 @@
 ﻿using System;
-using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Windows;
 using System.Windows.Input;
 using Microsoft.Win32;
+using Nivtropy.Models;
 using Nivtropy.Views;
 
 namespace Nivtropy.ViewModels
@@ -18,12 +18,19 @@ namespace Nivtropy.ViewModels
         public object? CurrentView { get; set; }
         public DataViewModel DataViewModel { get; } = new();
 
-        public ObservableCollection<string> Lines { get; } = new();
-        private string? _selectedLine;
-        public string? SelectedLine
+        private LineSummary? _selectedRun;
+        public LineSummary? SelectedRun
         {
-            get => _selectedLine;
-            set { _selectedLine = value; OnPropertyChanged(); /* TODO: фильтровать по ходу */ }
+            get => _selectedRun;
+            set
+            {
+                if (!ReferenceEquals(_selectedRun, value))
+                {
+                    _selectedRun = value;
+                    DataViewModel.SelectedRun = value;
+                    OnPropertyChanged();
+                }
+            }
         }
 
         public bool ShowZ { get; set; } = true;
@@ -44,7 +51,7 @@ namespace Nivtropy.ViewModels
             if (dlg.ShowDialog() == true)
             {
                 DataViewModel.LoadFromFile(dlg.FileName);
-                SyncLinesWithData();
+                SyncSelectionWithData();
                 CurrentView = new DataViewControl { DataContext = DataViewModel };
                 OnPropertyChanged(nameof(CurrentView));
             }
@@ -54,8 +61,15 @@ namespace Nivtropy.ViewModels
         {
             if (!string.IsNullOrEmpty(DataViewModel.SourcePath))
             {
+                var previousIndex = SelectedRun?.Index;
                 DataViewModel.LoadFromFile(DataViewModel.SourcePath);
-                SyncLinesWithData();
+                SelectedRun = previousIndex.HasValue
+                    ? DataViewModel.Runs.FirstOrDefault(r => r.Index == previousIndex.Value)
+                    : null;
+                if (SelectedRun == null)
+                {
+                    SyncSelectionWithData();
+                }
             }
         }
 
@@ -86,14 +100,9 @@ namespace Nivtropy.ViewModels
             MessageBox.Show("Проверка допусков будет реализована на шаге обработки.", "Nivtropy");
         }
 
-        private void SyncLinesWithData()
+        private void SyncSelectionWithData()
         {
-            Lines.Clear();
-            foreach (var run in DataViewModel.Runs)
-            {
-                Lines.Add(run.Header);
-            }
-            SelectedLine = Lines.FirstOrDefault();
+            SelectedRun = DataViewModel.Runs.FirstOrDefault();
         }
     }
 }
