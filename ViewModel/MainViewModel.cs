@@ -1,38 +1,113 @@
-﻿using System;
-using System.Collections.ObjectModel;
+using System;
 using System.ComponentModel;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Windows;
 using System.Windows.Input;
 using Microsoft.Win32;
+using Nivtropy;
+using Nivtropy.Models;
 using Nivtropy.Views;
 
 namespace Nivtropy.ViewModels
 {
     public class MainViewModel : INotifyPropertyChanged
     {
+        private readonly DataViewControl _dataView;
+        private readonly TraverseCalculationView _calculationView;
+        private readonly TraverseDesignView _designView;
+
+        public MainViewModel()
+        {
+            DataViewModel = new DataViewModel();
+            DataViewModel.PropertyChanged += OnDataViewModelPropertyChanged;
+
+            CalculationViewModel = new TraverseCalculationViewModel(DataViewModel);
+            DesignViewModel = new TraverseDesignViewModel(DataViewModel);
+
+            _dataView = new DataViewControl { DataContext = DataViewModel };
+            _calculationView = new TraverseCalculationView { DataContext = CalculationViewModel };
+            _designView = new TraverseDesignView { DataContext = DesignViewModel };
+
+            SelectedTab = RibbonTab.Main;
+        }
+
         public event PropertyChangedEventHandler? PropertyChanged;
         private void OnPropertyChanged([CallerMemberName] string? name = null) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 
-        public object? CurrentView { get; set; }
-        public DataViewModel DataViewModel { get; } = new();
-
-        public ObservableCollection<string> Lines { get; } = new();
-        private string? _selectedLine;
-        public string? SelectedLine
+        private bool SetField<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
         {
-            get => _selectedLine;
-            set { _selectedLine = value; OnPropertyChanged(); /* TODO: фильтровать по ходу */ }
+            if (Equals(field, value))
+                return false;
+            field = value;
+            OnPropertyChanged(propertyName);
+            return true;
         }
 
-        public bool ShowZ { get; set; } = true;
-        public bool OnlyValid { get; set; } = false;
+        private object? _currentView;
+        public object? CurrentView
+        {
+            get => _currentView;
+            private set => SetField(ref _currentView, value);
+        }
+
+        private RibbonTab _selectedTab;
+        public RibbonTab SelectedTab
+        {
+            get => _selectedTab;
+            set
+            {
+                if (SetField(ref _selectedTab, value))
+                {
+                    UpdateCurrentView();
+                }
+            }
+        }
+
+        public DataViewModel DataViewModel { get; }
+        public TraverseCalculationViewModel CalculationViewModel { get; }
+        public TraverseDesignViewModel DesignViewModel { get; }
+
+        public LineSummary? SelectedRun
+        {
+            get => DataViewModel.SelectedRun;
+            set
+            {
+                if (!ReferenceEquals(DataViewModel.SelectedRun, value))
+                {
+                    DataViewModel.SelectedRun = value;
+                    OnPropertyChanged();
+                    CalculationViewModel.RequestRecalculation();
+                    DesignViewModel.NotifyRunChanged();
+                }
+            }
+        }
 
         public ICommand OpenFileCommand => new RelayCommand(_ => OpenFile());
         public ICommand RefreshCommand => new RelayCommand(_ => Refresh());
         public ICommand ExportCsvCommand => new RelayCommand(_ => ExportCsv(), _ => DataViewModel.Records.Count > 0);
         public ICommand CheckToleranceCommand => new RelayCommand(_ => CheckTolerance(), _ => DataViewModel.Records.Count > 0);
+
+        private void UpdateCurrentView()
+        {
+            CurrentView = SelectedTab switch
+            {
+                RibbonTab.Main => _dataView,
+                RibbonTab.Calculations => _calculationView,
+                RibbonTab.Design => _designView,
+                _ => _dataView
+            };
+        }
+
+        private void OnDataViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == nameof(DataViewModel.SelectedRun))
+            {
+                OnPropertyChanged(nameof(SelectedRun));
+                CalculationViewModel.RequestRecalculation();
+                DesignViewModel.NotifyRunChanged();
+            }
+        }
 
         private void OpenFile()
         {
@@ -44,19 +119,32 @@ namespace Nivtropy.ViewModels
             if (dlg.ShowDialog() == true)
             {
                 DataViewModel.LoadFromFile(dlg.FileName);
-                SyncLinesWithData();
-                CurrentView = new DataViewControl { DataContext = DataViewModel };
-                OnPropertyChanged(nameof(CurrentView));
+                OnPropertyChanged(nameof(SelectedRun));
+                CalculationViewModel.RequestRecalculation();
+                DesignViewModel.NotifyRunChanged();
+                UpdateCurrentView();
             }
         }
 
         private void Refresh()
         {
-            if (!string.IsNullOrEmpty(DataViewModel.SourcePath))
+            if (string.IsNullOrEmpty(DataViewModel.SourcePath))
+                return;
+
+            var previousIndex = SelectedRun?.Index;
+            DataViewModel.LoadFromFile(DataViewModel.SourcePath);
+            if (previousIndex.HasValue)
             {
-                DataViewModel.LoadFromFile(DataViewModel.SourcePath);
-                SyncLinesWithData();
+                var run = DataViewModel.Runs.FirstOrDefault(r => r.Index == previousIndex.Value);
+                if (run != null)
+                {
+                    DataViewModel.SelectedRun = run;
+                }
             }
+
+            OnPropertyChanged(nameof(SelectedRun));
+            CalculationViewModel.RequestRecalculation();
+            DesignViewModel.NotifyRunChanged();
         }
 
         private void ExportCsv()
@@ -82,18 +170,8 @@ namespace Nivtropy.ViewModels
 
         private void CheckTolerance()
         {
-            // Заглушка: здесь позже появится расчёт невязки и допусков
-            MessageBox.Show("Проверка допусков будет реализована на шаге обработки.", "Nivtropy");
-        }
-
-        private void SyncLinesWithData()
-        {
-            Lines.Clear();
-            foreach (var run in DataViewModel.Runs)
-            {
-                Lines.Add(run.Header);
-            }
-            SelectedLine = Lines.FirstOrDefault();
+            var report = CalculationViewModel.BuildToleranceReport();
+            MessageBox.Show(report, "Расчёт BF/FB", MessageBoxButton.OK, MessageBoxImage.Information);
         }
     }
 }

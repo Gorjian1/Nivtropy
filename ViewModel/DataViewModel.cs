@@ -34,6 +34,20 @@ namespace Nivtropy.ViewModels
 
         public string? FileName => string.IsNullOrWhiteSpace(SourcePath) ? null : Path.GetFileName(SourcePath);
 
+        private LineSummary? _selectedRun;
+        public LineSummary? SelectedRun
+        {
+            get => _selectedRun;
+            set
+            {
+                if (!ReferenceEquals(_selectedRun, value))
+                {
+                    _selectedRun = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
         public event PropertyChangedEventHandler? PropertyChanged;
         private void OnPropertyChanged([CallerMemberName] string? name = null) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 
@@ -50,6 +64,10 @@ namespace Nivtropy.ViewModels
             {
                 Records.Add(rec);
             }
+
+            SelectedRun = Runs.FirstOrDefault();
+            OnPropertyChanged(nameof(Records));
+            OnPropertyChanged(nameof(Runs));
         }
 
         private void AnnotateRuns(IList<MeasurementRecord> records)

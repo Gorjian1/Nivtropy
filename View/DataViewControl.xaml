@@ -19,22 +19,28 @@
 
     <Grid>
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
         <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="8,8,8,4">
-            <TextBlock Text="Данные из файла" FontWeight="SemiBold"/>
+            <TextBlock Text="Данные из файла" FontWeight="SemiBold" />
             <TextBlock Margin="12,0,0,0"
-                       Text="{Binding FileName, TargetNullValue=«Файл не выбран»}"/>
+                       Text="{Binding FileName, TargetNullValue=«Файл не выбран»}" />
             <TextBlock Margin="12,0,0,0"
-                       Text="{Binding Runs.Count, StringFormat=• Ходов: {0}}"/>
+                       Text="{Binding Runs.Count, StringFormat=• Ходов: {0}}" />
             <TextBlock Margin="12,0,0,0"
-                       Text="{Binding Records.Count, StringFormat=• Отсчётов: {0}}"/>
+                       Text="{Binding Records.Count, StringFormat=• Отсчётов: {0}}" />
         </StackPanel>
 
-        <DataGrid Grid.Row="1"
+        <Border Grid.Row="1" Margin="8,0,8,4" Padding="8"
+                Background="#FFF8F8F8" BorderBrush="#FFE0E0E0" BorderThickness="1">
+            <TextBlock Text="Выберите ход вверху ленты, чтобы пролистать таблицу автоматически." />
+        </Border>
+
+        <DataGrid x:Name="RecordsGrid"
+                  Grid.Row="2"
                   ItemsSource="{Binding Source={StaticResource RecordsGrouped}}"
                   AutoGenerateColumns="False"
                   CanUserAddRows="False"
@@ -52,13 +58,16 @@
                     <Setter Property="Background" Value="Transparent" />
                     <Style.Triggers>
                         <Trigger Property="IsSelected" Value="True">
-                            <Setter Property="Background" Value="{DynamicResource {x:Static SystemColors.HighlightBrushKey}}" />
-                            <Setter Property="Foreground" Value="{DynamicResource {x:Static SystemColors.HighlightTextBrushKey}}" />
+                            <Setter Property="Background"
+                                    Value="{DynamicResource {x:Static SystemColors.HighlightBrushKey}}" />
+                            <Setter Property="Foreground"
+                                    Value="{DynamicResource {x:Static SystemColors.HighlightTextBrushKey}}" />
                         </Trigger>
                         <MultiDataTrigger>
                             <MultiDataTrigger.Conditions>
                                 <Condition Binding="{Binding IsLineStart}" Value="True" />
-                                <Condition Binding="{Binding RelativeSource={RelativeSource Self}, Path=IsSelected}" Value="False" />
+                                <Condition Binding="{Binding RelativeSource={RelativeSource Self}, Path=IsSelected}"
+                                           Value="False" />
                             </MultiDataTrigger.Conditions>
                             <Setter Property="FontWeight" Value="SemiBold" />
                             <Setter Property="Background" Value="#FFE8F5FF" />
@@ -66,7 +75,8 @@
                         <MultiDataTrigger>
                             <MultiDataTrigger.Conditions>
                                 <Condition Binding="{Binding IsLineEnd}" Value="True" />
-                                <Condition Binding="{Binding RelativeSource={RelativeSource Self}, Path=IsSelected}" Value="False" />
+                                <Condition Binding="{Binding RelativeSource={RelativeSource Self}, Path=IsSelected}"
+                                           Value="False" />
                             </MultiDataTrigger.Conditions>
                             <Setter Property="FontWeight" Value="SemiBold" />
                             <Setter Property="Background" Value="#FFFFF4E5" />
@@ -84,11 +94,13 @@
                     </GroupStyle.ContainerStyle>
                     <GroupStyle.HeaderTemplate>
                         <DataTemplate>
-                            <Border Background="#FFF2F2F2" BorderBrush="#FFE0E0E0" BorderThickness="1" Padding="8" CornerRadius="4">
+                            <Border Background="#FFF2F2F2" BorderBrush="#FFE0E0E0" BorderThickness="1" Padding="8"
+                                    CornerRadius="4">
                                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                     <TextBlock Text="{Binding Items[0].LineSummary.DisplayName}" FontWeight="SemiBold" />
                                     <TextBlock Text="{Binding Items[0].LineSummary.RangeDisplay}" Margin="12,0,0,0" />
-                                    <TextBlock Text="{Binding Items[0].LineSummary.CombinedStats}" Margin="24,0,0,0" Foreground="#FF606060" />
+                                    <TextBlock Text="{Binding Items[0].LineSummary.CombinedStats}" Margin="24,0,0,0"
+                                               Foreground="#FF606060" />
                                 </StackPanel>
                             </Border>
                         </DataTemplate>
@@ -102,18 +114,18 @@
             </DataGrid.GroupStyle>
 
             <DataGrid.Columns>
-                <DataGridTextColumn Header="#" Binding="{Binding SeqDisplay}" Width="60"/>
-                <DataGridTextColumn Header="Ход" Binding="{Binding LineSummary.DisplayName}" Width="80"/>
-                <DataGridTextColumn Header="Порядок" Binding="{Binding ShotIndexWithinLine}" Width="70"/>
-                <DataGridTextColumn Header="Тип" Binding="{Binding ShotType}" Width="80"/>
-                <DataGridTextColumn Header="Mode" Binding="{Binding Mode}" Width="90"/>
-                <DataGridTextColumn Header="Точка" Binding="{Binding PointLabel}" Width="150"/>
-                <DataGridTextColumn Header="Station" Binding="{Binding StationCode}" Width="110"/>
-                <DataGridTextColumn Header="Rb, м" Binding="{Binding Rb_m, StringFormat=F4}" Width="90"/>
-                <DataGridTextColumn Header="Rf, м" Binding="{Binding Rf_m, StringFormat=F4}" Width="90"/>
-                <DataGridTextColumn Header="HD, м" Binding="{Binding HD_m, StringFormat=F2}" Width="90"/>
-                <DataGridTextColumn Header="Z, м" Binding="{Binding Z_m, StringFormat=F4}" Width="110"/>
-                <DataGridTextColumn Header="Δh, м" Binding="{Binding DeltaH, StringFormat=F4}" Width="90"/>
+                <DataGridTextColumn Header="#" Binding="{Binding SeqDisplay}" Width="60" />
+                <DataGridTextColumn Header="Ход" Binding="{Binding LineSummary.DisplayName}" Width="80" />
+                <DataGridTextColumn Header="Порядок" Binding="{Binding ShotIndexWithinLine}" Width="70" />
+                <DataGridTextColumn Header="Тип" Binding="{Binding ShotType}" Width="80" />
+                <DataGridTextColumn Header="Mode" Binding="{Binding Mode}" Width="90" />
+                <DataGridTextColumn Header="Точка" Binding="{Binding PointLabel}" Width="150" />
+                <DataGridTextColumn Header="Station" Binding="{Binding StationCode}" Width="110" />
+                <DataGridTextColumn Header="Rb, м" Binding="{Binding Rb_m, StringFormat=F4}" Width="90" />
+                <DataGridTextColumn Header="Rf, м" Binding="{Binding Rf_m, StringFormat=F4}" Width="90" />
+                <DataGridTextColumn Header="HD, м" Binding="{Binding HD_m, StringFormat=F2}" Width="90" />
+                <DataGridTextColumn Header="Z, м" Binding="{Binding Z_m, StringFormat=F4}" Width="110" />
+                <DataGridTextColumn Header="Δh, м" Binding="{Binding DeltaH, StringFormat=F4}" Width="90" />
             </DataGrid.Columns>
         </DataGrid>
     </Grid>
