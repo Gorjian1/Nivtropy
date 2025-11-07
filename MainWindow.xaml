@@ -50,6 +50,12 @@
                                   SelectedItem="{Binding CalculationViewModel.SelectedRun, Mode=TwoWay}"
                                   DisplayMemberPath="Header"/>
                         <Separator/>
+                        <Label Content="Метод:"/>
+                        <ComboBox Width="140"
+                                  ItemsSource="{Binding CalculationViewModel.Methods}"
+                                  SelectedItem="{Binding CalculationViewModel.SelectedMethod, Mode=TwoWay}"
+                                  DisplayMemberPath="Display"/>
+                        <Separator/>
                         <Label Content="Класс:"/>
                         <ComboBox Width="160"
                                   ItemsSource="{Binding CalculationViewModel.Classes}"

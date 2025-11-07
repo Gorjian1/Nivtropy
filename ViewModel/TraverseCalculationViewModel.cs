@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
@@ -14,14 +15,19 @@ namespace Nivtropy.ViewModels
         private readonly DataViewModel _dataViewModel;
         private readonly ObservableCollection<TraverseRow> _rows = new();
 
+        private readonly LevelingMethodOption[] _methods =
+        {
+            new("BF", "Двойной ход (Back → Forward)", ToleranceMode.SqrtStations, 0.004),
+            new("FB", "Двойной ход (Forward → Back)", ToleranceMode.SqrtStations, 0.004)
+        };
+
         private readonly LevelingClassOption[] _classes =
         {
-            new("BF", "Двойной ход: 4 мм · √n", ToleranceMode.SqrtStations, 0.004),
-            new("FB", "Обратный двойной ход: 4 мм · √n", ToleranceMode.SqrtStations, 0.004),
             new("III", "Класс III: 10 мм · √L", ToleranceMode.SqrtLength, 0.010),
             new("IV", "Класс IV: 20 мм · √L", ToleranceMode.SqrtLength, 0.020)
         };
 
+        private LevelingMethodOption? _selectedMethod;
         private LevelingClassOption? _selectedClass;
         private double? _closure;
         private double? _allowableClosure;
@@ -29,6 +35,8 @@ namespace Nivtropy.ViewModels
         private double _totalBackDistance;
         private double _totalForeDistance;
         private double _totalAverageDistance;
+        private double? _methodTolerance;
+        private double? _classTolerance;
         private int _stationsCount;
 
         public TraverseCalculationViewModel(DataViewModel dataViewModel)
@@ -38,7 +46,8 @@ namespace Nivtropy.ViewModels
             ((INotifyCollectionChanged)_dataViewModel.Runs).CollectionChanged += (_, __) => OnPropertyChanged(nameof(Runs));
             _dataViewModel.PropertyChanged += DataViewModelOnPropertyChanged;
 
-            _selectedClass = _classes.First();
+            _selectedMethod = _methods.FirstOrDefault();
+            _selectedClass = _classes.FirstOrDefault();
             UpdateRows();
         }
 
@@ -48,7 +57,22 @@ namespace Nivtropy.ViewModels
         public ObservableCollection<TraverseRow> Rows => _rows;
         public ObservableCollection<LineSummary> Runs => _dataViewModel.Runs;
 
+        public LevelingMethodOption[] Methods => _methods;
         public LevelingClassOption[] Classes => _classes;
+
+        public LevelingMethodOption? SelectedMethod
+        {
+            get => _selectedMethod;
+            set
+            {
+                if (_selectedMethod != value)
+                {
+                    _selectedMethod = value;
+                    OnPropertyChanged();
+                    UpdateTolerance();
+                }
+            }
+        }
 
         public LevelingClassOption? SelectedClass
         {
@@ -81,13 +105,33 @@ namespace Nivtropy.ViewModels
         public double? Closure
         {
             get => _closure;
-            private set => SetField(ref _closure, value);
+            private set
+            {
+                if (SetField(ref _closure, value))
+                {
+                    OnPropertyChanged(nameof(ClosureAbsolute));
+                }
+            }
         }
+
+        public double? ClosureAbsolute => Closure.HasValue ? Math.Abs(Closure.Value) : null;
 
         public double? AllowableClosure
         {
             get => _allowableClosure;
             private set => SetField(ref _allowableClosure, value);
+        }
+
+        public double? MethodTolerance
+        {
+            get => _methodTolerance;
+            private set => SetField(ref _methodTolerance, value);
+        }
+
+        public double? ClassTolerance
+        {
+            get => _classTolerance;
+            private set => SetField(ref _classTolerance, value);
         }
 
         public string ClosureVerdict
@@ -171,26 +215,69 @@ namespace Nivtropy.ViewModels
 
         private void UpdateTolerance()
         {
-            if (SelectedClass == null || !Closure.HasValue || StationsCount == 0)
+            if (!Closure.HasValue || StationsCount == 0)
             {
                 AllowableClosure = null;
-                ClosureVerdict = StationsCount == 0 ? "Нет данных для расчёта." : "Выберите класс нивелирного хода.";
+                MethodTolerance = null;
+                ClassTolerance = null;
+                ClosureVerdict = StationsCount == 0 ? "Нет данных для расчёта." : "Выберите параметры расчёта.";
                 return;
             }
 
-            double tolerance = SelectedClass.Mode switch
-            {
-                ToleranceMode.SqrtStations => SelectedClass.Coefficient * Math.Sqrt(Math.Max(StationsCount, 1)),
-                ToleranceMode.SqrtLength => SelectedClass.Coefficient * Math.Sqrt(Math.Max(TotalLengthKilometers, 1e-6)),
-                _ => 0
-            };
+            MethodTolerance = TryCalculateTolerance(SelectedMethod);
+            ClassTolerance = TryCalculateTolerance(SelectedClass);
 
-            AllowableClosure = tolerance;
+            var toleranceCandidates = new[] { MethodTolerance, ClassTolerance }
+                .Where(v => v.HasValue)
+                .Select(v => v!.Value)
+                .ToList();
+
+            AllowableClosure = toleranceCandidates.Count > 0 ? toleranceCandidates.Min() : (double?)null;
 
             var absClosure = Math.Abs(Closure.Value);
-            ClosureVerdict = absClosure <= tolerance
-                ? "В пределах допуска."
-                : "Превышение допуска!";
+
+            if (!AllowableClosure.HasValue)
+            {
+                ClosureVerdict = "Выберите метод или класс для оценки допуска.";
+                return;
+            }
+
+            var verdict = absClosure <= AllowableClosure.Value
+                ? "Общий вывод: в пределах допуска."
+                : "Общий вывод: превышение допуска!";
+
+            var details = new List<string>();
+
+            if (MethodTolerance.HasValue && SelectedMethod != null)
+            {
+                details.Add(absClosure <= MethodTolerance.Value
+                    ? $"Метод {SelectedMethod.Code}: в норме."
+                    : $"Метод {SelectedMethod.Code}: превышение." );
+            }
+
+            if (ClassTolerance.HasValue && SelectedClass != null)
+            {
+                details.Add(absClosure <= ClassTolerance.Value
+                    ? $"Класс {SelectedClass.Code}: в норме."
+                    : $"Класс {SelectedClass.Code}: превышение." );
+            }
+
+            ClosureVerdict = details.Count > 0
+                ? string.Join(" ", new[] { verdict }.Concat(details))
+                : verdict;
+        }
+
+        private double? TryCalculateTolerance(IToleranceOption? option)
+        {
+            if (option == null)
+                return null;
+
+            return option.Mode switch
+            {
+                ToleranceMode.SqrtStations => option.Coefficient * Math.Sqrt(Math.Max(StationsCount, 1)),
+                ToleranceMode.SqrtLength => option.Coefficient * Math.Sqrt(Math.Max(TotalLengthKilometers, 1e-6)),
+                _ => null
+            };
         }
 
         private bool SetField<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
@@ -209,7 +296,21 @@ namespace Nivtropy.ViewModels
         SqrtLength
     }
 
-    public record LevelingClassOption(string Code, string Description, ToleranceMode Mode, double Coefficient)
+    public interface IToleranceOption
+    {
+        string Code { get; }
+        string Description { get; }
+        ToleranceMode Mode { get; }
+        double Coefficient { get; }
+        string Display { get; }
+    }
+
+    public record LevelingMethodOption(string Code, string Description, ToleranceMode Mode, double Coefficient) : IToleranceOption
+    {
+        public string Display => Code;
+    }
+
+    public record LevelingClassOption(string Code, string Description, ToleranceMode Mode, double Coefficient) : IToleranceOption
     {
         public string Display => Code;
     }

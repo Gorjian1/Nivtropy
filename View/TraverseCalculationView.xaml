@@ -39,7 +39,7 @@
                 <TextBlock Text="{Binding Closure, StringFormat=+0.0000;-0.0000;0.0000}" />
             </StackPanel>
             <StackPanel Grid.Column="2">
-                <TextBlock Text="Допуск, м" FontWeight="SemiBold" />
+                <TextBlock Text="Решающий допуск, м" FontWeight="SemiBold" />
                 <TextBlock Text="{Binding AllowableClosure, StringFormat=0.0000}" />
             </StackPanel>
 
@@ -55,9 +55,28 @@
                 <TextBlock Text="Средняя длина, м" FontWeight="SemiBold" />
                 <TextBlock Text="{Binding TotalAverageDistance, StringFormat=0.00}" />
             </StackPanel>
+
+            <StackPanel Grid.Column="0" Margin="0,96,0,0">
+                <TextBlock Text="Допуск по методу, м" FontWeight="SemiBold" />
+                <TextBlock Text="{Binding MethodTolerance, StringFormat=0.0000}" />
+            </StackPanel>
+            <StackPanel Grid.Column="1" Margin="0,96,0,0">
+                <TextBlock Text="Допуск по классу, м" FontWeight="SemiBold" />
+                <TextBlock Text="{Binding ClassTolerance, StringFormat=0.0000}" />
+            </StackPanel>
+            <StackPanel Grid.Column="2" Margin="0,96,0,0">
+                <TextBlock Text="Δh по модулю, м" FontWeight="SemiBold" />
+                <TextBlock Text="{Binding ClosureAbsolute, StringFormat=0.0000}" />
+            </StackPanel>
         </Grid>
 
-        <StackPanel Grid.Row="1" Margin="8" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Bottom">
+        <StackPanel Grid.Row="1"
+                    Margin="8"
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Stretch"
+                    VerticalAlignment="Bottom">
+            <TextBlock Text="{Binding SelectedMethod.Description}"
+                       Margin="0,0,16,0" />
             <TextBlock Text="{Binding SelectedClass.Description}" />
         </StackPanel>
 
