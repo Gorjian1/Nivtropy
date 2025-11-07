@@ -1,6 +1,5 @@
-﻿using System.Windows;
+using System.Windows;
 using Nivtropy.ViewModels;
-using Nivtropy.Views;
 
 namespace Nivtropy
 {
@@ -9,10 +8,7 @@ namespace Nivtropy
         public MainWindow()
         {
             InitializeComponent();
-            var vm = new MainViewModel();
-            // Первичный вид: таблица измерений
-            vm.CurrentView = new DataViewControl { DataContext = vm.DataViewModel };
-            DataContext = vm;
+            DataContext = new MainViewModel();
         }
     }
 }

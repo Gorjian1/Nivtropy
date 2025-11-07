@@ -34,7 +34,8 @@
                        Text="{Binding Records.Count, StringFormat=• Отсчётов: {0}}"/>
         </StackPanel>
 
-        <DataGrid Grid.Row="1"
+        <DataGrid x:Name="RecordsGrid"
+                  Grid.Row="1"
                   ItemsSource="{Binding Source={StaticResource RecordsGrouped}}"
                   AutoGenerateColumns="False"
                   CanUserAddRows="False"

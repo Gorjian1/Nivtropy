@@ -34,8 +34,25 @@ namespace Nivtropy.ViewModels
 
         public string? FileName => string.IsNullOrWhiteSpace(SourcePath) ? null : Path.GetFileName(SourcePath);
 
+        private LineSummary? _selectedRun;
+        public LineSummary? SelectedRun
+        {
+            get => _selectedRun;
+            set => SetField(ref _selectedRun, value);
+        }
+
         public event PropertyChangedEventHandler? PropertyChanged;
         private void OnPropertyChanged([CallerMemberName] string? name = null) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+
+        private bool SetField<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
+        {
+            if (EqualityComparer<T>.Default.Equals(field, value))
+                return false;
+
+            field = value;
+            OnPropertyChanged(propertyName);
+            return true;
+        }
 
         public void LoadFromFile(string path)
         {
@@ -56,7 +73,10 @@ namespace Nivtropy.ViewModels
         {
             Runs.Clear();
             if (records.Count == 0)
+            {
+                SelectedRun = null;
                 return;
+            }
 
             var groups = new List<List<MeasurementRecord>>();
             var current = new List<MeasurementRecord>();
@@ -101,6 +121,8 @@ namespace Nivtropy.ViewModels
 
                 index++;
             }
+
+            SelectedRun = Runs.FirstOrDefault();
         }
 
         private static bool ShouldStartNewLine(MeasurementRecord previous, MeasurementRecord current)
