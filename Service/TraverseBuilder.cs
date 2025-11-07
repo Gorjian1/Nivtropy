@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
+using System.Linq;
 using Nivtropy.Models;
 
 namespace Nivtropy.Services
@@ -6,17 +7,26 @@ namespace Nivtropy.Services
     public static class TraverseBuilder
     {
         // Наивное спаривание: внутри линии Rb и Rf идут парой (порядок любой).
-        public static List<TraverseRow> Build(IEnumerable<MeasurementRecord> records)
+        public static List<TraverseRow> Build(IEnumerable<MeasurementRecord> records, LineSummary? run = null)
         {
             var list = new List<TraverseRow>();
-            string line = "?";
-            TraverseRow pending = null;
+            string line = run?.DisplayName ?? "?";
+            TraverseRow? pending = null;
             int idx = 1;
 
             foreach (var r in records)
             {
-               // if (r.IsStartLine) { line = r.LineName ?? line; pending = null; idx = 1; continue; }
-                //if (r.IsEndLine) { if (pending != null) { list.Add(pending); pending = null; } continue; }
+                if (r.LineSummary != null && !ReferenceEquals(r.LineSummary, run) && r.LineSummary.DisplayName != line)
+                {
+                    if (pending != null)
+                    {
+                        list.Add(pending);
+                        pending = null;
+                    }
+
+                    line = r.LineSummary.DisplayName;
+                    idx = 1;
+                }
 
                 if (r.Rb_m.HasValue)
                 {

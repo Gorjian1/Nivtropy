@@ -16,7 +16,6 @@ namespace Nivtropy.ViewModels
     {
         public ObservableCollection<MeasurementRecord> Records { get; } = new();
         public ObservableCollection<LineSummary> Runs { get; } = new();
-        public ObservableCollection<QuickStatCard> QuickStats { get; } = new();
 
         private string? _sourcePath;
         public string? SourcePath
@@ -34,70 +33,6 @@ namespace Nivtropy.ViewModels
         }
 
         public string? FileName => string.IsNullOrWhiteSpace(SourcePath) ? null : Path.GetFileName(SourcePath);
-
-        private int _recordsCount;
-        public int RecordsCount
-        {
-            get => _recordsCount;
-            private set => SetField(ref _recordsCount, value);
-        }
-
-        private int _validRecordsCount;
-        public int ValidRecordsCount
-        {
-            get => _validRecordsCount;
-            private set
-            {
-                if (SetField(ref _validRecordsCount, value))
-                {
-                    OnPropertyChanged(nameof(InvalidRecordsCount));
-                }
-            }
-        }
-
-        public int InvalidRecordsCount => RecordsCount - ValidRecordsCount;
-
-        private double? _deltaHSum;
-        public double? DeltaHSum
-        {
-            get => _deltaHSum;
-            private set => SetField(ref _deltaHSum, value);
-        }
-
-        private double? _averageDeltaH;
-        public double? AverageDeltaH
-        {
-            get => _averageDeltaH;
-            private set => SetField(ref _averageDeltaH, value);
-        }
-
-        private double? _minDeltaH;
-        public double? MinDeltaH
-        {
-            get => _minDeltaH;
-            private set => SetField(ref _minDeltaH, value);
-        }
-
-        private double? _maxDeltaH;
-        public double? MaxDeltaH
-        {
-            get => _maxDeltaH;
-            private set => SetField(ref _maxDeltaH, value);
-        }
-
-        private double? _maxAbsDeltaH;
-        public double? MaxAbsDeltaH
-        {
-            get => _maxAbsDeltaH;
-            private set => SetField(ref _maxAbsDeltaH, value);
-        }
-
-        private string _expressAnalysis = "Загрузите файл для анализа.";
-        public string ExpressAnalysis
-        {
-            get => _expressAnalysis;
-            private set => SetField(ref _expressAnalysis, value);
-        }
 
         private LineSummary? _selectedRun;
         public LineSummary? SelectedRun
@@ -122,9 +57,6 @@ namespace Nivtropy.ViewModels
         {
             SourcePath = path;
             Records.Clear();
-            Runs.Clear();
-            QuickStats.Clear();
-            SelectedRun = null;
 
             var parser = new DatParser();
             var parsed = parser.Parse(path).ToList();
@@ -134,12 +66,11 @@ namespace Nivtropy.ViewModels
             {
                 Records.Add(rec);
             }
-
-            UpdateAnalytics();
         }
 
         private void AnnotateRuns(IList<MeasurementRecord> records)
         {
+            Runs.Clear();
             if (records.Count == 0)
                 return;
 
@@ -186,152 +117,6 @@ namespace Nivtropy.ViewModels
 
                 index++;
             }
-        }
-
-        private void UpdateAnalytics()
-        {
-            RecordsCount = Records.Count;
-            ValidRecordsCount = Records.Count(r => r.IsValid);
-
-            var deltas = Records.Select(r => r.DeltaH)
-                .Where(v => v.HasValue)
-                .Select(v => v!.Value)
-                .ToList();
-
-            if (deltas.Count > 0)
-            {
-                DeltaHSum = deltas.Sum();
-                AverageDeltaH = deltas.Average();
-                MinDeltaH = deltas.Min();
-                MaxDeltaH = deltas.Max();
-                MaxAbsDeltaH = deltas.Max(v => Math.Abs(v));
-            }
-            else
-            {
-                DeltaHSum = null;
-                AverageDeltaH = null;
-                MinDeltaH = null;
-                MaxDeltaH = null;
-                MaxAbsDeltaH = null;
-            }
-
-            BuildQuickStats();
-            ExpressAnalysis = BuildExpressAnalysis();
-        }
-
-        private void BuildQuickStats()
-        {
-            QuickStats.Clear();
-
-            if (RecordsCount == 0)
-            {
-                QuickStats.Add(new QuickStatCard("Данных нет", "—", "Загрузите файл, чтобы увидеть показатели.", "#FF94A3B8"));
-                return;
-            }
-
-            var runsCount = Runs.Count;
-            var avgShotsPerRun = runsCount > 0 ? (double)RecordsCount / runsCount : 0d;
-            QuickStats.Add(new QuickStatCard(
-                "Ходы",
-                runsCount.ToString(CultureInfo.InvariantCulture),
-                runsCount > 0
-                    ? string.Format(CultureInfo.InvariantCulture, "Средний размер: {0:0.0} отсч.", avgShotsPerRun)
-                    : "Ходы не определены",
-                "#FF6366F1"));
-
-            var validPercent = RecordsCount > 0 ? (double)ValidRecordsCount / RecordsCount : 0d;
-            QuickStats.Add(new QuickStatCard(
-                "Отсчёты",
-                RecordsCount.ToString(CultureInfo.InvariantCulture),
-                string.Format(CultureInfo.InvariantCulture, "Валидных: {0} ({1:P0})", ValidRecordsCount, validPercent),
-                "#FF0EA5E9"));
-
-            var rangeText = (MinDeltaH.HasValue && MaxDeltaH.HasValue)
-                ? string.Format(CultureInfo.InvariantCulture, "Диапазон: {0:+0.0000;-0.0000;0.0000}…{1:+0.0000;-0.0000;0.0000} м", MinDeltaH.Value, MaxDeltaH.Value)
-                : "Диапазон: —";
-            var deltaValue = DeltaHSum.HasValue ? $"{FormatSigned(DeltaHSum)} м" : "—";
-            QuickStats.Add(new QuickStatCard(
-                "ΣΔh",
-                deltaValue,
-                string.Format(CultureInfo.InvariantCulture, "Средняя Δh: {0} м. {1}", FormatSigned(AverageDeltaH), rangeText),
-                "#FFF97316"));
-
-            var maxDeltaValue = MaxAbsDeltaH.HasValue ? $"{FormatAbs(MaxAbsDeltaH)} м" : "—";
-            QuickStats.Add(new QuickStatCard(
-                "|Δh|max",
-                maxDeltaValue,
-                DescribeMaxAbsDelta(),
-                "#FF22C55E"));
-        }
-
-        private string BuildExpressAnalysis()
-        {
-            if (RecordsCount == 0)
-                return "Данных для анализа пока нет.";
-
-            var sb = new StringBuilder();
-            sb.AppendFormat(CultureInfo.InvariantCulture, "Файл содержит {0} ход(ов) и {1} отсчётов.", Runs.Count, RecordsCount);
-
-            if (RecordsCount > 0)
-            {
-                var validPercent = (double)ValidRecordsCount / RecordsCount;
-                sb.AppendFormat(CultureInfo.InvariantCulture, " Валидность измерений: {0} ({1:P0}).", ValidRecordsCount, validPercent);
-            }
-
-            if (DeltaHSum.HasValue)
-            {
-                sb.AppendFormat(CultureInfo.InvariantCulture, " ΣΔh = {0} м", FormatSigned(DeltaHSum));
-                if (AverageDeltaH.HasValue)
-                {
-                    sb.AppendFormat(CultureInfo.InvariantCulture, ", средняя Δh = {0} м", FormatSigned(AverageDeltaH));
-                }
-                sb.Append('.');
-            }
-
-            if (MaxAbsDeltaH.HasValue)
-            {
-                sb.Append(' ');
-                sb.Append(DescribeMaxAbsDelta());
-            }
-
-            var longestRun = Runs.OrderByDescending(r => r.RecordCount).FirstOrDefault();
-            if (longestRun != null)
-            {
-                sb.AppendFormat(CultureInfo.InvariantCulture, " Самый длинный ход: {0} ({1} отсч.).", longestRun.DisplayName, longestRun.RecordCount);
-            }
-
-            return sb.ToString();
-        }
-
-        private string DescribeMaxAbsDelta()
-        {
-            if (!MaxAbsDeltaH.HasValue)
-                return "Разброс Δh пока не определён.";
-
-            var abs = MaxAbsDeltaH.Value;
-            var verdict = abs switch
-            {
-                < 0.003 => "Очень стабильные измерения.",
-                < 0.007 => "Хорошая согласованность отсчётов.",
-                < 0.012 => "Разброс в пределах нормы.",
-                _ => "Разброс превышает норму — проверьте исходные данные."
-            };
-
-            return string.Format(CultureInfo.InvariantCulture, "Максимальная |Δh| = {0} м. {1}", FormatAbs(MaxAbsDeltaH), verdict);
-        }
-
-        private static string FormatSigned(double? value)
-        {
-            return value.HasValue
-                ? string.Format(CultureInfo.InvariantCulture, "{0:+0.0000;-0.0000;0.0000}", value.Value)
-                : "—";
-        }
-
-        private static string FormatAbs(double? value)
-        {
-            return value.HasValue
-                ? string.Format(CultureInfo.InvariantCulture, "{0:0.0000}", Math.Abs(value.Value))
-                : "—";
         }
 
         private static bool ShouldStartNewLine(MeasurementRecord previous, MeasurementRecord current)

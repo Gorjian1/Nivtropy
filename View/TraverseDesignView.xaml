@@ -1,0 +1,75 @@
+<UserControl x:Class="Nivtropy.Views.TraverseDesignView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d"
+             d:DesignHeight="450"
+             d:DesignWidth="800">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0" Margin="8">
+            <TextBlock Text="Проектирование исходных данных"
+                       FontSize="16"
+                       FontWeight="SemiBold" />
+            <TextBlock Margin="0,4,0,0"
+                       Text="Распределение невязки и расчёт проектных высот." />
+        </StackPanel>
+
+        <Grid Grid.Row="1" Margin="8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <StackPanel>
+                <TextBlock Text="Фактическая ΣΔh" FontWeight="SemiBold" />
+                <TextBlock Text="{Binding ActualClosure, StringFormat=+0.0000;-0.0000;0.0000}" />
+            </StackPanel>
+
+            <StackPanel Grid.Column="1">
+                <TextBlock Text="Целевая ΣΔh" FontWeight="SemiBold" />
+                <TextBlock Text="{Binding TargetClosure, StringFormat=+0.0000;-0.0000;0.0000}" />
+            </StackPanel>
+
+            <StackPanel Grid.Column="2">
+                <TextBlock Text="Коррекция / станцию" FontWeight="SemiBold" />
+                <TextBlock Text="{Binding CorrectionPerStation, StringFormat=+0.0000;-0.0000;0.0000}" />
+            </StackPanel>
+
+            <StackPanel Grid.Column="0" Margin="0,48,0,0">
+                <TextBlock Text="Начальная отметка" FontWeight="SemiBold" />
+                <TextBlock Text="{Binding StartHeight, StringFormat=0.000}" />
+            </StackPanel>
+            <StackPanel Grid.Column="1" Margin="0,48,0,0">
+                <TextBlock Text="Проектная ΣΔh" FontWeight="SemiBold" />
+                <TextBlock Text="{Binding DesignedClosure, StringFormat=+0.0000;-0.0000;0.0000}" />
+            </StackPanel>
+        </Grid>
+
+        <Border Grid.Row="2" Margin="8" BorderBrush="#FFB0B0B0" BorderThickness="1">
+            <DataGrid ItemsSource="{Binding Rows}"
+                      AutoGenerateColumns="False"
+                      CanUserAddRows="False"
+                      IsReadOnly="True"
+                      HeadersVisibility="Column"
+                      Margin="0"
+                      RowHeaderWidth="0">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="№" Binding="{Binding Index}" Width="60" />
+                    <DataGridTextColumn Header="Станция" Binding="{Binding Station}" Width="200" />
+                    <DataGridTextColumn Header="Δh исходн., м" Binding="{Binding OriginalDeltaH, StringFormat=+0.0000;-0.0000;0.0000}" Width="140" />
+                    <DataGridTextColumn Header="Коррекция, м" Binding="{Binding Correction, StringFormat=+0.0000;-0.0000;0.0000}" Width="130" />
+                    <DataGridTextColumn Header="Δh проектн., м" Binding="{Binding AdjustedDeltaH, StringFormat=+0.0000;-0.0000;0.0000}" Width="140" />
+                    <DataGridTextColumn Header="Проектная отметка, м" Binding="{Binding DesignedHeight, StringFormat=0.000}" Width="160" />
+                </DataGrid.Columns>
+            </DataGrid>
+        </Border>
+    </Grid>
+</UserControl>

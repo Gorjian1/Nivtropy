@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 
 namespace Nivtropy.Models
 {
@@ -17,5 +17,9 @@ namespace Nivtropy.Models
         public double? HdFore_m { get; set; }
         public double? HdImbalance_m => (HdBack_m.HasValue && HdFore_m.HasValue)
             ? Math.Abs(HdBack_m.Value - HdFore_m.Value) : null;
+
+        public string Station => string.IsNullOrWhiteSpace(BackCode) && string.IsNullOrWhiteSpace(ForeCode)
+            ? LineName
+            : $"{BackCode ?? "?"} → {ForeCode ?? "?"}";
     }
 }
