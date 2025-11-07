@@ -15,15 +15,40 @@ namespace Nivtropy.ViewModels
         public event PropertyChangedEventHandler? PropertyChanged;
         private void OnPropertyChanged([CallerMemberName] string? name = null) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 
-        public object? CurrentView { get; set; }
+        private object? _currentView;
+        public object? CurrentView
+        {
+            get => _currentView;
+            private set
+            {
+                if (!Equals(_currentView, value))
+                {
+                    _currentView = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
         public DataViewModel DataViewModel { get; } = new();
+
+        private readonly DataViewControl _dataViewControl;
+
+        public MainViewModel()
+        {
+            _dataViewControl = new DataViewControl { DataContext = DataViewModel };
+            CurrentView = _dataViewControl;
+        }
 
         public ObservableCollection<string> Lines { get; } = new();
         private string? _selectedLine;
         public string? SelectedLine
         {
             get => _selectedLine;
-            set { _selectedLine = value; OnPropertyChanged(); /* TODO: фильтровать по ходу */ }
+            set
+            {
+                _selectedLine = value;
+                OnPropertyChanged();
+                DataViewModel.RequestedLineHeader = value;
+            }
         }
 
         public bool ShowZ { get; set; } = true;
@@ -45,8 +70,7 @@ namespace Nivtropy.ViewModels
             {
                 DataViewModel.LoadFromFile(dlg.FileName);
                 SyncLinesWithData();
-                CurrentView = new DataViewControl { DataContext = DataViewModel };
-                OnPropertyChanged(nameof(CurrentView));
+                CurrentView = _dataViewControl;
             }
         }
 

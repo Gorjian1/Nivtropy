@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Globalization;
 using System.IO;
@@ -16,6 +17,20 @@ namespace Nivtropy.ViewModels
     {
         public ObservableCollection<MeasurementRecord> Records { get; } = new();
         public ObservableCollection<LineSummary> Runs { get; } = new();
+
+        public DataViewModel()
+        {
+            Records.CollectionChanged += OnCollectionChanged;
+            Runs.CollectionChanged += OnCollectionChanged;
+        }
+
+        private void OnCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+        {
+            if (!_suppressNotifications)
+            {
+                RefreshComputedProperties();
+            }
+        }
 
         private string? _sourcePath;
         public string? SourcePath
@@ -40,6 +55,7 @@ namespace Nivtropy.ViewModels
         public void LoadFromFile(string path)
         {
             SourcePath = path;
+            _suppressNotifications = true;
             Records.Clear();
 
             var parser = new DatParser();
@@ -50,6 +66,9 @@ namespace Nivtropy.ViewModels
             {
                 Records.Add(rec);
             }
+
+            _suppressNotifications = false;
+            RefreshComputedProperties();
         }
 
         private void AnnotateRuns(IList<MeasurementRecord> records)
@@ -171,5 +190,126 @@ namespace Nivtropy.ViewModels
                 }));
             }
         }
+
+        public int TotalRuns => Runs.Count;
+        public int TotalRecords => Records.Count;
+        public int ValidRecords => Records.Count(r => r.IsValid);
+        public int InvalidRecords => TotalRecords - ValidRecords;
+        public int PairShotsCount => Records.Count(r => r.Rb_m.HasValue && r.Rf_m.HasValue);
+        public int SingleShotsCount => Records.Count(r => r.Rb_m.HasValue ^ r.Rf_m.HasValue);
+
+        public double? DeltaHSum
+        {
+            get
+            {
+                var values = Records.Where(r => r.DeltaH.HasValue).Select(r => r.DeltaH!.Value).ToList();
+                if (values.Count == 0)
+                    return null;
+                return values.Sum();
+            }
+        }
+
+        public double? DeltaHMin
+        {
+            get
+            {
+                var values = Records.Where(r => r.DeltaH.HasValue).Select(r => r.DeltaH!.Value).ToList();
+                return values.Count > 0 ? values.Min() : null;
+            }
+        }
+
+        public double? DeltaHMax
+        {
+            get
+            {
+                var values = Records.Where(r => r.DeltaH.HasValue).Select(r => r.DeltaH!.Value).ToList();
+                return values.Count > 0 ? values.Max() : null;
+            }
+        }
+
+        public double? DeltaHAbsMax
+        {
+            get
+            {
+                var values = Records.Where(r => r.DeltaH.HasValue).Select(r => Math.Abs(r.DeltaH!.Value)).ToList();
+                return values.Count > 0 ? values.Max() : null;
+            }
+        }
+
+        public string? LongestRunHeader => GetLongestRun()?.Header;
+        public string? LongestRunRange => GetLongestRun()?.RangeDisplay;
+
+        private string? _requestedLineHeader;
+        public string? RequestedLineHeader
+        {
+            get => _requestedLineHeader;
+            set
+            {
+                _requestedLineHeader = value;
+                OnPropertyChanged();
+            }
+        }
+
+        public string ExpressAnalysis
+        {
+            get
+            {
+                if (TotalRecords == 0)
+                    return "Загрузите файл, чтобы увидеть экспресс-анализ.";
+
+                var sb = new StringBuilder();
+                if (DeltaHAbsMax.HasValue)
+                {
+                    sb.AppendFormat(CultureInfo.InvariantCulture, "Макс |Δh| {0:0.0000} м", DeltaHAbsMax.Value);
+                }
+                else
+                {
+                    sb.Append("Невязки отсутствуют");
+                }
+
+                if (InvalidRecords > 0)
+                {
+                    sb.AppendFormat(CultureInfo.InvariantCulture, ", пустых отсчётов: {0}", InvalidRecords);
+                }
+                else
+                {
+                    sb.Append(", все отсчёты заполнены");
+                }
+
+                var dominantRun = GetLongestRun();
+                if (dominantRun != null)
+                {
+                    sb.AppendFormat(CultureInfo.InvariantCulture, ", {0} ({1} отсчётов)", dominantRun.Header, dominantRun.RecordCount);
+                }
+
+                if (sb.Length > 0 && sb[sb.Length - 1] != '.')
+                {
+                    sb.Append('.');
+                }
+
+                return sb.ToString();
+            }
+        }
+
+        private void RefreshComputedProperties()
+        {
+            OnPropertyChanged(nameof(TotalRuns));
+            OnPropertyChanged(nameof(TotalRecords));
+            OnPropertyChanged(nameof(ValidRecords));
+            OnPropertyChanged(nameof(InvalidRecords));
+            OnPropertyChanged(nameof(PairShotsCount));
+            OnPropertyChanged(nameof(SingleShotsCount));
+            OnPropertyChanged(nameof(DeltaHSum));
+            OnPropertyChanged(nameof(DeltaHMin));
+            OnPropertyChanged(nameof(DeltaHMax));
+            OnPropertyChanged(nameof(DeltaHAbsMax));
+            OnPropertyChanged(nameof(LongestRunHeader));
+            OnPropertyChanged(nameof(LongestRunRange));
+            OnPropertyChanged(nameof(ExpressAnalysis));
+        }
+
+        private bool _suppressNotifications;
+
+        private LineSummary? GetLongestRun() => Runs.OrderByDescending(r => r.RecordCount).FirstOrDefault();
     }
 }

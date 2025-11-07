@@ -6,6 +6,14 @@
              xmlns:scm="clr-namespace:System.ComponentModel;assembly=WindowsBase"
              mc:Ignorable="d" d:DesignHeight="450" d:DesignWidth="800">
     <UserControl.Resources>
+        <SolidColorBrush x:Key="HeaderBackgroundBrush" Color="#FF0F2742" />
+        <SolidColorBrush x:Key="HeaderForegroundBrush" Color="#FFF7FBFF" />
+        <SolidColorBrush x:Key="HeaderBorderBrush" Color="#FF174A8C" />
+        <SolidColorBrush x:Key="CardBackgroundBrush" Color="#FFF5F8FC" />
+        <SolidColorBrush x:Key="AccentBrush" Color="#FF2E7DFF" />
+        <SolidColorBrush x:Key="AccentMutedBrush" Color="#FFD9E6FF" />
+        <SolidColorBrush x:Key="NeutralBrush" Color="#FF37474F" />
+
         <CollectionViewSource x:Key="RecordsGrouped" Source="{Binding Records}">
             <CollectionViewSource.SortDescriptions>
                 <scm:SortDescription PropertyName="LineSummary.Index" />
@@ -15,45 +23,198 @@
                 <PropertyGroupDescription PropertyName="GroupKey" />
             </CollectionViewSource.GroupDescriptions>
         </CollectionViewSource>
+
+        <Style x:Key="DataGridHeaderStyle" TargetType="DataGridColumnHeader">
+            <Setter Property="Background" Value="{StaticResource HeaderBackgroundBrush}" />
+            <Setter Property="Foreground" Value="{StaticResource HeaderForegroundBrush}" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Padding" Value="10,6" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="BorderBrush" Value="{StaticResource HeaderBorderBrush}" />
+            <Setter Property="BorderThickness" Value="0,0,1,0" />
+        </Style>
+
+        <Style x:Key="MetricTitleText" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Foreground" Value="{StaticResource NeutralBrush}" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+        </Style>
+        <Style x:Key="MetricValueText" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="20" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="#FF0A2440" />
+        </Style>
     </UserControl.Resources>
 
-    <Grid>
+    <Grid Background="#FFFDFEFF">
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="8,8,8,4">
-            <TextBlock Text="Данные из файла" FontWeight="SemiBold"/>
-            <TextBlock Margin="12,0,0,0"
-                       Text="{Binding FileName, TargetNullValue=«Файл не выбран»}"/>
-            <TextBlock Margin="12,0,0,0"
-                       Text="{Binding Runs.Count, StringFormat=• Ходов: {0}}"/>
-            <TextBlock Margin="12,0,0,0"
-                       Text="{Binding Records.Count, StringFormat=• Отсчётов: {0}}"/>
-        </StackPanel>
+        <Border Grid.Row="0"
+                Margin="8,10,8,6"
+                Padding="14"
+                CornerRadius="12"
+                Background="#FF0F2742">
+            <StackPanel>
+                <TextBlock Text="Данные из файла"
+                           FontSize="18"
+                           FontWeight="SemiBold"
+                           Foreground="{StaticResource HeaderForegroundBrush}" />
+                <WrapPanel Margin="0,8,0,0">
+                    <Border Margin="0,0,8,8"
+                            Padding="12,4"
+                            CornerRadius="14"
+                            Background="#FFFFFFFF" 
+                            Opacity="0.95">
+                        <TextBlock Text="{Binding FileName, TargetNullValue=Файл не выбран}"
+                                   Foreground="#FF0F2742"
+                                   FontWeight="SemiBold" />
+                    </Border>
+                    <Border Margin="0,0,8,8"
+                            Padding="12,4"
+                            CornerRadius="14"
+                            Background="{StaticResource AccentMutedBrush}">
+                        <TextBlock Text="{Binding Runs.Count, StringFormat=Ходов: {0}}"
+                                   Foreground="#FF0F2742" />
+                    </Border>
+                    <Border Margin="0,0,8,8"
+                            Padding="12,4"
+                            CornerRadius="14"
+                            Background="{StaticResource AccentMutedBrush}">
+                        <TextBlock Text="{Binding Records.Count, StringFormat=Отсчётов: {0}}"
+                                   Foreground="#FF0F2742" />
+                    </Border>
+                    <Border Margin="0,0,8,8"
+                            Padding="12,4"
+                            CornerRadius="14"
+                            Background="#33FFFFFF">
+                        <TextBlock Text="{Binding ExpressAnalysis}"
+                                   Foreground="{StaticResource HeaderForegroundBrush}"
+                                   TextWrapping="Wrap"
+                                   MaxWidth="420" />
+                    </Border>
+                </WrapPanel>
+            </StackPanel>
+        </Border>
 
-        <DataGrid Grid.Row="1"
+        <Border Grid.Row="1"
+                Margin="8,0,8,10"
+                Padding="12"
+                Background="{StaticResource CardBackgroundBrush}"
+                CornerRadius="12"
+                BorderBrush="#FFE2E8F0"
+                BorderThickness="1">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <StackPanel>
+                    <TextBlock Style="{StaticResource MetricTitleText}" Text="Ходы и отсчёты" />
+                    <TextBlock Style="{StaticResource MetricValueText}"
+                               Text="{Binding TotalRuns, StringFormat={}{0} ход(ов)}" />
+                    <TextBlock Margin="0,4,0,0"
+                               Foreground="{StaticResource NeutralBrush}" 
+                               Text="{Binding TotalRecords, StringFormat={}{0} отсчётов всего}" />
+                </StackPanel>
+
+                <StackPanel Grid.Column="1">
+                    <TextBlock Style="{StaticResource MetricTitleText}" Text="Типы отсчётов" />
+                    <TextBlock Style="{StaticResource MetricValueText}"
+                               Text="{Binding PairShotsCount, StringFormat={}{0} парных}" />
+                    <TextBlock Margin="0,4,0,0" Foreground="{StaticResource NeutralBrush}">
+                        <Run Text="Одиночных: " />
+                        <Run Text="{Binding SingleShotsCount}" />
+                        <Run Text=", пустых: " />
+                        <Run Text="{Binding InvalidRecords}" />
+                    </TextBlock>
+                </StackPanel>
+
+                <StackPanel Grid.Column="2">
+                    <TextBlock Style="{StaticResource MetricTitleText}" Text="Невязки Δh" />
+                    <TextBlock Style="{StaticResource MetricValueText}"
+                               Foreground="{StaticResource AccentBrush}"
+                               Text="{Binding DeltaHSum, TargetNullValue=—, StringFormat={}{0:+0.0000;-0.0000;0.0000} м}" />
+                    <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                        <TextBlock Foreground="{StaticResource NeutralBrush}"
+                                   Text="Диапазон: " />
+                        <TextBlock Foreground="{StaticResource NeutralBrush}"
+                                   Text="{Binding DeltaHMin, TargetNullValue=—, StringFormat={}{0:+0.0000;-0.0000;0.0000}}" />
+                        <TextBlock Foreground="{StaticResource NeutralBrush}" Text=" … " />
+                        <TextBlock Foreground="{StaticResource NeutralBrush}"
+                                   Text="{Binding DeltaHMax, TargetNullValue=—, StringFormat={}{0:+0.0000;-0.0000;0.0000}}" />
+                    </StackPanel>
+                    <TextBlock Margin="0,2,0,0" Foreground="{StaticResource NeutralBrush}"
+                               Text="{Binding DeltaHAbsMax, TargetNullValue=Макс |Δh|: —, StringFormat=Макс |Δh|: {0:0.0000} м}" />
+                </StackPanel>
+
+                <StackPanel Grid.Column="3">
+                    <TextBlock Style="{StaticResource MetricTitleText}" Text="Самый длинный ход" />
+                    <TextBlock Style="{StaticResource MetricValueText}"
+                               Text="{Binding LongestRunHeader, TargetNullValue=—}" />
+                    <TextBlock Margin="0,4,0,0" Foreground="{StaticResource NeutralBrush}"
+                               Text="{Binding LongestRunRange, TargetNullValue=Выберите ход для подробностей}" />
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <Border Grid.Row="2"
+                Margin="8,0,8,12"
+                Padding="10"
+                Background="#FFE8F1FF"
+                BorderBrush="#FFC6D8FF"
+                CornerRadius="10">
+            <TextBlock Text="Выберите ход в панели сверху, чтобы перейти к соответствующим строкам таблицы."
+                       Foreground="#FF1B3350" />
+        </Border>
+
+        <DataGrid x:Name="RecordsGrid"
+                  Grid.Row="3"
                   ItemsSource="{Binding Source={StaticResource RecordsGrouped}}"
                   AutoGenerateColumns="False"
                   CanUserAddRows="False"
                   IsReadOnly="True"
-                  Margin="8"
+                  Margin="8,0,8,12"
                   RowHeaderWidth="0"
                   HeadersVisibility="Column"
                   GridLinesVisibility="Horizontal"
                   AlternationCount="2"
                   EnableRowVirtualization="True"
-                  SelectionUnit="FullRow">
+                  SelectionUnit="FullRow"
+                  Background="#FFFFFFFF"
+                  RowBackground="#FFF7F9FC"
+                  AlternatingRowBackground="#FFEFF3F8"
+                  BorderBrush="#FFE0E6EF"
+                  BorderThickness="1"
+                  ColumnHeaderHeight="34"
+                  ColumnHeaderStyle="{StaticResource DataGridHeaderStyle}">
+            <DataGrid.Resources>
+                <SolidColorBrush x:Key="{x:Static SystemColors.HighlightBrushKey}" Color="#FF2E7DFF" />
+                <SolidColorBrush x:Key="{x:Static SystemColors.InactiveSelectionHighlightBrushKey}" Color="#FFB3D4FF" />
+                <SolidColorBrush x:Key="{x:Static SystemColors.HighlightTextBrushKey}" Color="White" />
+            </DataGrid.Resources>
             <DataGrid.RowStyle>
                 <Style TargetType="DataGridRow">
                     <Setter Property="Margin" Value="0,0,0,2" />
                     <Setter Property="Background" Value="Transparent" />
+                    <Setter Property="SnapsToDevicePixels" Value="True" />
+                    <Setter Property="Effect">
+                        <Setter.Value>
+                            <DropShadowEffect Color="#1F0F2742" ShadowDepth="0" BlurRadius="4" Opacity="0.2" />
+                        </Setter.Value>
+                    </Setter>
                     <Style.Triggers>
                         <Trigger Property="IsSelected" Value="True">
                             <Setter Property="Background" Value="{DynamicResource {x:Static SystemColors.HighlightBrushKey}}" />
                             <Setter Property="Foreground" Value="{DynamicResource {x:Static SystemColors.HighlightTextBrushKey}}" />
+                            <Setter Property="Effect" Value="{x:Null}" />
                         </Trigger>
                         <MultiDataTrigger>
                             <MultiDataTrigger.Conditions>
@@ -61,7 +222,7 @@
                                 <Condition Binding="{Binding RelativeSource={RelativeSource Self}, Path=IsSelected}" Value="False" />
                             </MultiDataTrigger.Conditions>
                             <Setter Property="FontWeight" Value="SemiBold" />
-                            <Setter Property="Background" Value="#FFE8F5FF" />
+                            <Setter Property="Background" Value="#FFDAF0FF" />
                         </MultiDataTrigger>
                         <MultiDataTrigger>
                             <MultiDataTrigger.Conditions>
@@ -69,7 +230,7 @@
                                 <Condition Binding="{Binding RelativeSource={RelativeSource Self}, Path=IsSelected}" Value="False" />
                             </MultiDataTrigger.Conditions>
                             <Setter Property="FontWeight" Value="SemiBold" />
-                            <Setter Property="Background" Value="#FFFFF4E5" />
+                            <Setter Property="Background" Value="#FFFFECD9" />
                         </MultiDataTrigger>
                     </Style.Triggers>
                 </Style>
@@ -79,17 +240,17 @@
                 <GroupStyle>
                     <GroupStyle.ContainerStyle>
                         <Style TargetType="GroupItem">
-                            <Setter Property="Margin" Value="0,4,0,0" />
+                            <Setter Property="Margin" Value="0,6,0,0" />
                         </Style>
                     </GroupStyle.ContainerStyle>
                     <GroupStyle.HeaderTemplate>
                         <DataTemplate>
-                            <Border Background="#FFF2F2F2" BorderBrush="#FFE0E0E0" BorderThickness="1" Padding="8" CornerRadius="4">
-                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                    <TextBlock Text="{Binding Items[0].LineSummary.DisplayName}" FontWeight="SemiBold" />
-                                    <TextBlock Text="{Binding Items[0].LineSummary.RangeDisplay}" Margin="12,0,0,0" />
-                                    <TextBlock Text="{Binding Items[0].LineSummary.CombinedStats}" Margin="24,0,0,0" Foreground="#FF606060" />
-                                </StackPanel>
+                            <Border Background="#FFE9F1FB" BorderBrush="#FFBFD4F1" BorderThickness="1" Padding="10" CornerRadius="8">
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                <TextBlock Text="{Binding Items[0].LineSummary.DisplayName}" FontWeight="SemiBold" />
+                <TextBlock Margin="16,0,0,0" Text="{Binding Items[0].LineSummary.RangeDisplay}" />
+                <TextBlock Margin="16,0,0,0" Text="{Binding Items[0].LineSummary.CombinedStats}" Foreground="#FF4A5C70" />
+            </StackPanel>
                             </Border>
                         </DataTemplate>
                     </GroupStyle.HeaderTemplate>
@@ -102,18 +263,18 @@
             </DataGrid.GroupStyle>
 
             <DataGrid.Columns>
-                <DataGridTextColumn Header="#" Binding="{Binding SeqDisplay}" Width="60"/>
-                <DataGridTextColumn Header="Ход" Binding="{Binding LineSummary.DisplayName}" Width="80"/>
-                <DataGridTextColumn Header="Порядок" Binding="{Binding ShotIndexWithinLine}" Width="70"/>
-                <DataGridTextColumn Header="Тип" Binding="{Binding ShotType}" Width="80"/>
-                <DataGridTextColumn Header="Mode" Binding="{Binding Mode}" Width="90"/>
-                <DataGridTextColumn Header="Точка" Binding="{Binding PointLabel}" Width="150"/>
-                <DataGridTextColumn Header="Station" Binding="{Binding StationCode}" Width="110"/>
-                <DataGridTextColumn Header="Rb, м" Binding="{Binding Rb_m, StringFormat=F4}" Width="90"/>
-                <DataGridTextColumn Header="Rf, м" Binding="{Binding Rf_m, StringFormat=F4}" Width="90"/>
-                <DataGridTextColumn Header="HD, м" Binding="{Binding HD_m, StringFormat=F2}" Width="90"/>
-                <DataGridTextColumn Header="Z, м" Binding="{Binding Z_m, StringFormat=F4}" Width="110"/>
-                <DataGridTextColumn Header="Δh, м" Binding="{Binding DeltaH, StringFormat=F4}" Width="90"/>
+                <DataGridTextColumn Header="#" Binding="{Binding SeqDisplay}" Width="60" />
+                <DataGridTextColumn Header="Ход" Binding="{Binding LineSummary.DisplayName}" Width="90" />
+                <DataGridTextColumn Header="Порядок" Binding="{Binding ShotIndexWithinLine}" Width="70" />
+                <DataGridTextColumn Header="Тип" Binding="{Binding ShotType}" Width="90" />
+                <DataGridTextColumn Header="Mode" Binding="{Binding Mode}" Width="100" />
+                <DataGridTextColumn Header="Точка" Binding="{Binding PointLabel}" Width="150" />
+                <DataGridTextColumn Header="Station" Binding="{Binding StationCode}" Width="110" />
+                <DataGridTextColumn Header="Rb, м" Binding="{Binding Rb_m, StringFormat=F4}" Width="90" />
+                <DataGridTextColumn Header="Rf, м" Binding="{Binding Rf_m, StringFormat=F4}" Width="90" />
+                <DataGridTextColumn Header="HD, м" Binding="{Binding HD_m, StringFormat=F2}" Width="90" />
+                <DataGridTextColumn Header="Z, м" Binding="{Binding Z_m, StringFormat=F4}" Width="110" />
+                <DataGridTextColumn Header="Δh, м" Binding="{Binding DeltaH, StringFormat=F4}" Width="100" />
             </DataGrid.Columns>
         </DataGrid>
     </Grid>
