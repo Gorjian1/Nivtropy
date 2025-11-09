@@ -11,6 +11,7 @@ namespace Nivtropy.Views
     public partial class DataViewControl : UserControl
     {
         private DataViewModel? _viewModel;
+        private DataGrid? _recordsGrid;
 
         public DataViewControl()
         {
@@ -42,6 +43,16 @@ namespace Nivtropy.Views
             }
         }
 
+        private DataGrid? EnsureRecordsGrid()
+        {
+            if (_recordsGrid == null)
+            {
+                _recordsGrid = FindName("RecordsGrid") as DataGrid;
+            }
+
+            return _recordsGrid;
+        }
+
         private void ScrollToSelectedRun()
         {
             if (_viewModel?.SelectedRun is not LineSummary run)
@@ -51,13 +62,17 @@ namespace Nivtropy.Views
             if (targetRecord == null)
                 return;
 
-            if (!Equals(RecordsGrid.SelectedItem, targetRecord))
+            var recordsGrid = EnsureRecordsGrid();
+            if (recordsGrid == null)
+                return;
+
+            if (!Equals(recordsGrid.SelectedItem, targetRecord))
             {
-                RecordsGrid.SelectedItem = targetRecord;
+                recordsGrid.SelectedItem = targetRecord;
             }
 
-            RecordsGrid.UpdateLayout();
-            RecordsGrid.ScrollIntoView(targetRecord);
+            recordsGrid.UpdateLayout();
+            recordsGrid.ScrollIntoView(targetRecord);
         }
     }
 }
