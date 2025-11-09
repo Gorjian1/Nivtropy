@@ -17,8 +17,8 @@ namespace Nivtropy.ViewModels
 
         private readonly LevelingMethodOption[] _methods =
         {
-            new("BF", "Двойной ход (Back → Forward)", ToleranceMode.SqrtStations, 0.004),
-            new("FB", "Двойной ход (Forward → Back)", ToleranceMode.SqrtStations, 0.004)
+            new("BF", "Двойной ход (Back → Forward)", ToleranceMode.SqrtStations, 0.004, 1.0),
+            new("FB", "Двойной ход (Forward → Back)", ToleranceMode.SqrtStations, 0.004, -1.0)
         };
 
         private readonly LevelingClassOption[] _classes =
@@ -69,7 +69,12 @@ namespace Nivtropy.ViewModels
                 {
                     _selectedMethod = value;
                     OnPropertyChanged();
-                    UpdateTolerance();
+                    OnPropertyChanged(nameof(MethodOrientationSign));
+
+                    if (StationsCount > 0)
+                    {
+                        UpdateRows();
+                    }
                 }
             }
         }
@@ -160,6 +165,8 @@ namespace Nivtropy.ViewModels
 
         public double TotalLengthKilometers => TotalAverageDistance / 1000.0;
 
+        public double MethodOrientationSign => SelectedMethod?.OrientationSign ?? 1.0;
+
         public int StationsCount
         {
             get => _stationsCount;
@@ -188,6 +195,8 @@ namespace Nivtropy.ViewModels
                 TotalBackDistance = 0;
                 TotalForeDistance = 0;
                 TotalAverageDistance = 0;
+                MethodTolerance = null;
+                ClassTolerance = null;
                 return;
             }
 
@@ -207,10 +216,24 @@ namespace Nivtropy.ViewModels
                 ? (TotalBackDistance + TotalForeDistance) / 2.0
                 : 0;
 
-            var closure = items.Where(r => r.DeltaH.HasValue).Sum(r => r.DeltaH!.Value);
-            Closure = StationsCount > 0 ? closure : null;
-
+            RecalculateClosure();
             UpdateTolerance();
+        }
+
+        private void RecalculateClosure()
+        {
+            if (StationsCount == 0)
+            {
+                Closure = null;
+                return;
+            }
+
+            var sign = MethodOrientationSign;
+            var orientedClosure = _rows
+                .Where(r => r.DeltaH.HasValue)
+                .Sum(r => r.DeltaH!.Value * sign);
+
+            Closure = orientedClosure;
         }
 
         private void UpdateTolerance()
@@ -305,7 +328,7 @@ namespace Nivtropy.ViewModels
         string Display { get; }
     }
 
-    public record LevelingMethodOption(string Code, string Description, ToleranceMode Mode, double Coefficient) : IToleranceOption
+    public record LevelingMethodOption(string Code, string Description, ToleranceMode Mode, double Coefficient, double OrientationSign) : IToleranceOption
     {
         public string Display => Code;
     }
