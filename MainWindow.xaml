@@ -44,12 +44,6 @@
             <TabItem Header="Расчёты">
                 <ToolBarTray>
                     <ToolBar>
-                        <Label Content="Ход:"/>
-                        <ComboBox Width="200"
-                                  ItemsSource="{Binding DataViewModel.Runs}"
-                                  SelectedItem="{Binding CalculationViewModel.SelectedRun, Mode=TwoWay}"
-                                  DisplayMemberPath="Header"/>
-                        <Separator/>
                         <Label Content="Метод:"/>
                         <ComboBox Width="140"
                                   ItemsSource="{Binding CalculationViewModel.Methods}"

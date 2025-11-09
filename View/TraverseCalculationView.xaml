@@ -24,21 +24,23 @@
                        FontSize="16"
                        FontWeight="SemiBold" />
             <TextBlock Margin="0,4,0,0"
-                       Text="Суммарные параметры выбранного хода." />
+                       Text="Суммарные параметры всех загруженных ходов." />
             <StackPanel Orientation="Horizontal"
                         Margin="0,12,0,0">
-                <TextBlock Text="Метод:" VerticalAlignment="Center" />
-                <ComboBox Width="160"
-                          ItemsSource="{Binding Methods}"
-                          SelectedItem="{Binding SelectedMethod}"
-                          DisplayMemberPath="Display"
-                          Margin="8,0,16,0" />
-                <TextBlock Text="Класс:" VerticalAlignment="Center" />
-                <ComboBox Width="160"
-                          ItemsSource="{Binding Classes}"
-                          SelectedItem="{Binding SelectedClass}"
-                          DisplayMemberPath="Display"
-                          Margin="8,0,0,0" />
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="Метод:" VerticalAlignment="Center" />
+                    <TextBlock Text="{Binding SelectedMethod.Display}"
+                               FontWeight="SemiBold"
+                               Margin="8,0,0,0"
+                               VerticalAlignment="Center" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Margin="16,0,0,0">
+                    <TextBlock Text="Класс:" VerticalAlignment="Center" />
+                    <TextBlock Text="{Binding SelectedClass.Display}"
+                               FontWeight="SemiBold"
+                               Margin="8,0,0,0"
+                               VerticalAlignment="Center" />
+                </StackPanel>
             </StackPanel>
         </StackPanel>
 
@@ -49,55 +51,57 @@
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
 
-            <StackPanel>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <StackPanel Grid.Row="0">
                 <TextBlock Text="Станций" FontWeight="SemiBold" />
                 <TextBlock Text="{Binding StationsCount}" />
             </StackPanel>
-            <StackPanel Grid.Column="1">
+            <StackPanel Grid.Row="0" Grid.Column="1">
                 <TextBlock Text="ΣΔh, м" FontWeight="SemiBold" />
                 <TextBlock Text="{Binding Closure, StringFormat=+0.0000;-0.0000;0.0000}" />
             </StackPanel>
-            <StackPanel Grid.Column="2">
+            <StackPanel Grid.Row="0" Grid.Column="2">
                 <TextBlock Text="Решающий допуск, м" FontWeight="SemiBold" />
                 <TextBlock Text="{Binding AllowableClosure, StringFormat=0.0000}" />
             </StackPanel>
 
-            <StackPanel Grid.Column="0" Margin="0,48,0,0">
+            <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,16,0,0">
                 <TextBlock Text="Сумма HDback, м" FontWeight="SemiBold" />
                 <TextBlock Text="{Binding TotalBackDistance, StringFormat=0.00}" />
             </StackPanel>
-            <StackPanel Grid.Column="1" Margin="0,48,0,0">
+            <StackPanel Grid.Row="1" Grid.Column="1" Margin="0,16,0,0">
                 <TextBlock Text="Сумма HDfore, м" FontWeight="SemiBold" />
                 <TextBlock Text="{Binding TotalForeDistance, StringFormat=0.00}" />
             </StackPanel>
-            <StackPanel Grid.Column="2" Margin="0,48,0,0">
+            <StackPanel Grid.Row="1" Grid.Column="2" Margin="0,16,0,0">
                 <TextBlock Text="Средняя длина, м" FontWeight="SemiBold" />
                 <TextBlock Text="{Binding TotalAverageDistance, StringFormat=0.00}" />
             </StackPanel>
 
-            <StackPanel Grid.Column="0" Margin="0,96,0,0">
+            <StackPanel Grid.Row="2" Grid.Column="0" Margin="0,16,0,0">
                 <TextBlock Text="Допуск по методу, м" FontWeight="SemiBold" />
                 <TextBlock Text="{Binding MethodTolerance, StringFormat=0.0000}" />
             </StackPanel>
-            <StackPanel Grid.Column="1" Margin="0,96,0,0">
+            <StackPanel Grid.Row="2" Grid.Column="1" Margin="0,16,0,0">
                 <TextBlock Text="Допуск по классу, м" FontWeight="SemiBold" />
                 <TextBlock Text="{Binding ClassTolerance, StringFormat=0.0000}" />
             </StackPanel>
-            <StackPanel Grid.Column="2" Margin="0,96,0,0">
+            <StackPanel Grid.Row="2" Grid.Column="2" Margin="0,16,0,0">
                 <TextBlock Text="Δh по модулю, м" FontWeight="SemiBold" />
                 <TextBlock Text="{Binding ClosureAbsolute, StringFormat=0.0000}" />
             </StackPanel>
+            <StackPanel Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="3" Margin="0,16,0,0" Orientation="Vertical">
+                <TextBlock Text="{Binding SelectedMethod.Description}" />
+                <TextBlock Text="{Binding SelectedClass.Description}"
+                           Margin="0,4,0,0" />
+            </StackPanel>
         </Grid>
-
-        <StackPanel Grid.Row="1"
-                    Margin="8"
-                    Orientation="Horizontal"
-                    HorizontalAlignment="Stretch"
-                    VerticalAlignment="Bottom">
-            <TextBlock Text="{Binding SelectedMethod.Description}"
-                       Margin="0,0,16,0" />
-            <TextBlock Text="{Binding SelectedClass.Description}" />
-        </StackPanel>
 
         <Border Grid.Row="2" Margin="8" BorderBrush="#FFB0B0B0" BorderThickness="1">
             <DockPanel>
@@ -115,6 +119,7 @@
                           RowHeaderWidth="0">
                     <DataGrid.Columns>
                         <DataGridTextColumn Header="№" Binding="{Binding Index}" Width="60" />
+                        <DataGridTextColumn Header="Ход" Binding="{Binding LineName}" Width="120" />
                         <DataGridTextColumn Header="Станция" Binding="{Binding Station}" Width="200" />
                         <DataGridTextColumn Header="Rb, м" Binding="{Binding Rb_m, StringFormat=F4}" Width="100" />
                         <DataGridTextColumn Header="Rf, м" Binding="{Binding Rf_m, StringFormat=F4}" Width="100" />
