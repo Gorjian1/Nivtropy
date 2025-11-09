@@ -24,22 +24,25 @@
                        FontSize="16"
                        FontWeight="SemiBold" />
             <TextBlock Margin="0,4,0,0"
-                       Text="Суммарные параметры выбранного хода." />
-            <StackPanel Orientation="Horizontal"
-                        Margin="0,12,0,0">
-                <TextBlock Text="Метод:" VerticalAlignment="Center" />
-                <ComboBox Width="160"
-                          ItemsSource="{Binding Methods}"
-                          SelectedItem="{Binding SelectedMethod}"
-                          DisplayMemberPath="Display"
-                          Margin="8,0,16,0" />
-                <TextBlock Text="Класс:" VerticalAlignment="Center" />
-                <ComboBox Width="160"
-                          ItemsSource="{Binding Classes}"
-                          SelectedItem="{Binding SelectedClass}"
-                          DisplayMemberPath="Display"
-                          Margin="8,0,0,0" />
-            </StackPanel>
+                       Text="Суммарные параметры всех загруженных ходов." />
+            <WrapPanel Margin="0,8,0,0"
+                       VerticalAlignment="Center"
+                       ItemHeight="24">
+                <TextBlock Text="Метод:" FontWeight="SemiBold" />
+                <TextBlock Margin="4,0,16,0"
+                           Text="{Binding SelectedMethod.Display, TargetNullValue=-}" />
+                <TextBlock Foreground="Gray"
+                           Text="{Binding SelectedMethod.Description}" />
+            </WrapPanel>
+            <WrapPanel Margin="0,4,0,0"
+                       VerticalAlignment="Center"
+                       ItemHeight="24">
+                <TextBlock Text="Класс:" FontWeight="SemiBold" />
+                <TextBlock Margin="4,0,16,0"
+                           Text="{Binding SelectedClass.Display, TargetNullValue=-}" />
+                <TextBlock Foreground="Gray"
+                           Text="{Binding SelectedClass.Description}" />
+            </WrapPanel>
         </StackPanel>
 
         <Grid Grid.Row="1" Margin="8">
@@ -88,16 +91,6 @@
                 <TextBlock Text="{Binding ClosureAbsolute, StringFormat=0.0000}" />
             </StackPanel>
         </Grid>
-
-        <StackPanel Grid.Row="1"
-                    Margin="8"
-                    Orientation="Horizontal"
-                    HorizontalAlignment="Stretch"
-                    VerticalAlignment="Bottom">
-            <TextBlock Text="{Binding SelectedMethod.Description}"
-                       Margin="0,0,16,0" />
-            <TextBlock Text="{Binding SelectedClass.Description}" />
-        </StackPanel>
 
         <Border Grid.Row="2" Margin="8" BorderBrush="#FFB0B0B0" BorderThickness="1">
             <DockPanel>

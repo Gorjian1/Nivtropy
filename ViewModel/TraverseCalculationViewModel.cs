@@ -23,6 +23,8 @@ namespace Nivtropy.ViewModels
 
         private readonly LevelingClassOption[] _classes =
         {
+            new("I", "Класс I: 4 мм · √L", ToleranceMode.SqrtLength, 0.004),
+            new("II", "Класс II: 8 мм · √L", ToleranceMode.SqrtLength, 0.008),
             new("III", "Класс III: 10 мм · √L", ToleranceMode.SqrtLength, 0.010),
             new("IV", "Класс IV: 20 мм · √L", ToleranceMode.SqrtLength, 0.020)
         };
@@ -186,11 +188,11 @@ namespace Nivtropy.ViewModels
         {
             _rows.Clear();
 
-            if (SelectedRun == null)
+            if (_dataViewModel.Records.Count == 0)
             {
                 Closure = null;
                 AllowableClosure = null;
-                ClosureVerdict = "Выберите ход для расчёта.";
+                ClosureVerdict = "Нет данных для расчёта.";
                 StationsCount = 0;
                 TotalBackDistance = 0;
                 TotalForeDistance = 0;
@@ -200,9 +202,7 @@ namespace Nivtropy.ViewModels
                 return;
             }
 
-            var items = TraverseBuilder.Build(
-                _dataViewModel.Records.Where(r => ReferenceEquals(r.LineSummary, SelectedRun)),
-                SelectedRun);
+            var items = TraverseBuilder.Build(_dataViewModel.Records);
 
             foreach (var row in items)
             {
