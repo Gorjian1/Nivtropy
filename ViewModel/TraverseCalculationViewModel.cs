@@ -69,7 +69,7 @@ namespace Nivtropy.ViewModels
                 {
                     _selectedMethod = value;
                     OnPropertyChanged();
-                    UpdateTolerance();
+                    UpdateRows();
                 }
             }
         }
@@ -207,10 +207,22 @@ namespace Nivtropy.ViewModels
                 ? (TotalBackDistance + TotalForeDistance) / 2.0
                 : 0;
 
-            var closure = items.Where(r => r.DeltaH.HasValue).Sum(r => r.DeltaH!.Value);
+            var orientation = GetOrientationSign();
+            var closure = items.Where(r => r.DeltaH.HasValue)
+                .Sum(r => orientation * r.DeltaH!.Value);
             Closure = StationsCount > 0 ? closure : null;
 
             UpdateTolerance();
+        }
+
+        private double GetOrientationSign()
+        {
+            var code = SelectedMethod?.Code?.ToUpperInvariant();
+            return code switch
+            {
+                "FB" => -1d,
+                _ => 1d
+            };
         }
 
         private void UpdateTolerance()
