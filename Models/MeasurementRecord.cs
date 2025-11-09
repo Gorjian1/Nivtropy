@@ -11,11 +11,13 @@ namespace Nivtropy.Models
 
         public double? Rb_m { get; set; }
         public double? Rf_m { get; set; }
-        public double? HD_m { get; set; }
+        public double? HdBack_m { get; set; }
+        public double? HdFore_m { get; set; }
+        public double? HD_m => HdBack_m ?? HdFore_m;
         public double? Z_m { get; set; }
 
         public double? DeltaH => (Rb_m.HasValue && Rf_m.HasValue) ? Rb_m.Value - Rf_m.Value : null;
-        public bool IsValid => Rb_m.HasValue || Rf_m.HasValue || HD_m.HasValue || Z_m.HasValue;
+        public bool IsValid => (Rb_m.HasValue && Rf_m.HasValue) || (HdBack_m.HasValue && HdFore_m.HasValue);
 
         public LineSummary? LineSummary { get; set; }
         public int? ShotIndexWithinLine { get; set; }
@@ -35,7 +37,7 @@ namespace Nivtropy.Models
                 if (hasRb && hasRf) return "Парный";
                 if (hasRb) return "Задний";
                 if (hasRf) return "Передний";
-                if (Z_m.HasValue || HD_m.HasValue) return "Доп.";
+                if (Z_m.HasValue || HdBack_m.HasValue || HdFore_m.HasValue) return "Доп.";
                 return "—";
             }
         }
