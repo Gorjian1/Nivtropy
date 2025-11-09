@@ -12,7 +12,7 @@ namespace Nivtropy.Converters
         {
             if (values.Length < 2)
             {
-                return Binding.DoNothing;
+                return DependencyProperty.UnsetValue;
             }
 
             var delta = ExtractNullableDouble(values[0], culture);
@@ -20,14 +20,14 @@ namespace Nivtropy.Converters
 
             if (!delta.HasValue || !sign.HasValue)
             {
-                return null;
+                return DependencyProperty.UnsetValue;
             }
 
             return delta.Value * sign.Value;
         }
 
         public object[] ConvertBack(object value, Type[] targetTypes, object parameter, CultureInfo culture) =>
-            targetTypes.Select(_ => Binding.DoNothing).ToArray();
+            targetTypes.Select(_ => DependencyProperty.UnsetValue).ToArray();
 
         private static double? ExtractNullableDouble(object value, CultureInfo culture)
         {
