@@ -21,59 +21,66 @@
                        FontWeight="SemiBold" />
             <TextBlock Margin="0,4,0,0"
                        Text="Суммарные параметры выбранного хода." />
-            <TextBlock Margin="0,12,0,0"
-                       Text="{Binding SelectedMethod.Description}"
-                       TextWrapping="Wrap" />
-            <TextBlock Margin="0,4,0,0"
-                       Text="{Binding SelectedClass.Description}"
-                       TextWrapping="Wrap" />
         </StackPanel>
 
         <Grid Grid.Row="1" Margin="8">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
 
-            <StackPanel>
+            <StackPanel Grid.Row="0">
                 <TextBlock Text="Станций" FontWeight="SemiBold" />
                 <TextBlock Text="{Binding StationsCount}" />
             </StackPanel>
-            <StackPanel Grid.Column="1">
+            <StackPanel Grid.Row="0" Grid.Column="1">
                 <TextBlock Text="ΣΔh, м" FontWeight="SemiBold" />
                 <TextBlock Text="{Binding Closure, StringFormat=+0.0000;-0.0000;0.0000}" />
             </StackPanel>
-            <StackPanel Grid.Column="2">
+            <StackPanel Grid.Row="0" Grid.Column="2">
                 <TextBlock Text="Решающий допуск, м" FontWeight="SemiBold" />
                 <TextBlock Text="{Binding AllowableClosure, StringFormat=0.0000}" />
             </StackPanel>
 
-            <StackPanel Grid.Column="0" Margin="0,48,0,0">
+            <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,48,0,0">
                 <TextBlock Text="Сумма HDback, м" FontWeight="SemiBold" />
                 <TextBlock Text="{Binding TotalBackDistance, StringFormat=0.00}" />
             </StackPanel>
-            <StackPanel Grid.Column="1" Margin="0,48,0,0">
+            <StackPanel Grid.Row="0" Grid.Column="1" Margin="0,48,0,0">
                 <TextBlock Text="Сумма HDfore, м" FontWeight="SemiBold" />
                 <TextBlock Text="{Binding TotalForeDistance, StringFormat=0.00}" />
             </StackPanel>
-            <StackPanel Grid.Column="2" Margin="0,48,0,0">
+            <StackPanel Grid.Row="0" Grid.Column="2" Margin="0,48,0,0">
                 <TextBlock Text="Средняя длина, м" FontWeight="SemiBold" />
                 <TextBlock Text="{Binding TotalAverageDistance, StringFormat=0.00}" />
             </StackPanel>
 
-            <StackPanel Grid.Column="0" Margin="0,96,0,0">
+            <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,96,0,0">
                 <TextBlock Text="Допуск по методу, м" FontWeight="SemiBold" />
                 <TextBlock Text="{Binding MethodTolerance, StringFormat=0.0000}" />
             </StackPanel>
-            <StackPanel Grid.Column="1" Margin="0,96,0,0">
+            <StackPanel Grid.Row="0" Grid.Column="1" Margin="0,96,0,0">
                 <TextBlock Text="Допуск по классу, м" FontWeight="SemiBold" />
                 <TextBlock Text="{Binding ClassTolerance, StringFormat=0.0000}" />
             </StackPanel>
-            <StackPanel Grid.Column="2" Margin="0,96,0,0">
+            <StackPanel Grid.Row="0" Grid.Column="2" Margin="0,96,0,0">
                 <TextBlock Text="Δh по модулю, м" FontWeight="SemiBold" />
                 <TextBlock Text="{Binding ClosureAbsolute, StringFormat=0.0000}" />
             </StackPanel>
+
+            <TextBlock Grid.Row="1"
+                       Grid.ColumnSpan="3"
+                       Margin="0,16,0,0"
+                       TextWrapping="Wrap">
+                <Run Text="{Binding SelectedMethod.Description}" />
+                <LineBreak />
+                <Run Text="{Binding SelectedClass.Description}" />
+            </TextBlock>
         </Grid>
 
         <Border Grid.Row="2" Margin="8" BorderBrush="#FFB0B0B0" BorderThickness="1">
