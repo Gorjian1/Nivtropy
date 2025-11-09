@@ -23,6 +23,8 @@ namespace Nivtropy.ViewModels
 
         private readonly LevelingClassOption[] _classes =
         {
+            new("I", "Класс I: 1.5 мм · √L", ToleranceMode.SqrtLength, 0.0015),
+            new("II", "Класс II: 3 мм · √L", ToleranceMode.SqrtLength, 0.0030),
             new("III", "Класс III: 10 мм · √L", ToleranceMode.SqrtLength, 0.010),
             new("IV", "Класс IV: 20 мм · √L", ToleranceMode.SqrtLength, 0.020)
         };
@@ -186,23 +188,19 @@ namespace Nivtropy.ViewModels
         {
             _rows.Clear();
 
-            if (SelectedRun == null)
+            if (_dataViewModel.Records.Count == 0)
             {
-                Closure = null;
-                AllowableClosure = null;
-                ClosureVerdict = "Выберите ход для расчёта.";
-                StationsCount = 0;
-                TotalBackDistance = 0;
-                TotalForeDistance = 0;
-                TotalAverageDistance = 0;
-                MethodTolerance = null;
-                ClassTolerance = null;
+                ResetStatistics("Нет данных для расчёта. Загрузите файл измерений.");
                 return;
             }
 
-            var items = TraverseBuilder.Build(
-                _dataViewModel.Records.Where(r => ReferenceEquals(r.LineSummary, SelectedRun)),
-                SelectedRun);
+            var items = TraverseBuilder.Build(_dataViewModel.Records);
+
+            if (items.Count == 0)
+            {
+                ResetStatistics("Не найдено подходящих измерений для расчёта.");
+                return;
+            }
 
             foreach (var row in items)
             {
@@ -234,6 +232,19 @@ namespace Nivtropy.ViewModels
                 .Sum(r => r.DeltaH!.Value * sign);
 
             Closure = orientedClosure;
+        }
+
+        private void ResetStatistics(string verdictMessage)
+        {
+            Closure = null;
+            AllowableClosure = null;
+            MethodTolerance = null;
+            ClassTolerance = null;
+            StationsCount = 0;
+            TotalBackDistance = 0;
+            TotalForeDistance = 0;
+            TotalAverageDistance = 0;
+            ClosureVerdict = verdictMessage;
         }
 
         private void UpdateTolerance()
