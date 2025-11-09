@@ -200,9 +200,12 @@ namespace Nivtropy.ViewModels
                 return;
             }
 
-            var items = TraverseBuilder.Build(
-                _dataViewModel.Records.Where(r => ReferenceEquals(r.LineSummary, SelectedRun)),
-                SelectedRun);
+            var selectedRunIndex = SelectedRun.Index;
+            var matchingRecords = _dataViewModel.Records
+                .Where(r => r.LineSummary?.Index == selectedRunIndex)
+                .ToList();
+
+            var items = TraverseBuilder.Build(matchingRecords, SelectedRun);
 
             foreach (var row in items)
             {
