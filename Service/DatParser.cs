@@ -189,30 +189,25 @@ namespace Nivtropy.Services
 
         private static string ExtractModeSegment(string line, Match adrMatch, int? measurementIndex)
         {
+            var mFor1 = Regex.Match(line, @"\bFor\b", RegexOptions.IgnoreCase);
             int start = adrMatch.Success
                 ? adrMatch.Index + adrMatch.Length
-                : Regex.Match(line, @"\bFor\b", RegexOptions.IgnoreCase) is { Success: true } forMatch
-                    ? forMatch.Index + forMatch.Length
-                    : 0;
+                : (mFor1.Success ? mFor1.Index + mFor1.Length : 0);
 
             int end = measurementIndex ?? line.Length;
-            if (end < start)
-                (start, end) = (end, start);
+            if (end < start) (start, end) = (end, start);
 
             var segment = line[start..end];
             if (string.IsNullOrWhiteSpace(segment) && adrMatch.Success)
             {
-                // Попробуем взять участок перед Adr, если после него пусто
                 end = adrMatch.Index;
-                start = Regex.Match(line, @"\bFor\b", RegexOptions.IgnoreCase) is { Success: true } forMatch
-                    ? forMatch.Index + forMatch.Length
-                    : 0;
-                if (end > start)
-                    segment = line[start..end];
+                var mFor2 = Regex.Match(line, @"\bFor\b", RegexOptions.IgnoreCase);
+                start = mFor2.Success ? mFor2.Index + mFor2.Length : 0;
+                if (end > start) segment = line[start..end];
             }
-
             return segment;
         }
+
 
         private static string[] PopulateModeAndTarget(MeasurementRecord record, string segment)
         {
