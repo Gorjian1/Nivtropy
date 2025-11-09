@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -14,14 +15,25 @@ namespace Nivtropy.Services
         private static readonly CultureInfo CI = CultureInfo.InvariantCulture;
         private static readonly string[] CandidateEncodings = { "utf-8", "windows-1251", "cp1251", "latin1", "utf-16" };
 
+        private static readonly (string Key, Regex Pattern)[] MeasurementPatterns =
+        {
+            ("Rb", new Regex(@"(?<=\b(Rb|Back|B)\s*[:=]?\s*)([-+]?\d+[.,]?\d*)", RegexOptions.IgnoreCase | RegexOptions.Compiled)),
+            ("Rf", new Regex(@"(?<=\b(Rf|Fore|F)\s*[:=]?\s*)([-+]?\d+[.,]?\d*)", RegexOptions.IgnoreCase | RegexOptions.Compiled)),
+            ("HDback", new Regex(@"(?<=\b(HDback|HB)\s*[:=]?\s*)([-+]?\d+[.,]?\d*)", RegexOptions.IgnoreCase | RegexOptions.Compiled)),
+            ("HDfore", new Regex(@"(?<=\b(HDfore|HF)\s*[:=]?\s*)([-+]?\d+[.,]?\d*)", RegexOptions.IgnoreCase | RegexOptions.Compiled)),
+            ("HD", new Regex(@"(?<=\bHD\s*[:=]?\s*)([-+]?\d+[.,]?\d*)", RegexOptions.IgnoreCase | RegexOptions.Compiled)),
+            ("Z", new Regex(@"(?<=\bZ\s*[:=]?\s*)([-+]?\d+[.,]?\d*)", RegexOptions.IgnoreCase | RegexOptions.Compiled))
+        };
+
         public IEnumerable<MeasurementRecord> Parse(string path)
         {
             var text = ReadTextSmart(path);
-            foreach (var line in text.Split(new[] { "\r\n", "\n" }, StringSplitOptions.None))
+            foreach (var record in SplitIntoRecords(text))
             {
-                if (!line.TrimStart().StartsWith("For ")) continue;
-                var rec = ParseLine(line);
-                if (rec != null) yield return rec;
+                foreach (var measurement in ParseRecord(record))
+                {
+                    yield return measurement;
+                }
             }
         }
 
@@ -40,53 +52,297 @@ namespace Nivtropy.Services
             throw last ?? new IOException("Не удалось прочитать файл в известных кодировках.");
         }
 
-        private static MeasurementRecord? ParseLine(string line)
+        private static IEnumerable<IReadOnlyList<string>> SplitIntoRecords(string text)
         {
-            // Пример сегментов: "For M5|Adr     4|KD1       12|            10214|Rb 1.1700 m   |HD 6.97 m |Z 99.9114 m"
-            var segs = line.Split('|');
-            if (segs.Length == 0) return null;
+            var lines = text.Split(new[] { "\r\n", "\n" }, StringSplitOptions.None);
+            List<string>? current = null;
 
-            var rec = new MeasurementRecord();
-
-            // Adr
-            var mAdr = Regex.Match(segs.ElementAtOrDefault(1) ?? string.Empty, @"Adr\s+(\d+)");
-            if (mAdr.Success && int.TryParse(mAdr.Groups[1].Value, out var seq)) rec.Seq = seq;
-
-            // Mode + Target (из seg2)
-            var mModeTarget = Regex.Match((segs.ElementAtOrDefault(2) ?? string.Empty).Trim(), @"(?<mode>\S+)\s+(?<target>.+)");
-            if (mModeTarget.Success)
+            foreach (var rawLine in lines)
             {
-                rec.Mode = mModeTarget.Groups["mode"].Value.Trim();
-                rec.Target = mModeTarget.Groups["target"].Value.Trim();
+                if (string.IsNullOrWhiteSpace(rawLine)) continue;
+
+                var trimmed = rawLine.TrimStart();
+                if (trimmed.StartsWith("KD", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (current != null && current.Count > 0)
+                    {
+                        yield return current;
+                    }
+                    current = new List<string>();
+                }
+
+                if (current == null)
+                {
+                    continue;
+                }
+
+                current.Add(rawLine);
             }
 
-            // Station code (цифры в seg3)
-            var mStation = Regex.Match(segs.ElementAtOrDefault(3) ?? string.Empty, @"(\d+)");
-            if (mStation.Success) rec.StationCode = mStation.Groups[1].Value;
-
-            // Measurements (segs4..end)
-            for (int i = 4; i < segs.Length; i++)
+            if (current != null && current.Count > 0)
             {
-                ExtractMeasurements(rec, segs[i]);
+                yield return current;
             }
-
-            return rec.IsValid ? rec : rec; // даже пустые колонки нам полезны как строки данных
         }
 
-        private static void ExtractMeasurements(MeasurementRecord rec, string segment)
+        private static IEnumerable<MeasurementRecord> ParseRecord(IReadOnlyList<string> recordLines)
         {
-            // Ищем Rb, Rf, HD, Z в произвольном порядке, число — с точкой
-            double? TryNum(string pattern)
+            if (recordLines.Count == 0) yield break;
+
+            var header = recordLines[0];
+            var stationCode = ExtractStationCode(header);
+
+            var results = new List<MeasurementRecord>();
+            var pendingBackRecords = new List<MeasurementRecord>();
+            var pendingForeRecords = new List<MeasurementRecord>();
+            var pendingGenericHd = new Queue<double>();
+            var pendingHdBackValues = new Queue<double>();
+            var pendingHdForeValues = new Queue<double>();
+
+            foreach (var line in recordLines.Skip(1))
             {
-                var m = Regex.Match(segment, pattern, RegexOptions.IgnoreCase);
-                if (m.Success && double.TryParse(m.Groups[1].Value, NumberStyles.Float, CI, out var v)) return v;
-                return null;
+                var segments = line.Split('|');
+                var seq = ExtractSequence(segments);
+                var (mode, target) = ExtractModeAndTarget(segments);
+
+                foreach (var token in ExtractMeasurements(segments))
+                {
+                    switch (token.Key)
+                    {
+                        case "Rb":
+                        {
+                            var rec = CreateMeasurementRecord(seq, mode, target, stationCode);
+                            rec.Rb_m = token.Value;
+                            if (pendingHdBackValues.TryDequeue(out var hdBack))
+                            {
+                                rec.HD_m = hdBack;
+                            }
+                            else if (pendingGenericHd.TryDequeue(out var hdGeneric))
+                            {
+                                rec.HD_m = hdGeneric;
+                            }
+
+                            if (!rec.HD_m.HasValue)
+                            {
+                                pendingBackRecords.Add(rec);
+                            }
+
+                            results.Add(rec);
+                            break;
+                        }
+
+                        case "Rf":
+                        {
+                            var rec = CreateMeasurementRecord(seq, mode, target, stationCode);
+                            rec.Rf_m = token.Value;
+                            if (pendingHdForeValues.TryDequeue(out var hdFore))
+                            {
+                                rec.HD_m = hdFore;
+                            }
+                            else if (pendingGenericHd.TryDequeue(out var hdGeneric))
+                            {
+                                rec.HD_m = hdGeneric;
+                            }
+
+                            if (!rec.HD_m.HasValue)
+                            {
+                                pendingForeRecords.Add(rec);
+                            }
+
+                            results.Add(rec);
+                            break;
+                        }
+
+                        case "HDback":
+                        {
+                            if (TryAssignHd(pendingBackRecords, token.Value))
+                            {
+                                break;
+                            }
+                            pendingHdBackValues.Enqueue(token.Value);
+                            break;
+                        }
+
+                        case "HDfore":
+                        {
+                            if (TryAssignHd(pendingForeRecords, token.Value))
+                            {
+                                break;
+                            }
+                            pendingHdForeValues.Enqueue(token.Value);
+                            break;
+                        }
+
+                        case "HD":
+                        {
+                            if (TryAssignHd(pendingBackRecords, token.Value))
+                            {
+                                break;
+                            }
+
+                            if (TryAssignHd(pendingForeRecords, token.Value))
+                            {
+                                break;
+                            }
+
+                            pendingGenericHd.Enqueue(token.Value);
+                            break;
+                        }
+
+                        case "Z":
+                        {
+                            var rec = CreateMeasurementRecord(seq, mode, target, stationCode);
+                            rec.Z_m = token.Value;
+                            results.Add(rec);
+                            break;
+                        }
+                    }
+                }
             }
 
-            rec.Rb_m ??= TryNum(@"\bRb\s*([0-9]+(?:\.[0-9]+)?)");
-            rec.Rf_m ??= TryNum(@"\bRf\s*([0-9]+(?:\.[0-9]+)?)");
-            rec.HD_m ??= TryNum(@"\bHD\s*([0-9]+(?:\.[0-9]+)?)");
-            rec.Z_m ??= TryNum(@"\bZ\s*([0-9]+(?:\.[0-9]+)?)");
+            WarnAboutUnpairedMeasurements(stationCode, results);
+
+            foreach (var item in results)
+            {
+                yield return item;
+            }
+        }
+
+        private static void WarnAboutUnpairedMeasurements(string? stationCode, List<MeasurementRecord> results)
+        {
+            var backCount = results.Count(r => r.Rb_m.HasValue);
+            var foreCount = results.Count(r => r.Rf_m.HasValue);
+
+            if (backCount > foreCount)
+            {
+                Trace.TraceWarning($"Station {stationCode ?? "?"}: {backCount - foreCount} задних визиров без пары.");
+            }
+            else if (foreCount > backCount)
+            {
+                Trace.TraceWarning($"Station {stationCode ?? "?"}: {foreCount - backCount} передних визиров без пары.");
+            }
+        }
+
+        private static bool TryAssignHd(List<MeasurementRecord> pendingRecords, double value)
+        {
+            for (int i = 0; i < pendingRecords.Count; i++)
+            {
+                if (!pendingRecords[i].HD_m.HasValue)
+                {
+                    pendingRecords[i].HD_m = value;
+                    pendingRecords.RemoveAt(i);
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static IEnumerable<(string Key, double Value)> ExtractMeasurements(IEnumerable<string> segments)
+        {
+            foreach (var segment in segments)
+            {
+                if (segment == null) continue;
+                var matches = new List<(int Index, string Key, double Value)>();
+
+                foreach (var (key, pattern) in MeasurementPatterns)
+                {
+                    foreach (Match match in pattern.Matches(segment))
+                    {
+                        if (!match.Success) continue;
+                        if (!TryParse(match.Value, out var value)) continue;
+                        matches.Add((match.Index, key, value));
+                    }
+                }
+
+                matches.Sort((a, b) => a.Index.CompareTo(b.Index));
+                foreach (var match in matches)
+                {
+                    yield return (match.Key, match.Value);
+                }
+            }
+        }
+
+        private static MeasurementRecord CreateMeasurementRecord(int? seq, string? mode, string? target, string? stationCode)
+        {
+            return new MeasurementRecord
+            {
+                Seq = seq,
+                Mode = mode,
+                Target = target,
+                StationCode = stationCode
+            };
+        }
+
+        private static string? ExtractStationCode(string headerLine)
+        {
+            var segments = headerLine.Split('|');
+            string? station = null;
+
+            if (segments.Length > 1)
+            {
+                station = ExtractLastInteger(segments[1]);
+            }
+
+            station ??= ExtractLastInteger(headerLine);
+            return station;
+        }
+
+        private static string? ExtractLastInteger(string? input)
+        {
+            if (string.IsNullOrWhiteSpace(input)) return null;
+
+            string? last = null;
+            foreach (Match match in Regex.Matches(input, @"(\d+)", RegexOptions.Compiled))
+            {
+                last = match.Groups[1].Value;
+            }
+
+            return last;
+        }
+
+        private static int? ExtractSequence(IEnumerable<string> segments)
+        {
+            foreach (var segment in segments)
+            {
+                if (segment == null) continue;
+                var match = Regex.Match(segment, @"Adr\s*(\d+)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+                if (match.Success && int.TryParse(match.Groups[1].Value, NumberStyles.Integer, CI, out var value))
+                {
+                    return value;
+                }
+            }
+
+            return null;
+        }
+
+        private static (string? Mode, string? Target) ExtractModeAndTarget(IEnumerable<string> segments)
+        {
+            foreach (var segment in segments)
+            {
+                var trimmed = (segment ?? string.Empty).Trim();
+                if (string.IsNullOrEmpty(trimmed)) continue;
+                if (!trimmed.Any(char.IsLetter)) continue;
+
+                if (Regex.IsMatch(trimmed, @"^(Adr|Rb|Rf|HD|HDback|HDfore|HB|HF|Z)\b", RegexOptions.IgnoreCase | RegexOptions.Compiled))
+                {
+                    continue;
+                }
+
+                var tokens = trimmed.Split(new[] { ' ' }, 2, StringSplitOptions.RemoveEmptyEntries);
+                if (tokens.Length == 2)
+                {
+                    return (tokens[0], tokens[1]);
+                }
+            }
+
+            return (null, null);
+        }
+
+        private static bool TryParse(string input, out double value)
+        {
+            var normalized = input.Replace(',', '.');
+            return double.TryParse(normalized, NumberStyles.Float, CI, out value);
         }
     }
 }

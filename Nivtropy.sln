@@ -5,17 +5,23 @@ VisualStudioVersion = 17.14.36616.10 d17.14
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Nivtropy", "Nivtropy.csproj", "{FB250B02-653C-41FD-A3E8-B802E4B54A47}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Nivtropy.Tests", "Nivtropy.Tests\Nivtropy.Tests.csproj", "{3B21C422-4187-47B2-BF75-9510FD0BFC10}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
-	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{FB250B02-653C-41FD-A3E8-B802E4B54A47}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{FB250B02-653C-41FD-A3E8-B802E4B54A47}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{FB250B02-653C-41FD-A3E8-B802E4B54A47}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{FB250B02-653C-41FD-A3E8-B802E4B54A47}.Release|Any CPU.Build.0 = Release|Any CPU
-	EndGlobalSection
+        GlobalSection(ProjectConfigurationPlatforms) = postSolution
+                {FB250B02-653C-41FD-A3E8-B802E4B54A47}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+                {FB250B02-653C-41FD-A3E8-B802E4B54A47}.Debug|Any CPU.Build.0 = Debug|Any CPU
+                {FB250B02-653C-41FD-A3E8-B802E4B54A47}.Release|Any CPU.ActiveCfg = Release|Any CPU
+                {FB250B02-653C-41FD-A3E8-B802E4B54A47}.Release|Any CPU.Build.0 = Release|Any CPU
+                {3B21C422-4187-47B2-BF75-9510FD0BFC10}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+                {3B21C422-4187-47B2-BF75-9510FD0BFC10}.Debug|Any CPU.Build.0 = Debug|Any CPU
+                {3B21C422-4187-47B2-BF75-9510FD0BFC10}.Release|Any CPU.ActiveCfg = Release|Any CPU
+                {3B21C422-4187-47B2-BF75-9510FD0BFC10}.Release|Any CPU.Build.0 = Release|Any CPU
+        EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
