@@ -13,4 +13,14 @@
     <Content Include="Nivtropy.ico" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Page Include="View\TraverseCalculationView.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Compile Include="View\TraverseCalculationView.xaml.cs">
+      <DependentUpon>TraverseCalculationView.xaml</DependentUpon>
+    </Compile>
+  </ItemGroup>
+
 </Project>
