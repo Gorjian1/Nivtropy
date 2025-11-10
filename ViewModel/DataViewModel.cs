@@ -119,34 +119,39 @@ namespace Nivtropy.ViewModels
             }
         }
 
+        /// <summary>
+        /// Определяет, нужно ли начать новый ход на основе маркеров Start-Line/Cont-Line
+        /// </summary>
         private static bool ShouldStartNewLine(MeasurementRecord previous, MeasurementRecord current)
         {
-            if (current.Seq.HasValue && previous.Seq.HasValue)
-            {
-                if (current.Seq.Value <= previous.Seq.Value)
-                    return true;
+            // Start-Line всегда начинает новый ход
+            if (current.LineMarker == "Start-Line")
+                return true;
 
-                if (current.Seq.Value - previous.Seq.Value > 50)
-                    return true;
-            }
+            // Cont-Line НИКОГДА не начинает новый ход (продолжение текущего)
+            if (current.LineMarker == "Cont-Line")
+                return false;
 
-            if (!string.Equals(previous.Mode, current.Mode, StringComparison.OrdinalIgnoreCase))
-            {
-                if (current.Mode != null && current.Mode.IndexOf("line", StringComparison.OrdinalIgnoreCase) >= 0)
-                    return true;
-            }
+            // End-Line сам по себе не начинает новый ход
+            // (следующая запись после End-Line может быть Start-Line или Cont-Line)
+            if (current.LineMarker == "End-Line")
+                return false;
 
-            if (int.TryParse(previous.StationCode, out var prevStation) && int.TryParse(current.StationCode, out var curStation))
+            // Для записей без маркеров используем эвристики (обратная совместимость)
+            // Это нужно для старых файлов без явных маркеров
+            if (current.LineMarker == null && previous.LineMarker == null)
             {
-                if (curStation < prevStation)
-                    return true;
-            }
-
-            if (!string.IsNullOrWhiteSpace(previous.Target) && !string.IsNullOrWhiteSpace(current.Target))
-            {
-                if (string.Equals(previous.Target.Trim(), current.Target.Trim(), StringComparison.OrdinalIgnoreCase))
+                // Большой разрыв в последовательности номеров
+                if (current.Seq.HasValue && previous.Seq.HasValue)
                 {
-                    if (previous.Rf_m.HasValue && !current.Rb_m.HasValue)
+                    if (current.Seq.Value - previous.Seq.Value > 50)
+                        return true;
+                }
+
+                // Если Mode содержит "line" - возможно начало хода
+                if (current.Mode != null && current.Mode.IndexOf("line", StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    if (!string.Equals(previous.Mode, current.Mode, StringComparison.OrdinalIgnoreCase))
                         return true;
                 }
             }

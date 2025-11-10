@@ -144,6 +144,9 @@ namespace Nivtropy.Services
             var modeSegment = ExtractModeSegment(line, adrMatch, measurementIndex);
             var modeTokens = PopulateModeAndTarget(record, modeSegment);
 
+            // Распознавание маркеров хода (Start-Line, End-Line, Cont-Line)
+            DetectLineMarker(record, line);
+
             var stationCode = ExtractStationCode(modeSegment, line);
             if (stationCode != null)
             {
@@ -251,6 +254,29 @@ namespace Nivtropy.Services
                 return numberMatches[^1].Groups[1].Value;
 
             return null;
+        }
+
+        /// <summary>
+        /// Определяет маркеры хода (Start-Line, End-Line, Cont-Line) из строки
+        /// </summary>
+        private static void DetectLineMarker(MeasurementRecord record, string line)
+        {
+            if (string.IsNullOrWhiteSpace(line))
+                return;
+
+            // Проверка на наличие маркеров хода в строке
+            if (Regex.IsMatch(line, @"\bStart-Line\b", RegexOptions.IgnoreCase))
+            {
+                record.LineMarker = "Start-Line";
+            }
+            else if (Regex.IsMatch(line, @"\bEnd-Line\b", RegexOptions.IgnoreCase))
+            {
+                record.LineMarker = "End-Line";
+            }
+            else if (Regex.IsMatch(line, @"\bCont-Line\b", RegexOptions.IgnoreCase))
+            {
+                record.LineMarker = "Cont-Line";
+            }
         }
 
         private static void PopulateMeasurements(MeasurementRecord record, string line, IReadOnlyDictionary<string, Regex> patterns)
