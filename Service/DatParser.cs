@@ -147,9 +147,14 @@ namespace Nivtropy.Services
             // Распознавание маркеров хода (Start-Line, End-Line, Cont-Line)
             DetectLineMarker(record, line);
 
+            // Распознавание ошибочных измерений (помечены ##### или Measurement repeated)
+            DetectInvalidMeasurement(record, line);
+
             var stationCode = ExtractStationCode(modeSegment, line);
             if (stationCode != null)
             {
+                // Очистка маркера ##### из кода станции
+                stationCode = stationCode.Replace("#####", "").Trim();
                 record.StationCode = stationCode;
                 if (int.TryParse(stationCode, NumberStyles.Integer, CI, out var parsed))
                     autoStation = parsed + 1;
@@ -216,6 +221,8 @@ namespace Nivtropy.Services
         {
             var tokens = Regex.Split(segment ?? string.Empty, @"[|\t ]+")
                 .Where(t => !string.IsNullOrWhiteSpace(t))
+                .Select(t => t.Replace("#####", "").Trim()) // Очистка ##### из токенов
+                .Where(t => !string.IsNullOrWhiteSpace(t))
                 .ToArray();
 
             if (tokens.Length == 0)
@@ -276,6 +283,26 @@ namespace Nivtropy.Services
             else if (Regex.IsMatch(line, @"\bCont-Line\b", RegexOptions.IgnoreCase))
             {
                 record.LineMarker = "Cont-Line";
+            }
+            else if (Regex.IsMatch(line, @"\bMeasurement\s+repeated\b", RegexOptions.IgnoreCase))
+            {
+                record.LineMarker = "Measurement-Repeated";
+            }
+        }
+
+        /// <summary>
+        /// Определяет ошибочные измерения (помечены ##### в коде станции)
+        /// Такие измерения были повторены и должны игнорироваться при расчётах
+        /// </summary>
+        private static void DetectInvalidMeasurement(MeasurementRecord record, string line)
+        {
+            if (string.IsNullOrWhiteSpace(line))
+                return;
+
+            // Проверка на наличие ##### в строке (маркер ошибочного измерения)
+            if (line.Contains("#####"))
+            {
+                record.IsInvalidMeasurement = true;
             }
         }
 

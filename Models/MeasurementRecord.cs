@@ -14,6 +14,11 @@ namespace Nivtropy.Models
         /// </summary>
         public string? LineMarker { get; set; }
 
+        /// <summary>
+        /// Флаг ошибочного измерения (помечено ##### в файле, будет заменено повторным)
+        /// </summary>
+        public bool IsInvalidMeasurement { get; set; }
+
         public double? Rb_m { get; set; }
         public double? Rf_m { get; set; }
         public double? HdBack_m { get; set; }
