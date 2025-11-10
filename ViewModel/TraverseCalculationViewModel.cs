@@ -15,12 +15,16 @@ namespace Nivtropy.ViewModels
         private readonly DataViewModel _dataViewModel;
         private readonly ObservableCollection<TraverseRow> _rows = new();
 
+        // Методы нивелирования для двойного хода
+        // Допуск: 4 мм × √n, где n - число станций
         private readonly LevelingMethodOption[] _methods =
         {
             new("BF", "Двойной ход (Back → Forward)", ToleranceMode.SqrtStations, 0.004, 1.0),
             new("FB", "Двойной ход (Forward → Back)", ToleranceMode.SqrtStations, 0.004, -1.0)
         };
 
+        // Классы нивелирования согласно ГКИНП 03-010-02
+        // Допуск: коэффициент × √L, где L - длина хода в км (в один конец)
         private readonly LevelingClassOption[] _classes =
         {
             new("I", "Класс I: 4 мм · √L", ToleranceMode.SqrtLength, 0.004),
@@ -165,7 +169,11 @@ namespace Nivtropy.ViewModels
             private set => SetField(ref _totalAverageDistance, value);
         }
 
-        public double TotalLengthKilometers => TotalAverageDistance / 1000.0;
+        /// <summary>
+        /// Длина хода в километрах (используется в формулах допусков по классу)
+        /// По теории - берется длина в один конец, не среднее
+        /// </summary>
+        public double TotalLengthKilometers => TotalBackDistance / 1000.0;
 
         public double MethodOrientationSign => SelectedMethod?.OrientationSign ?? 1.0;
 
@@ -230,6 +238,8 @@ namespace Nivtropy.ViewModels
                 return;
             }
 
+            // Невязка = сумма измеренных превышений
+            // Знак ориентации определяет направление хода (прямой +1, обратный -1)
             var sign = MethodOrientationSign;
             var orientedClosure = _rows
                 .Where(r => r.DeltaH.HasValue)

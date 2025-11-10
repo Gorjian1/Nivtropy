@@ -22,34 +22,57 @@
         </StackPanel>
 
         <Grid Grid.Row="1" Margin="8">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
             <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
 
-            <StackPanel>
+            <!-- Первая строка -->
+            <StackPanel Grid.Row="0" Grid.Column="0">
+                <TextBlock Text="Общая длина хода, м" FontWeight="SemiBold" />
+                <TextBlock Text="{Binding TotalDistance, StringFormat=0.000}" />
+            </StackPanel>
+
+            <StackPanel Grid.Row="0" Grid.Column="1">
                 <TextBlock Text="Фактическая ΣΔh" FontWeight="SemiBold" />
                 <TextBlock Text="{Binding ActualClosure, StringFormat=+0.0000;-0.0000;0.0000}" />
             </StackPanel>
 
-            <StackPanel Grid.Column="1">
+            <StackPanel Grid.Row="0" Grid.Column="2">
+                <TextBlock Text="Допустимая невязка" FontWeight="SemiBold" />
+                <TextBlock Text="{Binding AllowableClosure, StringFormat=±0.0000}" />
+            </StackPanel>
+
+            <StackPanel Grid.Row="0" Grid.Column="3">
+                <TextBlock Text="Статус проверки" FontWeight="SemiBold" />
+                <TextBlock Text="{Binding ClosureStatus}" FontWeight="Bold" />
+            </StackPanel>
+
+            <!-- Вторая строка -->
+            <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,16,0,0">
+                <TextBlock Text="Начальная отметка" FontWeight="SemiBold" />
+                <TextBlock Text="{Binding StartHeight, StringFormat=0.000}" />
+            </StackPanel>
+
+            <StackPanel Grid.Row="1" Grid.Column="1" Margin="0,16,0,0">
                 <TextBlock Text="Целевая ΣΔh" FontWeight="SemiBold" />
                 <TextBlock Text="{Binding TargetClosure, StringFormat=+0.0000;-0.0000;0.0000}" />
             </StackPanel>
 
-            <StackPanel Grid.Column="2">
-                <TextBlock Text="Коррекция / станцию" FontWeight="SemiBold" />
-                <TextBlock Text="{Binding CorrectionPerStation, StringFormat=+0.0000;-0.0000;0.0000}" />
-            </StackPanel>
-
-            <StackPanel Grid.Column="0" Margin="0,48,0,0">
-                <TextBlock Text="Начальная отметка" FontWeight="SemiBold" />
-                <TextBlock Text="{Binding StartHeight, StringFormat=0.000}" />
-            </StackPanel>
-            <StackPanel Grid.Column="1" Margin="0,48,0,0">
+            <StackPanel Grid.Row="1" Grid.Column="2" Margin="0,16,0,0">
                 <TextBlock Text="Проектная ΣΔh" FontWeight="SemiBold" />
                 <TextBlock Text="{Binding DesignedClosure, StringFormat=+0.0000;-0.0000;0.0000}" />
+            </StackPanel>
+
+            <StackPanel Grid.Row="1" Grid.Column="3" Margin="0,16,0,0">
+                <TextBlock Text="Средняя коррекция" FontWeight="SemiBold" />
+                <TextBlock Text="{Binding CorrectionPerStation, StringFormat=+0.0000;-0.0000;0.0000}" />
             </StackPanel>
         </Grid>
 
@@ -62,12 +85,13 @@
                       Margin="0"
                       RowHeaderWidth="0">
                 <DataGrid.Columns>
-                    <DataGridTextColumn Header="№" Binding="{Binding Index}" Width="60" />
-                    <DataGridTextColumn Header="Станция" Binding="{Binding Station}" Width="200" />
-                    <DataGridTextColumn Header="Δh исходн., м" Binding="{Binding OriginalDeltaH, StringFormat=+0.0000;-0.0000;0.0000}" Width="140" />
-                    <DataGridTextColumn Header="Коррекция, м" Binding="{Binding Correction, StringFormat=+0.0000;-0.0000;0.0000}" Width="130" />
-                    <DataGridTextColumn Header="Δh проектн., м" Binding="{Binding AdjustedDeltaH, StringFormat=+0.0000;-0.0000;0.0000}" Width="140" />
-                    <DataGridTextColumn Header="Проектная отметка, м" Binding="{Binding DesignedHeight, StringFormat=0.000}" Width="160" />
+                    <DataGridTextColumn Header="№" Binding="{Binding Index}" Width="50" />
+                    <DataGridTextColumn Header="Станция" Binding="{Binding Station}" Width="150" />
+                    <DataGridTextColumn Header="Длина, м" Binding="{Binding Distance_m, StringFormat=0.000}" Width="100" />
+                    <DataGridTextColumn Header="Δh исх., м" Binding="{Binding OriginalDeltaH, StringFormat=+0.0000;-0.0000;0.0000}" Width="120" />
+                    <DataGridTextColumn Header="Попр., м" Binding="{Binding Correction, StringFormat=+0.0000;-0.0000;0.0000}" Width="110" />
+                    <DataGridTextColumn Header="Δh уравн., м" Binding="{Binding AdjustedDeltaH, StringFormat=+0.0000;-0.0000;0.0000}" Width="130" />
+                    <DataGridTextColumn Header="Проектн. отметка, м" Binding="{Binding DesignedHeight, StringFormat=0.000}" Width="160" />
                 </DataGrid.Columns>
             </DataGrid>
         </Border>

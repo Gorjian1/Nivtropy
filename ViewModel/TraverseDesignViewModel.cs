@@ -19,6 +19,9 @@ namespace Nivtropy.ViewModels
         private double? _actualClosure;
         private double? _designClosure;
         private double _correctionPerStation;
+        private double? _allowableClosure;
+        private string _closureStatus = "Нет данных";
+        private double _totalDistance;
 
         public TraverseDesignViewModel(DataViewModel dataViewModel)
         {
@@ -98,6 +101,24 @@ namespace Nivtropy.ViewModels
             private set => SetField(ref _correctionPerStation, value);
         }
 
+        public double? AllowableClosure
+        {
+            get => _allowableClosure;
+            private set => SetField(ref _allowableClosure, value);
+        }
+
+        public string ClosureStatus
+        {
+            get => _closureStatus;
+            private set => SetField(ref _closureStatus, value);
+        }
+
+        public double TotalDistance
+        {
+            get => _totalDistance;
+            private set => SetField(ref _totalDistance, value);
+        }
+
         private void DataViewModelOnPropertyChanged(object? sender, PropertyChangedEventArgs e)
         {
             if (e.PropertyName == nameof(DataViewModel.SelectedRun))
@@ -116,6 +137,9 @@ namespace Nivtropy.ViewModels
                 ActualClosure = null;
                 DesignedClosure = null;
                 CorrectionPerStation = 0;
+                AllowableClosure = null;
+                ClosureStatus = "Нет данных";
+                TotalDistance = 0;
                 return;
             }
 
@@ -123,19 +147,67 @@ namespace Nivtropy.ViewModels
                 _dataViewModel.Records.Where(r => ReferenceEquals(r.LineSummary, SelectedRun)),
                 SelectedRun);
 
-            var originalClosure = items.Where(r => r.DeltaH.HasValue).Sum(r => r.DeltaH!.Value);
-            ActualClosure = items.Count > 0 ? originalClosure : null;
+            if (items.Count == 0)
+            {
+                ActualClosure = null;
+                DesignedClosure = null;
+                CorrectionPerStation = 0;
+                AllowableClosure = null;
+                ClosureStatus = "Нет данных";
+                TotalDistance = 0;
+                return;
+            }
 
-            var adjustableCount = items.Count(r => r.DeltaH.HasValue);
-            CorrectionPerStation = adjustableCount > 0 ? (TargetClosure - originalClosure) / adjustableCount : 0;
+            // Расчет фактической невязки
+            var originalClosure = items.Where(r => r.DeltaH.HasValue).Sum(r => r.DeltaH!.Value);
+            ActualClosure = originalClosure;
+
+            // Расчет общей длины хода (в метрах)
+            var totalDistance = 0.0;
+            foreach (var row in items)
+            {
+                var avgDist = ((row.HdBack_m ?? 0) + (row.HdFore_m ?? 0)) / 2.0;
+                totalDistance += avgDist;
+            }
+            TotalDistance = totalDistance;
+
+            // Расчет допустимой невязки по формуле для IV класса: 20 мм × √L (L в км)
+            var lengthKm = totalDistance / 1000.0;
+            AllowableClosure = 0.020 * Math.Sqrt(Math.Max(lengthKm, 1e-6)); // в метрах
+
+            // Проверка допуска
+            var absActualClosure = Math.Abs(originalClosure);
+            if (absActualClosure <= AllowableClosure.Value)
+            {
+                ClosureStatus = "✓ В пределах допуска";
+            }
+            else
+            {
+                ClosureStatus = $"✗ ПРЕВЫШЕНИЕ допуска! ({absActualClosure:F4} м > {AllowableClosure:F4} м)";
+            }
+
+            // Расчет невязки для распределения
+            var closureToDistribute = TargetClosure - originalClosure;
+
+            // Распределение поправок ПРОПОРЦИОНАЛЬНО ДЛИНАМ секций
+            double correctionFactor = totalDistance > 0 ? closureToDistribute / totalDistance : 0;
 
             double runningHeight = StartHeight;
             double adjustedSum = 0;
 
             foreach (var row in items)
             {
-                double correction = row.DeltaH.HasValue ? CorrectionPerStation : 0;
-                double? adjustedDelta = row.DeltaH.HasValue ? row.DeltaH + correction : null;
+                // Средняя длина для данного хода
+                var avgDistance = ((row.HdBack_m ?? 0) + (row.HdFore_m ?? 0)) / 2.0;
+
+                // Поправка пропорционально длине данного хода
+                double correction = row.DeltaH.HasValue
+                    ? correctionFactor * avgDistance
+                    : 0;
+
+                double? adjustedDelta = row.DeltaH.HasValue
+                    ? row.DeltaH + correction
+                    : null;
 
                 if (adjustedDelta.HasValue)
                 {
@@ -149,6 +221,7 @@ namespace Nivtropy.ViewModels
                     Station = string.IsNullOrWhiteSpace(row.BackCode) && string.IsNullOrWhiteSpace(row.ForeCode)
                         ? row.LineName
                         : $"{row.BackCode ?? "?"} → {row.ForeCode ?? "?"}",
+                    Distance_m = avgDistance > 0 ? avgDistance : null,
                     OriginalDeltaH = row.DeltaH,
                     Correction = correction,
                     AdjustedDeltaH = adjustedDelta,
@@ -156,7 +229,11 @@ namespace Nivtropy.ViewModels
                 });
             }
 
-            DesignedClosure = items.Count > 0 ? adjustedSum : null;
+            DesignedClosure = adjustedSum;
+
+            // Средняя поправка на станцию (для информации)
+            var adjustableCount = items.Count(r => r.DeltaH.HasValue);
+            CorrectionPerStation = adjustableCount > 0 ? closureToDistribute / adjustableCount : 0;
         }
 
         private bool SetField<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
