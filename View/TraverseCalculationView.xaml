@@ -159,12 +159,19 @@
                                 </Style>
                             </DataGridTextColumn.HeaderStyle>
                         </DataGridTextColumn>
-                        <DataGridTextColumn Header="Поправка, м" Binding="{Binding Correction}" Width="120">
+                        <DataGridTextColumn Header="Поправка, мм" Binding="{Binding Correction}" Width="120">
                             <DataGridTextColumn.HeaderStyle>
                                 <Style TargetType="DataGridColumnHeader">
                                     <Setter Property="ToolTip" Value="Поправка для распределения невязки" />
                                 </Style>
                             </DataGridTextColumn.HeaderStyle>
+                            <DataGridTextColumn.Binding>
+                                <Binding Path="Correction">
+                                    <Binding.Converter>
+                                        <converters:MetersToMillimetersConverter />
+                                    </Binding.Converter>
+                                </Binding>
+                            </DataGridTextColumn.Binding>
                         </DataGridTextColumn>
                         <DataGridTextColumn Header="Δh испр., м" Binding="{Binding AdjustedDeltaH, StringFormat=+0.0000;-0.0000;0.0000}" Width="120">
                             <DataGridTextColumn.HeaderStyle>

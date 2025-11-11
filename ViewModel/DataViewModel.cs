@@ -185,9 +185,9 @@ namespace Nivtropy.ViewModels
             if (current.LineMarker == "Start-Line")
                 return true;
 
-            // Cont-Line НИКОГДА не начинает новый ход (продолжение текущего)
+            // Cont-Line начинает новый ход (продолжение нивелирования как отдельный ход)
             if (current.LineMarker == "Cont-Line")
-                return false;
+                return true;
 
             // End-Line сам по себе не начинает новый ход
             // (следующая запись после End-Line может быть Start-Line или Cont-Line)

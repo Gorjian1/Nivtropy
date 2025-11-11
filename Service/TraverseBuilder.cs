@@ -6,16 +6,19 @@ namespace Nivtropy.Services
 {
     public static class TraverseBuilder
     {
-        // Наивное спаривание: внутри линии Rb и Rf идут парой (порядок любой).
+        // Спаривание с учётом режима: BF (Back→Forward) или FB (Forward→Back)
+        // Режим определяет порядок точек в паре
         public static List<TraverseRow> Build(IEnumerable<MeasurementRecord> records, LineSummary? run = null)
         {
             var list = new List<TraverseRow>();
             string line = run?.DisplayName ?? "?";
+            string mode = "BF"; // По умолчанию BF (Back→Forward)
             TraverseRow? pending = null;
             int idx = 1;
 
             foreach (var r in records)
             {
+                // Обновляем режим при смене линии или явном указании режима
                 if (r.LineSummary != null && !ReferenceEquals(r.LineSummary, run) && r.LineSummary.DisplayName != line)
                 {
                     if (pending != null)
@@ -28,14 +31,44 @@ namespace Nivtropy.Services
                     idx = 1;
                 }
 
+                // Определяем режим из маркера Start-Line
+                if (r.LineMarker == "Start-Line" && !string.IsNullOrWhiteSpace(r.Mode))
+                {
+                    // Извлекаем BF или FB из Mode (например, "BF" или "FB")
+                    var modeUpper = r.Mode.Trim().ToUpperInvariant();
+                    if (modeUpper == "BF" || modeUpper == "FB")
+                        mode = modeUpper;
+                }
+
+                bool isBF = mode == "BF";
+
                 if (r.Rb_m.HasValue)
                 {
                     if (pending == null)
-                        pending = new TraverseRow { LineName = line, Index = idx++, BackCode = r.StationCode, Rb_m = r.Rb_m, HdBack_m = r.HD_m };
+                    {
+                        // В режиме BF: Rb это задняя точка (Back)
+                        // В режиме FB: Rb это передняя точка (Fore)
+                        if (isBF)
+                            pending = new TraverseRow { LineName = line, Index = idx++, BackCode = r.StationCode, Rb_m = r.Rb_m, HdBack_m = r.HD_m };
+                        else
+                            pending = new TraverseRow { LineName = line, Index = idx++, ForeCode = r.StationCode, Rb_m = r.Rb_m, HdFore_m = r.HD_m };
+                    }
                     else
                     {
-                        pending.Rb_m ??= r.Rb_m; pending.HdBack_m ??= r.HD_m; pending.BackCode ??= r.StationCode;
-                        list.Add(pending); pending = null;
+                        if (isBF)
+                        {
+                            pending.Rb_m ??= r.Rb_m;
+                            pending.HdBack_m ??= r.HD_m;
+                            pending.BackCode ??= r.StationCode;
+                        }
+                        else
+                        {
+                            pending.Rb_m ??= r.Rb_m;
+                            pending.HdFore_m ??= r.HD_m;
+                            pending.ForeCode ??= r.StationCode;
+                        }
+                        list.Add(pending);
+                        pending = null;
                     }
                     continue;
                 }
@@ -43,11 +76,30 @@ namespace Nivtropy.Services
                 if (r.Rf_m.HasValue)
                 {
                     if (pending == null)
-                        pending = new TraverseRow { LineName = line, Index = idx++, ForeCode = r.StationCode, Rf_m = r.Rf_m, HdFore_m = r.HD_m };
+                    {
+                        // В режиме BF: Rf это передняя точка (Fore)
+                        // В режиме FB: Rf это задняя точка (Back)
+                        if (isBF)
+                            pending = new TraverseRow { LineName = line, Index = idx++, ForeCode = r.StationCode, Rf_m = r.Rf_m, HdFore_m = r.HD_m };
+                        else
+                            pending = new TraverseRow { LineName = line, Index = idx++, BackCode = r.StationCode, Rf_m = r.Rf_m, HdBack_m = r.HD_m };
+                    }
                     else
                     {
-                        pending.Rf_m ??= r.Rf_m; pending.HdFore_m ??= r.HD_m; pending.ForeCode ??= r.StationCode;
-                        list.Add(pending); pending = null;
+                        if (isBF)
+                        {
+                            pending.Rf_m ??= r.Rf_m;
+                            pending.HdFore_m ??= r.HD_m;
+                            pending.ForeCode ??= r.StationCode;
+                        }
+                        else
+                        {
+                            pending.Rf_m ??= r.Rf_m;
+                            pending.HdBack_m ??= r.HD_m;
+                            pending.BackCode ??= r.StationCode;
+                        }
+                        list.Add(pending);
+                        pending = null;
                     }
                 }
             }

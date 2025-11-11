@@ -58,18 +58,14 @@ namespace Nivtropy.Models
         /// Отображение высоты задней точки
         /// </summary>
         public string BackHeightDisplay => BackHeight.HasValue
-            ? IsBackHeightKnown
-                ? $"{BackHeight.Value:F4} (задано)"
-                : $"{BackHeight.Value:F4}"
+            ? $"{BackHeight.Value:F4}"
             : "—";
 
         /// <summary>
         /// Отображение высоты передней точки
         /// </summary>
         public string ForeHeightDisplay => ForeHeight.HasValue
-            ? IsForeHeightKnown
-                ? $"{ForeHeight.Value:F4} (задано)"
-                : $"{ForeHeight.Value:F4}"
+            ? $"{ForeHeight.Value:F4}"
             : "—";
     }
 }
