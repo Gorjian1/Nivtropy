@@ -24,13 +24,15 @@ namespace Nivtropy.ViewModels
         };
 
         // Классы нивелирования согласно ГКИНП 03-010-02
-        // Допуск: коэффициент × √L, где L - длина хода в км (в один конец)
+        // Допуск невязки: коэффициент × √L, где L - длина хода в км (в один конец)
+        // Допуски разности плеч: на станции и накопление за ход
         private readonly LevelingClassOption[] _classes =
         {
-            new("I", "Класс I: 4 мм · √L", ToleranceMode.SqrtLength, 0.004),
-            new("II", "Класс II: 8 мм · √L", ToleranceMode.SqrtLength, 0.008),
-            new("III", "Класс III: 10 мм · √L", ToleranceMode.SqrtLength, 0.010),
-            new("IV", "Класс IV: 20 мм · √L", ToleranceMode.SqrtLength, 0.020)
+            new("I", "Класс I: 4 мм · √L", ToleranceMode.SqrtLength, 0.004, armDiffStation: 0.5, armDiffAccumulation: 1.0),
+            new("II", "Класс II: 8 мм · √L", ToleranceMode.SqrtLength, 0.008, armDiffStation: 1.0, armDiffAccumulation: 2.0),
+            new("III", "Класс III: 10 мм · √L", ToleranceMode.SqrtLength, 0.010, armDiffStation: 2.0, armDiffAccumulation: 5.0),
+            new("IV", "Класс IV: 20 мм · √L", ToleranceMode.SqrtLength, 0.020, armDiffStation: 5.0, armDiffAccumulation: 10.0),
+            new("Техническое", "Техническое: 50 мм · √L", ToleranceMode.SqrtLength, 0.050, armDiffStation: 10.0, armDiffAccumulation: 20.0)
         };
 
         private LevelingMethodOption? _selectedMethod;
@@ -279,6 +281,7 @@ namespace Nivtropy.ViewModels
 
             RecalculateClosure();
             UpdateTolerance();
+            CheckArmDifferenceTolerances();
         }
 
         private void RecalculateClosure()
@@ -470,6 +473,45 @@ namespace Nivtropy.ViewModels
             }
         }
 
+        /// <summary>
+        /// Проверяет допуски разности плеч на станциях и накопление за ход
+        /// </summary>
+        private void CheckArmDifferenceTolerances()
+        {
+            if (SelectedClass == null)
+                return;
+
+            var stationTolerance = SelectedClass.ArmDifferenceToleranceStation;
+            var accumulationTolerance = SelectedClass.ArmDifferenceToleranceAccumulation;
+
+            // Проверка разности плеч на каждой станции
+            foreach (var row in _rows)
+            {
+                if (row.ArmDifference_m.HasValue)
+                {
+                    row.IsArmDifferenceExceeded = row.ArmDifference_m.Value > stationTolerance;
+                }
+                else
+                {
+                    row.IsArmDifferenceExceeded = false;
+                }
+            }
+
+            // Проверка накопления разности плеч за ходы
+            var lineGroups = _rows.GroupBy(r => r.LineName);
+            foreach (var group in lineGroups)
+            {
+                var lineName = group.Key;
+                var lineSummary = _dataViewModel.Runs.FirstOrDefault(r => r.DisplayName == lineName);
+
+                if (lineSummary != null && lineSummary.ArmDifferenceAccumulation.HasValue)
+                {
+                    lineSummary.IsArmDifferenceAccumulationExceeded =
+                        lineSummary.ArmDifferenceAccumulation.Value > accumulationTolerance;
+                }
+            }
+        }
+
         private bool SetField<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
         {
             if (Equals(field, value))
@@ -500,8 +542,24 @@ namespace Nivtropy.ViewModels
         public string Display => Code;
     }
 
-    public record LevelingClassOption(string Code, string Description, ToleranceMode Mode, double Coefficient) : IToleranceOption
+    public record LevelingClassOption(
+        string Code,
+        string Description,
+        ToleranceMode Mode,
+        double Coefficient,
+        double ArmDiffStation,
+        double ArmDiffAccumulation) : IToleranceOption
     {
         public string Display => Code;
+
+        /// <summary>
+        /// Допуск разности плеч на станции (в метрах)
+        /// </summary>
+        public double ArmDifferenceToleranceStation => ArmDiffStation;
+
+        /// <summary>
+        /// Допуск накопления разности плеч за ход (в метрах)
+        /// </summary>
+        public double ArmDifferenceToleranceAccumulation => ArmDiffAccumulation;
     }
 }

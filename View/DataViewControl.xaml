@@ -113,8 +113,6 @@
                 <DataGridTextColumn Header="Rb, м" Binding="{Binding Rb_m, StringFormat=F4}" Width="90"/>
                 <DataGridTextColumn Header="Rf, м" Binding="{Binding Rf_m, StringFormat=F4}" Width="90"/>
                 <DataGridTextColumn Header="HD, м" Binding="{Binding HD_m, StringFormat=F2}" Width="90"/>
-                <DataGridTextColumn Header="Z, м" Binding="{Binding Z_m, StringFormat=F4}" Width="110"/>
-                <DataGridTextColumn Header="Δh, м" Binding="{Binding DeltaH, StringFormat=F4}" Width="90"/>
             </DataGrid.Columns>
         </DataGrid>
     </Grid>

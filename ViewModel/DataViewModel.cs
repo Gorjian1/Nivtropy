@@ -222,15 +222,46 @@ namespace Nivtropy.ViewModels
             var end = group.LastOrDefault(r => r.Rf_m.HasValue) ?? group.Last();
 
             double? deltaSum = null;
+            double? totalDistanceBack = null;
+            double? totalDistanceFore = null;
+            double? armDiffAccumulation = null;
+
             foreach (var rec in group)
             {
                 if (rec.DeltaH.HasValue)
                 {
                     deltaSum = (deltaSum ?? 0d) + rec.DeltaH.Value;
                 }
+
+                if (rec.HdBack_m.HasValue)
+                {
+                    totalDistanceBack = (totalDistanceBack ?? 0d) + rec.HdBack_m.Value;
+                }
+
+                if (rec.HdFore_m.HasValue)
+                {
+                    totalDistanceFore = (totalDistanceFore ?? 0d) + rec.HdFore_m.Value;
+                }
+
+                // Накопление разности плеч (сумма модулей)
+                if (rec.HdBack_m.HasValue && rec.HdFore_m.HasValue)
+                {
+                    var armDiff = Math.Abs(rec.HdBack_m.Value - rec.HdFore_m.Value);
+                    armDiffAccumulation = (armDiffAccumulation ?? 0d) + armDiff;
+                }
             }
 
-            return new LineSummary(index, start.Target, start.StationCode, end.Target, end.StationCode, group.Count, deltaSum);
+            return new LineSummary(
+                index,
+                start.Target,
+                start.StationCode,
+                end.Target,
+                end.StationCode,
+                group.Count,
+                deltaSum,
+                totalDistanceBack,
+                totalDistanceFore,
+                armDiffAccumulation);
         }
 
         public void ExportCsv(string path)

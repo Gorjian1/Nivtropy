@@ -15,8 +15,24 @@ namespace Nivtropy.Models
 
         public double? HdBack_m { get; set; }
         public double? HdFore_m { get; set; }
-        public double? HdImbalance_m => (HdBack_m.HasValue && HdFore_m.HasValue)
+
+        /// <summary>
+        /// Длина станции (сумма визирных лучей)
+        /// </summary>
+        public double? StationLength_m => (HdBack_m.HasValue && HdFore_m.HasValue)
+            ? HdBack_m.Value + HdFore_m.Value : null;
+
+        /// <summary>
+        /// Разность плеч (неравенство плеч)
+        /// </summary>
+        public double? ArmDifference_m => (HdBack_m.HasValue && HdFore_m.HasValue)
             ? Math.Abs(HdBack_m.Value - HdFore_m.Value) : null;
+
+        /// <summary>
+        /// Устаревшее свойство для обратной совместимости
+        /// </summary>
+        [Obsolete("Используйте ArmDifference_m")]
+        public double? HdImbalance_m => ArmDifference_m;
 
         public string Station => string.IsNullOrWhiteSpace(BackCode) && string.IsNullOrWhiteSpace(ForeCode)
             ? LineName
@@ -41,6 +57,11 @@ namespace Nivtropy.Models
         /// Флаг, что высота передней точки известна (задана вручную)
         /// </summary>
         public bool IsForeHeightKnown { get; set; }
+
+        /// <summary>
+        /// Флаг превышения допуска разности плеч на станции
+        /// </summary>
+        public bool IsArmDifferenceExceeded { get; set; }
 
         /// <summary>
         /// Поправка в превышение (для распределения невязки)

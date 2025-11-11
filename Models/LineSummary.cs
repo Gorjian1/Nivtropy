@@ -4,7 +4,17 @@ namespace Nivtropy.Models
 {
     public class LineSummary
     {
-        public LineSummary(int index, string? startTarget, string? startStation, string? endTarget, string? endStation, int recordCount, double? deltaHSum)
+        public LineSummary(
+            int index,
+            string? startTarget,
+            string? startStation,
+            string? endTarget,
+            string? endStation,
+            int recordCount,
+            double? deltaHSum,
+            double? totalDistanceBack = null,
+            double? totalDistanceFore = null,
+            double? armDifferenceAccumulation = null)
         {
             Index = index;
             StartTarget = startTarget;
@@ -13,6 +23,9 @@ namespace Nivtropy.Models
             EndStation = endStation;
             RecordCount = recordCount;
             DeltaHSum = deltaHSum;
+            TotalDistanceBack = totalDistanceBack;
+            TotalDistanceFore = totalDistanceFore;
+            ArmDifferenceAccumulation = armDifferenceAccumulation;
         }
 
         public int Index { get; }
@@ -22,6 +35,26 @@ namespace Nivtropy.Models
         public string? EndStation { get; }
         public int RecordCount { get; }
         public double? DeltaHSum { get; }
+
+        /// <summary>
+        /// Общая длина хода (назад) в метрах
+        /// </summary>
+        public double? TotalDistanceBack { get; }
+
+        /// <summary>
+        /// Общая длина хода (вперёд) в метрах
+        /// </summary>
+        public double? TotalDistanceFore { get; }
+
+        /// <summary>
+        /// Накопление разности плеч за ход (сумма модулей) в метрах
+        /// </summary>
+        public double? ArmDifferenceAccumulation { get; }
+
+        /// <summary>
+        /// Флаг превышения допуска накопления разности плеч
+        /// </summary>
+        public bool IsArmDifferenceAccumulationExceeded { get; set; }
 
         private static string FormatPoint(string? target, string? station)
         {
