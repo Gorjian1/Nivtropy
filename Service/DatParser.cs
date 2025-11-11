@@ -19,6 +19,7 @@ namespace Nivtropy.Services
         {
             ["Rb"] = new[] { "RB", "RBack", "Back", "B" },
             ["Rf"] = new[] { "RF", "RFore", "Fore", "F" },
+            ["HD"] = new[] { "HD", "HorizontalDistance", "Dist" },
             ["HDback"] = new[] { "HDBack", "HD_B", "HB" },
             ["HDfore"] = new[] { "HDFore", "HD_F", "HF" },
         };
@@ -327,10 +328,28 @@ namespace Nivtropy.Services
                 record.Rb_m ??= TryMatchMeasurement(rbRegex, line);
             if (patterns.TryGetValue("Rf", out var rfRegex))
                 record.Rf_m ??= TryMatchMeasurement(rfRegex, line);
+
+            // Сначала пробуем найти HDback и HDfore
             if (patterns.TryGetValue("HDback", out var hdBackRegex))
                 record.HdBack_m ??= TryMatchMeasurement(hdBackRegex, line);
             if (patterns.TryGetValue("HDfore", out var hdForeRegex))
                 record.HdFore_m ??= TryMatchMeasurement(hdForeRegex, line);
+
+            // Если HDback и HDfore не найдены, пробуем просто HD (для обоих)
+            if (patterns.TryGetValue("HD", out var hdRegex))
+            {
+                var hdValue = TryMatchMeasurement(hdRegex, line);
+                if (hdValue.HasValue)
+                {
+                    // Если есть Rb, это HDback
+                    if (record.Rb_m.HasValue && !record.HdBack_m.HasValue)
+                        record.HdBack_m = hdValue;
+                    // Если есть Rf, это HDfore
+                    else if (record.Rf_m.HasValue && !record.HdFore_m.HasValue)
+                        record.HdFore_m = hdValue;
+                }
+            }
+
             if (patterns.TryGetValue("Z", out var zRegex))
                 record.Z_m ??= TryMatchMeasurement(zRegex, line);
         }

@@ -43,6 +43,18 @@ namespace Nivtropy.Models
         public bool IsForeHeightKnown { get; set; }
 
         /// <summary>
+        /// Поправка в превышение (для распределения невязки)
+        /// </summary>
+        public double? Correction { get; set; }
+
+        /// <summary>
+        /// Исправленное превышение (с учётом поправки)
+        /// </summary>
+        public double? AdjustedDeltaH => DeltaH.HasValue && Correction.HasValue
+            ? DeltaH.Value + Correction.Value
+            : DeltaH;
+
+        /// <summary>
         /// Отображение высоты задней точки
         /// </summary>
         public string BackHeightDisplay => BackHeight.HasValue

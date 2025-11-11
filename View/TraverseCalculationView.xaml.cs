@@ -13,26 +13,19 @@ namespace Nivtropy.Views
             InitializeComponent();
         }
 
-        private void PointComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        private void PointCodeTextBox_TextChanged(object sender, TextChangedEventArgs e)
         {
-            // Обновляем кнопки при выборе точки
+            // Обновляем кнопки при изменении кода точки
             if (DataContext is TraverseCalculationViewModel viewModel)
             {
-                viewModel.UpdateSelectedPoint(GetSelectedPoint());
+                var pointCode = PointCodeTextBox.Text?.Trim();
+                viewModel.UpdateSelectedPoint(pointCode);
             }
         }
 
-        private string? GetSelectedPoint()
+        private string? GetPointCode()
         {
-            if (PointComboBox.SelectedItem is ComboBoxItem item)
-            {
-                var tag = item.Tag?.ToString();
-                if (DataContext is TraverseCalculationViewModel viewModel && viewModel.SelectedRow != null)
-                {
-                    return tag == "Back" ? viewModel.SelectedRow.BackCode : viewModel.SelectedRow.ForeCode;
-                }
-            }
-            return null;
+            return PointCodeTextBox.Text?.Trim();
         }
 
         private void SetHeightButton_Click(object sender, RoutedEventArgs e)
@@ -40,10 +33,10 @@ namespace Nivtropy.Views
             if (DataContext is not TraverseCalculationViewModel viewModel)
                 return;
 
-            var pointCode = GetSelectedPoint();
+            var pointCode = GetPointCode();
             if (string.IsNullOrWhiteSpace(pointCode))
             {
-                MessageBox.Show("Выберите точку из списка.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show("Введите код точки.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
 
@@ -70,10 +63,10 @@ namespace Nivtropy.Views
             if (DataContext is not TraverseCalculationViewModel viewModel)
                 return;
 
-            var pointCode = GetSelectedPoint();
+            var pointCode = GetPointCode();
             if (string.IsNullOrWhiteSpace(pointCode))
             {
-                MessageBox.Show("Выберите точку из списка.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show("Введите код точки.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
 

@@ -259,6 +259,9 @@ namespace Nivtropy.ViewModels
 
             var items = TraverseBuilder.Build(records);
 
+            // Рассчитываем поправки для распределения невязки
+            CalculateCorrections(items);
+
             // Рассчитываем высоты точек
             CalculateHeights(items);
 
@@ -364,6 +367,53 @@ namespace Nivtropy.ViewModels
         }
 
         /// <summary>
+        /// Рассчитывает поправки для распределения невязки пропорционально длинам станций
+        /// </summary>
+        private void CalculateCorrections(List<TraverseRow> items)
+        {
+            if (items.Count == 0)
+                return;
+
+            // Вычисляем общую длину хода (среднее расстояние для каждой станции)
+            double totalDistance = 0;
+            foreach (var row in items)
+            {
+                var avgDistance = ((row.HdBack_m ?? 0) + (row.HdFore_m ?? 0)) / 2.0;
+                totalDistance += avgDistance;
+            }
+
+            if (totalDistance <= 0)
+            {
+                // Если нет данных о расстояниях, распределяем поровну на все станции
+                var adjustableCount = items.Count(r => r.DeltaH.HasValue);
+                if (adjustableCount > 0 && Closure.HasValue)
+                {
+                    var correctionPerStation = -Closure.Value / adjustableCount;
+                    foreach (var row in items)
+                    {
+                        if (row.DeltaH.HasValue)
+                            row.Correction = correctionPerStation;
+                    }
+                }
+                return;
+            }
+
+            // Распределяем невязку пропорционально длинам
+            if (Closure.HasValue)
+            {
+                var correctionFactor = -Closure.Value / totalDistance;
+                foreach (var row in items)
+                {
+                    if (row.DeltaH.HasValue)
+                    {
+                        var avgDistance = ((row.HdBack_m ?? 0) + (row.HdFore_m ?? 0)) / 2.0;
+                        row.Correction = correctionFactor * avgDistance;
+                    }
+                }
+            }
+        }
+
+        /// <summary>
         /// Рассчитывает высоты точек на основе известных высот и превышений
         /// Логика нивелирования: H_fore = H_back + Δh, где Δh = Rb - Rf
         /// </summary>
@@ -404,10 +454,10 @@ namespace Nivtropy.ViewModels
                     }
                 }
 
-                // Рассчитываем высоту передней точки: H_fore = H_back + Δh
-                if (row.BackHeight.HasValue && row.DeltaH.HasValue)
+                // Рассчитываем высоту передней точки: H_fore = H_back + Δh (используем исправленное превышение)
+                if (row.BackHeight.HasValue && row.AdjustedDeltaH.HasValue)
                 {
-                    row.ForeHeight = row.BackHeight.Value + row.DeltaH.Value;
+                    row.ForeHeight = row.BackHeight.Value + row.AdjustedDeltaH.Value;
                     row.IsForeHeightKnown = false;
                 }
 

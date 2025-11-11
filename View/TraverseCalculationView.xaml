@@ -73,16 +73,13 @@
             <StackPanel Margin="8,4">
                 <TextBlock Text="Установить известную отметку (высоту Z) точке:" FontWeight="SemiBold" Margin="0,0,0,4" />
                 <StackPanel Orientation="Horizontal">
-                    <TextBlock Text="Точка:" VerticalAlignment="Center" Margin="0,0,8,0" />
-                    <ComboBox x:Name="PointComboBox" Width="150" VerticalAlignment="Center" Margin="0,0,8,0" SelectionChanged="PointComboBox_SelectionChanged">
-                        <ComboBoxItem Tag="Back" Content="{Binding SelectedRow.BackCode, StringFormat='Задняя: {0}'}" />
-                        <ComboBoxItem Tag="Fore" Content="{Binding SelectedRow.ForeCode, StringFormat='Передняя: {0}'}" />
-                    </ComboBox>
-                    <TextBlock Text="Высота Z, м:" VerticalAlignment="Center" Margin="8,0,8,0" />
+                    <TextBlock Text="Код точки:" VerticalAlignment="Center" Margin="0,0,8,0" />
+                    <TextBox x:Name="PointCodeTextBox" Width="150" VerticalAlignment="Center" Margin="0,0,16,0" TextChanged="PointCodeTextBox_TextChanged" />
+                    <TextBlock Text="Высота Z, м:" VerticalAlignment="Center" Margin="0,0,8,0" />
                     <TextBox x:Name="HeightTextBox" Width="120" VerticalAlignment="Center" Margin="0,0,8,0" />
                     <Button Content="Установить" Padding="8,4" Click="SetHeightButton_Click" IsEnabled="{Binding CanSetHeight}" />
                     <Button Content="Очистить" Padding="8,4" Margin="8,0,0,0" Click="ClearHeightButton_Click" IsEnabled="{Binding CanClearHeight}" />
-                    <TextBlock Text="(Выберите строку в таблице)" VerticalAlignment="Center" Margin="16,0,0,0" Foreground="Gray" FontStyle="Italic" />
+                    <TextBlock Text="(Введите код точки напрямую, например: 12, KD1, и т.д.)" VerticalAlignment="Center" Margin="16,0,0,0" Foreground="Gray" FontStyle="Italic" />
                 </StackPanel>
             </StackPanel>
         </Border>
@@ -141,6 +138,13 @@
                                 </Style>
                             </DataGridTextColumn.HeaderStyle>
                         </DataGridTextColumn>
+                        <DataGridTextColumn Header="Точка" Binding="{Binding ForeCode}" Width="100">
+                            <DataGridTextColumn.HeaderStyle>
+                                <Style TargetType="DataGridColumnHeader">
+                                    <Setter Property="ToolTip" Value="Код передней точки (для которой рассчитана высота)" />
+                                </Style>
+                            </DataGridTextColumn.HeaderStyle>
+                        </DataGridTextColumn>
                         <DataGridTextColumn Header="Станция" Binding="{Binding Station}" Width="240">
                             <DataGridTextColumn.HeaderStyle>
                                 <Style TargetType="DataGridColumnHeader">
@@ -148,68 +152,28 @@
                                 </Style>
                             </DataGridTextColumn.HeaderStyle>
                         </DataGridTextColumn>
-                        <DataGridTextColumn Header="Rb, м" Binding="{Binding Rb_m, StringFormat=F4}" Width="100">
-                            <DataGridTextColumn.HeaderStyle>
-                                <Style TargetType="DataGridColumnHeader">
-                                    <Setter Property="ToolTip" Value="Отсчёт по задней рейке (Reading Back)" />
-                                </Style>
-                            </DataGridTextColumn.HeaderStyle>
-                        </DataGridTextColumn>
-                        <DataGridTextColumn Header="Rf, м" Binding="{Binding Rf_m, StringFormat=F4}" Width="100">
-                            <DataGridTextColumn.HeaderStyle>
-                                <Style TargetType="DataGridColumnHeader">
-                                    <Setter Property="ToolTip" Value="Отсчёт по передней рейке (Reading Forward)" />
-                                </Style>
-                            </DataGridTextColumn.HeaderStyle>
-                        </DataGridTextColumn>
                         <DataGridTextColumn Header="Δh, м" Binding="{Binding DeltaH, StringFormat=+0.0000;-0.0000;0.0000}" Width="120">
                             <DataGridTextColumn.HeaderStyle>
                                 <Style TargetType="DataGridColumnHeader">
-                                    <Setter Property="ToolTip" Value="Превышение: Rb - Rf (положительное значение = передняя точка выше задней)" />
+                                    <Setter Property="ToolTip" Value="Превышение: Rb - Rf (расчитанное значение)" />
                                 </Style>
                             </DataGridTextColumn.HeaderStyle>
                         </DataGridTextColumn>
-                        <DataGridTemplateColumn Header="Δh (метод), м" Width="140">
-                            <DataGridTemplateColumn.HeaderStyle>
-                                <Style TargetType="DataGridColumnHeader">
-                                    <Setter Property="ToolTip" Value="Превышение с учётом направления хода (BF: прямое, FB: обратное)" />
-                                </Style>
-                            </DataGridTemplateColumn.HeaderStyle>
-                            <DataGridTemplateColumn.CellTemplate>
-                                <DataTemplate>
-                                    <TextBlock>
-                                        <TextBlock.Text>
-                                            <MultiBinding Converter="{StaticResource MethodDeltaConverter}" StringFormat="+0.0000;-0.0000;0.0000">
-                                                <Binding Path="DeltaH" />
-                                                <Binding Path="DataContext.MethodOrientationSign" RelativeSource="{RelativeSource AncestorType={x:Type DataGrid}}" />
-                                            </MultiBinding>
-                                        </TextBlock.Text>
-                                    </TextBlock>
-                                </DataTemplate>
-                            </DataGridTemplateColumn.CellTemplate>
-                        </DataGridTemplateColumn>
-                        <DataGridTextColumn Header="HDback, м" Binding="{Binding HdBack_m, StringFormat=0.00}" Width="110">
+                        <DataGridTextColumn Header="Поправка, м" Binding="{Binding Correction}" Width="120">
                             <DataGridTextColumn.HeaderStyle>
                                 <Style TargetType="DataGridColumnHeader">
-                                    <Setter Property="ToolTip" Value="Горизонтальное расстояние до задней рейки" />
+                                    <Setter Property="ToolTip" Value="Поправка для распределения невязки" />
                                 </Style>
                             </DataGridTextColumn.HeaderStyle>
                         </DataGridTextColumn>
-                        <DataGridTextColumn Header="HDfore, м" Binding="{Binding HdFore_m, StringFormat=0.00}" Width="110">
+                        <DataGridTextColumn Header="Δh испр., м" Binding="{Binding AdjustedDeltaH, StringFormat=+0.0000;-0.0000;0.0000}" Width="120">
                             <DataGridTextColumn.HeaderStyle>
                                 <Style TargetType="DataGridColumnHeader">
-                                    <Setter Property="ToolTip" Value="Горизонтальное расстояние до передней рейки" />
+                                    <Setter Property="ToolTip" Value="Исправленное превышение (с учётом поправки)" />
                                 </Style>
                             </DataGridTextColumn.HeaderStyle>
                         </DataGridTextColumn>
-                        <DataGridTextColumn Header="H зад., м" Binding="{Binding BackHeightDisplay}" Width="150">
-                            <DataGridTextColumn.HeaderStyle>
-                                <Style TargetType="DataGridColumnHeader">
-                                    <Setter Property="ToolTip" Value="Высота задней точки (известная или рассчитанная)" />
-                                </Style>
-                            </DataGridTextColumn.HeaderStyle>
-                        </DataGridTextColumn>
-                        <DataGridTextColumn Header="H перед., м" Binding="{Binding ForeHeightDisplay}" Width="150">
+                        <DataGridTextColumn Header="Z, м" Binding="{Binding ForeHeightDisplay}" Width="150">
                             <DataGridTextColumn.HeaderStyle>
                                 <Style TargetType="DataGridColumnHeader">
                                     <Setter Property="ToolTip" Value="Высота передней точки (известная или рассчитанная)" />
