@@ -187,9 +187,9 @@ namespace Nivtropy.ViewModels
         }
 
         /// <summary>
-        /// Общая длина хода: среднее между назад и вперёд (в метрах)
+        /// Общая длина хода: сумма длин назад и вперёд (в метрах)
         /// </summary>
-        public double TotalAverageLength => (TotalBackDistance + TotalForeDistance) / 2.0;
+        public double TotalAverageLength => TotalBackDistance + TotalForeDistance;
 
         /// <summary>
         /// Длина хода в километрах (используется в формулах допусков по классу)

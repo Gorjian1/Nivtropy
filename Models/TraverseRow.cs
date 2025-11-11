@@ -9,6 +9,11 @@ namespace Nivtropy.Models
         public string? BackCode { get; set; }     // код "задней" точки/рейки (из StationCode)
         public string? ForeCode { get; set; }     // код "передней" точки/рейки
 
+        /// <summary>
+        /// Ссылка на сводку хода (для доступа к длинам и прочей информации)
+        /// </summary>
+        public LineSummary? LineSummary { get; set; }
+
         public double? Rb_m { get; set; }
         public double? Rf_m { get; set; }
         public double? DeltaH => (Rb_m.HasValue && Rf_m.HasValue) ? Rb_m - Rf_m : null;

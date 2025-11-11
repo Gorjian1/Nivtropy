@@ -15,6 +15,7 @@ namespace Nivtropy.Services
             string mode = "BF"; // По умолчанию BF (Back→Forward)
             TraverseRow? pending = null;
             int idx = 1;
+            LineSummary? currentLineSummary = run;
 
             foreach (var r in records)
             {
@@ -28,7 +29,14 @@ namespace Nivtropy.Services
                     }
 
                     line = r.LineSummary.DisplayName;
+                    currentLineSummary = r.LineSummary;
                     idx = 1;
+                }
+
+                // Обновляем currentLineSummary если она еще null
+                if (currentLineSummary == null && r.LineSummary != null)
+                {
+                    currentLineSummary = r.LineSummary;
                 }
 
                 // Определяем режим из маркера Start-Line
@@ -49,9 +57,9 @@ namespace Nivtropy.Services
                         // В режиме BF: Rb это задняя точка (Back)
                         // В режиме FB: Rb это передняя точка (Fore)
                         if (isBF)
-                            pending = new TraverseRow { LineName = line, Index = idx++, BackCode = r.StationCode, Rb_m = r.Rb_m, HdBack_m = r.HD_m };
+                            pending = new TraverseRow { LineName = line, Index = idx++, BackCode = r.StationCode, Rb_m = r.Rb_m, HdBack_m = r.HD_m, LineSummary = currentLineSummary };
                         else
-                            pending = new TraverseRow { LineName = line, Index = idx++, ForeCode = r.StationCode, Rb_m = r.Rb_m, HdFore_m = r.HD_m };
+                            pending = new TraverseRow { LineName = line, Index = idx++, ForeCode = r.StationCode, Rb_m = r.Rb_m, HdFore_m = r.HD_m, LineSummary = currentLineSummary };
                     }
                     else
                     {
@@ -80,9 +88,9 @@ namespace Nivtropy.Services
                         // В режиме BF: Rf это передняя точка (Fore)
                         // В режиме FB: Rf это задняя точка (Back)
                         if (isBF)
-                            pending = new TraverseRow { LineName = line, Index = idx++, ForeCode = r.StationCode, Rf_m = r.Rf_m, HdFore_m = r.HD_m };
+                            pending = new TraverseRow { LineName = line, Index = idx++, ForeCode = r.StationCode, Rf_m = r.Rf_m, HdFore_m = r.HD_m, LineSummary = currentLineSummary };
                         else
-                            pending = new TraverseRow { LineName = line, Index = idx++, BackCode = r.StationCode, Rf_m = r.Rf_m, HdBack_m = r.HD_m };
+                            pending = new TraverseRow { LineName = line, Index = idx++, BackCode = r.StationCode, Rf_m = r.Rf_m, HdBack_m = r.HD_m, LineSummary = currentLineSummary };
                     }
                     else
                     {

@@ -52,10 +52,10 @@ namespace Nivtropy.Models
         public double? ArmDifferenceAccumulation { get; }
 
         /// <summary>
-        /// Общая длина хода: среднее между назад и вперёд (в метрах)
+        /// Общая длина хода: сумма длин назад и вперёд (в метрах)
         /// </summary>
         public double? TotalAverageLength => TotalDistanceBack.HasValue && TotalDistanceFore.HasValue
-            ? (TotalDistanceBack.Value + TotalDistanceFore.Value) / 2.0
+            ? TotalDistanceBack.Value + TotalDistanceFore.Value
             : null;
 
         /// <summary>
