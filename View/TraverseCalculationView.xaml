@@ -10,6 +10,7 @@
              d:DesignWidth="800">
     <UserControl.Resources>
         <converters:MethodDeltaConverter x:Key="MethodDeltaConverter" />
+        <converters:GroupClosureConverter x:Key="GroupClosureConverter" />
         <CollectionViewSource x:Key="RowsGrouped" Source="{Binding Rows}">
             <CollectionViewSource.GroupDescriptions>
                 <PropertyGroupDescription PropertyName="LineName" />
@@ -46,64 +47,25 @@
             </StackPanel>
         </StackPanel>
 
-        <Grid Grid.Row="1" Margin="8,4,8,4">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="*" />
-            </Grid.ColumnDefinitions>
-
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto" />
-                <RowDefinition Height="Auto" />
-                <RowDefinition Height="Auto" />
-                <RowDefinition Height="Auto" />
-            </Grid.RowDefinitions>
-
-            <StackPanel Grid.Row="0">
-                <TextBlock Text="Станций" FontWeight="SemiBold" />
-                <TextBlock Text="{Binding StationsCount}" />
-            </StackPanel>
-            <StackPanel Grid.Row="0" Grid.Column="1">
-                <TextBlock Text="ΣΔh, м" FontWeight="SemiBold" />
-                <TextBlock Text="{Binding Closure, StringFormat=+0.0000;-0.0000;0.0000}" />
-            </StackPanel>
-            <StackPanel Grid.Row="0" Grid.Column="2">
-                <TextBlock Text="Решающий допуск, м" FontWeight="SemiBold" />
-                <TextBlock Text="{Binding AllowableClosure, StringFormat=0.0000}" />
-            </StackPanel>
-
-            <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,8,0,0">
-                <TextBlock Text="Сумма HDback, м" FontWeight="SemiBold" />
-                <TextBlock Text="{Binding TotalBackDistance, StringFormat=0.00}" />
-            </StackPanel>
-            <StackPanel Grid.Row="1" Grid.Column="1" Margin="0,8,0,0">
-                <TextBlock Text="Сумма HDfore, м" FontWeight="SemiBold" />
-                <TextBlock Text="{Binding TotalForeDistance, StringFormat=0.00}" />
-            </StackPanel>
-            <StackPanel Grid.Row="1" Grid.Column="2" Margin="0,8,0,0">
-                <TextBlock Text="Средняя длина, м" FontWeight="SemiBold" />
-                <TextBlock Text="{Binding TotalAverageDistance, StringFormat=0.00}" />
-            </StackPanel>
-
-            <StackPanel Grid.Row="2" Grid.Column="0" Margin="0,8,0,0">
-                <TextBlock Text="Допуск по методу, м" FontWeight="SemiBold" />
-                <TextBlock Text="{Binding MethodTolerance, StringFormat=0.0000}" />
-            </StackPanel>
-            <StackPanel Grid.Row="2" Grid.Column="1" Margin="0,8,0,0">
-                <TextBlock Text="Допуск по классу, м" FontWeight="SemiBold" />
-                <TextBlock Text="{Binding ClassTolerance, StringFormat=0.0000}" />
-            </StackPanel>
-            <StackPanel Grid.Row="2" Grid.Column="2" Margin="0,8,0,0">
-                <TextBlock Text="Δh по модулю, м" FontWeight="SemiBold" />
-                <TextBlock Text="{Binding ClosureAbsolute, StringFormat=0.0000}" />
-            </StackPanel>
-            <StackPanel Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="3" Margin="0,8,0,0" Orientation="Vertical">
-                <TextBlock Text="{Binding SelectedMethod.Description}" />
-                <TextBlock Text="{Binding SelectedClass.Description}"
-                           Margin="0,4,0,0" />
-            </StackPanel>
-        </Grid>
+        <StackPanel Grid.Row="1" Margin="8,4,8,4" Orientation="Horizontal">
+            <TextBlock Text="Станций:" FontWeight="SemiBold" VerticalAlignment="Center" />
+            <TextBlock Text="{Binding StationsCount}" Margin="4,0,0,0" VerticalAlignment="Center" />
+            <TextBlock Text="•" Margin="12,0,12,0" VerticalAlignment="Center" Foreground="#FF606060" />
+            <TextBlock Text="ΣΔh:" FontWeight="SemiBold" VerticalAlignment="Center" />
+            <TextBlock Text="{Binding Closure, StringFormat=+0.0000;-0.0000;0.0000}" Margin="4,0,0,0" VerticalAlignment="Center" />
+            <TextBlock Text="•" Margin="12,0,12,0" VerticalAlignment="Center" Foreground="#FF606060" />
+            <TextBlock Text="Допуск:" FontWeight="SemiBold" VerticalAlignment="Center" />
+            <TextBlock Text="{Binding AllowableClosure, StringFormat=0.0000}" Margin="4,0,0,0" VerticalAlignment="Center" />
+            <TextBlock Text="м" Margin="2,0,0,0" VerticalAlignment="Center" Foreground="#FF606060" />
+            <TextBlock Text="•" Margin="12,0,12,0" VerticalAlignment="Center" Foreground="#FF606060" />
+            <TextBlock Text="ΣHDback:" FontWeight="SemiBold" VerticalAlignment="Center" />
+            <TextBlock Text="{Binding TotalBackDistance, StringFormat=0.00}" Margin="4,0,0,0" VerticalAlignment="Center" />
+            <TextBlock Text="м" Margin="2,0,0,0" VerticalAlignment="Center" Foreground="#FF606060" />
+            <TextBlock Text="•" Margin="12,0,12,0" VerticalAlignment="Center" Foreground="#FF606060" />
+            <TextBlock Text="ΣHDfore:" FontWeight="SemiBold" VerticalAlignment="Center" />
+            <TextBlock Text="{Binding TotalForeDistance, StringFormat=0.00}" Margin="4,0,0,0" VerticalAlignment="Center" />
+            <TextBlock Text="м" Margin="2,0,0,0" VerticalAlignment="Center" Foreground="#FF606060" />
+        </StackPanel>
 
         <Border Grid.Row="2" Margin="8" BorderBrush="#FFB0B0B0" BorderThickness="1">
             <DockPanel>
@@ -134,6 +96,11 @@
                                         <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                             <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
                                             <TextBlock Text="{Binding ItemCount, StringFormat=' • Станций: {0}'}" Margin="12,0,0,0" Foreground="#FF606060" />
+                                            <TextBlock Text=" • ΣΔh: " Margin="12,0,0,0" Foreground="#FF606060" />
+                                            <TextBlock Text="{Binding Converter={StaticResource GroupClosureConverter}, StringFormat=+0.0000;-0.0000;0.0000}"
+                                                       FontWeight="SemiBold"
+                                                       Foreground="#FF1976D2" />
+                                            <TextBlock Text=" м" Foreground="#FF606060" />
                                         </StackPanel>
                                     </Border>
                                 </DataTemplate>
@@ -146,13 +113,47 @@
                         </GroupStyle>
                     </DataGrid.GroupStyle>
                     <DataGrid.Columns>
-                        <DataGridTextColumn Header="№" Binding="{Binding Index}" Width="60" />
-                        <DataGridTextColumn Header="Ход" Binding="{Binding LineName}" Width="120" />
-                        <DataGridTextColumn Header="Станция" Binding="{Binding Station}" Width="200" />
-                        <DataGridTextColumn Header="Rb, м" Binding="{Binding Rb_m, StringFormat=F4}" Width="100" />
-                        <DataGridTextColumn Header="Rf, м" Binding="{Binding Rf_m, StringFormat=F4}" Width="100" />
-                        <DataGridTextColumn Header="Δh, м" Binding="{Binding DeltaH, StringFormat=+0.0000;-0.0000;0.0000}" Width="120" />
+                        <DataGridTextColumn Header="№" Binding="{Binding Index}" Width="60">
+                            <DataGridTextColumn.HeaderStyle>
+                                <Style TargetType="DataGridColumnHeader">
+                                    <Setter Property="ToolTip" Value="Номер станции в пределах хода" />
+                                </Style>
+                            </DataGridTextColumn.HeaderStyle>
+                        </DataGridTextColumn>
+                        <DataGridTextColumn Header="Станция" Binding="{Binding Station}" Width="240">
+                            <DataGridTextColumn.HeaderStyle>
+                                <Style TargetType="DataGridColumnHeader">
+                                    <Setter Property="ToolTip" Value="Переход: задняя точка → передняя точка" />
+                                </Style>
+                            </DataGridTextColumn.HeaderStyle>
+                        </DataGridTextColumn>
+                        <DataGridTextColumn Header="Rb, м" Binding="{Binding Rb_m, StringFormat=F4}" Width="100">
+                            <DataGridTextColumn.HeaderStyle>
+                                <Style TargetType="DataGridColumnHeader">
+                                    <Setter Property="ToolTip" Value="Отсчёт по задней рейке (Reading Back)" />
+                                </Style>
+                            </DataGridTextColumn.HeaderStyle>
+                        </DataGridTextColumn>
+                        <DataGridTextColumn Header="Rf, м" Binding="{Binding Rf_m, StringFormat=F4}" Width="100">
+                            <DataGridTextColumn.HeaderStyle>
+                                <Style TargetType="DataGridColumnHeader">
+                                    <Setter Property="ToolTip" Value="Отсчёт по передней рейке (Reading Forward)" />
+                                </Style>
+                            </DataGridTextColumn.HeaderStyle>
+                        </DataGridTextColumn>
+                        <DataGridTextColumn Header="Δh, м" Binding="{Binding DeltaH, StringFormat=+0.0000;-0.0000;0.0000}" Width="120">
+                            <DataGridTextColumn.HeaderStyle>
+                                <Style TargetType="DataGridColumnHeader">
+                                    <Setter Property="ToolTip" Value="Превышение: Rb - Rf (положительное значение = передняя точка выше задней)" />
+                                </Style>
+                            </DataGridTextColumn.HeaderStyle>
+                        </DataGridTextColumn>
                         <DataGridTemplateColumn Header="Δh (метод), м" Width="140">
+                            <DataGridTemplateColumn.HeaderStyle>
+                                <Style TargetType="DataGridColumnHeader">
+                                    <Setter Property="ToolTip" Value="Превышение с учётом направления хода (BF: прямое, FB: обратное)" />
+                                </Style>
+                            </DataGridTemplateColumn.HeaderStyle>
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
                                     <TextBlock>
@@ -166,8 +167,20 @@
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
-                        <DataGridTextColumn Header="HDback, м" Binding="{Binding HdBack_m, StringFormat=0.00}" Width="110" />
-                        <DataGridTextColumn Header="HDfore, м" Binding="{Binding HdFore_m, StringFormat=0.00}" Width="110" />
+                        <DataGridTextColumn Header="HDback, м" Binding="{Binding HdBack_m, StringFormat=0.00}" Width="110">
+                            <DataGridTextColumn.HeaderStyle>
+                                <Style TargetType="DataGridColumnHeader">
+                                    <Setter Property="ToolTip" Value="Горизонтальное расстояние до задней рейки" />
+                                </Style>
+                            </DataGridTextColumn.HeaderStyle>
+                        </DataGridTextColumn>
+                        <DataGridTextColumn Header="HDfore, м" Binding="{Binding HdFore_m, StringFormat=0.00}" Width="110">
+                            <DataGridTextColumn.HeaderStyle>
+                                <Style TargetType="DataGridColumnHeader">
+                                    <Setter Property="ToolTip" Value="Горизонтальное расстояние до передней рейки" />
+                                </Style>
+                            </DataGridTextColumn.HeaderStyle>
+                        </DataGridTextColumn>
                     </DataGrid.Columns>
                 </DataGrid>
             </DockPanel>
