@@ -22,6 +22,7 @@ namespace Nivtropy.ViewModels
         private double? _allowableClosure;
         private string _closureStatus = "Нет данных";
         private double _totalDistance;
+        private DesignRow? _selectedRow;
 
         public TraverseDesignViewModel(DataViewModel dataViewModel)
         {
@@ -119,6 +120,47 @@ namespace Nivtropy.ViewModels
             private set => SetField(ref _totalDistance, value);
         }
 
+        public DesignRow? SelectedRow
+        {
+            get => _selectedRow;
+            set
+            {
+                if (SetField(ref _selectedRow, value))
+                {
+                    OnPropertyChanged(nameof(CanSetHeight));
+                    OnPropertyChanged(nameof(CanClearHeight));
+                }
+            }
+        }
+
+        public bool CanSetHeight => SelectedRow != null && !string.IsNullOrWhiteSpace(SelectedRow.PointCode);
+        public bool CanClearHeight => SelectedRow != null && !string.IsNullOrWhiteSpace(SelectedRow.PointCode)
+            && _dataViewModel.HasKnownHeight(SelectedRow.PointCode);
+
+        /// <summary>
+        /// Устанавливает известную высоту для выбранной точки
+        /// </summary>
+        public void SetKnownHeightForSelectedPoint(double height)
+        {
+            if (SelectedRow == null || string.IsNullOrWhiteSpace(SelectedRow.PointCode))
+                return;
+
+            _dataViewModel.SetKnownHeight(SelectedRow.PointCode, height);
+            UpdateRows();
+        }
+
+        /// <summary>
+        /// Удаляет известную высоту у выбранной точки
+        /// </summary>
+        public void ClearKnownHeightForSelectedPoint()
+        {
+            if (SelectedRow == null || string.IsNullOrWhiteSpace(SelectedRow.PointCode))
+                return;
+
+            _dataViewModel.ClearKnownHeight(SelectedRow.PointCode);
+            UpdateRows();
+        }
+
         private void DataViewModelOnPropertyChanged(object? sender, PropertyChangedEventArgs e)
         {
             if (e.PropertyName == nameof(DataViewModel.SelectedRun))
@@ -192,8 +234,14 @@ namespace Nivtropy.ViewModels
             // Распределение поправок ПРОПОРЦИОНАЛЬНО ДЛИНАМ секций
             double correctionFactor = totalDistance > 0 ? closureToDistribute / totalDistance : 0;
 
-            double runningHeight = StartHeight;
+            // Начальная высота: если у первой точки есть известная высота - использовать её
+            var firstPointCode = items.FirstOrDefault()?.BackCode;
+            double runningHeight = !string.IsNullOrWhiteSpace(firstPointCode) && _dataViewModel.GetKnownHeight(firstPointCode).HasValue
+                ? _dataViewModel.GetKnownHeight(firstPointCode)!.Value
+                : StartHeight;
+
             double adjustedSum = 0;
+            bool isFirstStation = true;
 
             foreach (var row in items)
             {
@@ -209,11 +257,29 @@ namespace Nivtropy.ViewModels
                     ? row.DeltaH + correction
                     : null;
 
+                // Рассчитываем высоту следующей точки
                 if (adjustedDelta.HasValue)
                 {
                     runningHeight += adjustedDelta.Value;
                     adjustedSum += adjustedDelta.Value;
                 }
+
+                // Проверяем, есть ли известная высота у конечной точки (ForeCode)
+                var forePointCode = row.ForeCode;
+                var knownHeightFore = !string.IsNullOrWhiteSpace(forePointCode)
+                    ? _dataViewModel.GetKnownHeight(forePointCode)
+                    : null;
+
+                // Если у конечной точки есть известная высота - используем её
+                if (knownHeightFore.HasValue)
+                {
+                    runningHeight = knownHeightFore.Value;
+                }
+
+                // Известная высота начальной точки (для первой станции)
+                var knownHeightBack = isFirstStation && !string.IsNullOrWhiteSpace(row.BackCode)
+                    ? _dataViewModel.GetKnownHeight(row.BackCode)
+                    : null;
 
                 _rows.Add(new DesignRow
                 {
@@ -221,12 +287,16 @@ namespace Nivtropy.ViewModels
                     Station = string.IsNullOrWhiteSpace(row.BackCode) && string.IsNullOrWhiteSpace(row.ForeCode)
                         ? row.LineName
                         : $"{row.BackCode ?? "?"} → {row.ForeCode ?? "?"}",
+                    PointCode = row.ForeCode, // Код конечной точки
                     Distance_m = avgDistance > 0 ? avgDistance : null,
                     OriginalDeltaH = row.DeltaH,
                     Correction = correction,
                     AdjustedDeltaH = adjustedDelta,
-                    DesignedHeight = runningHeight
+                    DesignedHeight = runningHeight,
+                    KnownHeight = knownHeightFore ?? (isFirstStation ? knownHeightBack : null)
                 });
+
+                isFirstStation = false;
             }
 
             DesignedClosure = adjustedSum;

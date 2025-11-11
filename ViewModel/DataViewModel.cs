@@ -17,6 +17,9 @@ namespace Nivtropy.ViewModels
         public ObservableCollection<MeasurementRecord> Records { get; } = new();
         public ObservableCollection<LineSummary> Runs { get; } = new();
 
+        // Словарь известных высот точек: ключ - код точки, значение - высота
+        private readonly Dictionary<string, double> _knownHeights = new(StringComparer.OrdinalIgnoreCase);
+
         private string? _sourcePath;
         public string? SourcePath
         {
@@ -57,6 +60,7 @@ namespace Nivtropy.ViewModels
         {
             SourcePath = path;
             Records.Clear();
+            _knownHeights.Clear();
 
             var parser = new DatParser();
             var parsed = parser.Parse(path).ToList();
@@ -69,6 +73,57 @@ namespace Nivtropy.ViewModels
                 Records.Add(rec);
             }
         }
+
+        /// <summary>
+        /// Устанавливает известную высоту для точки
+        /// </summary>
+        public void SetKnownHeight(string pointCode, double height)
+        {
+            if (string.IsNullOrWhiteSpace(pointCode))
+                return;
+
+            _knownHeights[pointCode.Trim()] = height;
+            OnPropertyChanged(nameof(KnownHeights));
+        }
+
+        /// <summary>
+        /// Получает известную высоту точки, если она установлена
+        /// </summary>
+        public double? GetKnownHeight(string pointCode)
+        {
+            if (string.IsNullOrWhiteSpace(pointCode))
+                return null;
+
+            return _knownHeights.TryGetValue(pointCode.Trim(), out var height) ? height : null;
+        }
+
+        /// <summary>
+        /// Удаляет известную высоту точки
+        /// </summary>
+        public void ClearKnownHeight(string pointCode)
+        {
+            if (string.IsNullOrWhiteSpace(pointCode))
+                return;
+
+            _knownHeights.Remove(pointCode.Trim());
+            OnPropertyChanged(nameof(KnownHeights));
+        }
+
+        /// <summary>
+        /// Проверяет, установлена ли известная высота для точки
+        /// </summary>
+        public bool HasKnownHeight(string pointCode)
+        {
+            if (string.IsNullOrWhiteSpace(pointCode))
+                return false;
+
+            return _knownHeights.ContainsKey(pointCode.Trim());
+        }
+
+        /// <summary>
+        /// Словарь всех известных высот (только для чтения)
+        /// </summary>
+        public IReadOnlyDictionary<string, double> KnownHeights => _knownHeights;
 
         private void AnnotateRuns(IList<MeasurementRecord> records)
         {

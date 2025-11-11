@@ -10,6 +10,7 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
@@ -76,8 +77,21 @@
             </StackPanel>
         </Grid>
 
-        <Border Grid.Row="2" Margin="8" BorderBrush="#FFB0B0B0" BorderThickness="1">
+        <!-- Панель управления известными высотами -->
+        <Border Grid.Row="2" Margin="8,4,8,4" BorderBrush="#FF6B9BD1" BorderThickness="1" Background="#FFF0F4FF">
+            <StackPanel Orientation="Horizontal" Margin="8,4">
+                <TextBlock Text="Установить высоту точке:" VerticalAlignment="Center" FontWeight="SemiBold" Margin="0,0,8,0" />
+                <TextBlock Text="{Binding SelectedRow.PointCode}" VerticalAlignment="Center" FontWeight="Bold" Margin="0,0,8,0" MinWidth="50" />
+                <TextBox x:Name="HeightTextBox" Width="100" VerticalAlignment="Center" Margin="0,0,8,0" />
+                <Button Content="Установить" Padding="8,4" Click="SetHeightButton_Click" IsEnabled="{Binding CanSetHeight}" />
+                <Button Content="Очистить" Padding="8,4" Margin="8,0,0,0" Click="ClearHeightButton_Click" IsEnabled="{Binding CanClearHeight}" />
+                <TextBlock Text="(Выберите строку в таблице для установки высоты точке)" VerticalAlignment="Center" Margin="16,0,0,0" Foreground="Gray" FontStyle="Italic" />
+            </StackPanel>
+        </Border>
+
+        <Border Grid.Row="3" Margin="8" BorderBrush="#FFB0B0B0" BorderThickness="1">
             <DataGrid ItemsSource="{Binding Rows}"
+                      SelectedItem="{Binding SelectedRow, Mode=TwoWay}"
                       AutoGenerateColumns="False"
                       CanUserAddRows="False"
                       IsReadOnly="True"
@@ -91,7 +105,7 @@
                     <DataGridTextColumn Header="Δh исх., м" Binding="{Binding OriginalDeltaH, StringFormat=+0.0000;-0.0000;0.0000}" Width="120" />
                     <DataGridTextColumn Header="Попр., м" Binding="{Binding Correction, StringFormat=+0.0000;-0.0000;0.0000}" Width="110" />
                     <DataGridTextColumn Header="Δh уравн., м" Binding="{Binding AdjustedDeltaH, StringFormat=+0.0000;-0.0000;0.0000}" Width="130" />
-                    <DataGridTextColumn Header="Проектн. отметка, м" Binding="{Binding DesignedHeight, StringFormat=0.000}" Width="160" />
+                    <DataGridTextColumn Header="Проектн. отметка, м" Binding="{Binding HeightDisplay}" Width="180" />
                 </DataGrid.Columns>
             </DataGrid>
         </Border>
