@@ -35,7 +35,7 @@
         </StackPanel>
 
         <DataGrid x:Name="RecordsGrid"
-                  Grid.Row="1"
+                  Grid.Row="2"
                   ItemsSource="{Binding Source={StaticResource RecordsGrouped}}"
                   AutoGenerateColumns="False"
                   CanUserAddRows="False"
@@ -62,7 +62,7 @@
                                 <Condition Binding="{Binding RelativeSource={RelativeSource Self}, Path=IsSelected}" Value="False" />
                             </MultiDataTrigger.Conditions>
                             <Setter Property="FontWeight" Value="SemiBold" />
-                            <Setter Property="Background" Value="#FFE8F5FF" />
+                            <Setter Property="Background" Value="#E8F5E9" />
                         </MultiDataTrigger>
                         <MultiDataTrigger>
                             <MultiDataTrigger.Conditions>
@@ -70,7 +70,7 @@
                                 <Condition Binding="{Binding RelativeSource={RelativeSource Self}, Path=IsSelected}" Value="False" />
                             </MultiDataTrigger.Conditions>
                             <Setter Property="FontWeight" Value="SemiBold" />
-                            <Setter Property="Background" Value="#FFFFF4E5" />
+                            <Setter Property="Background" Value="#F3E5F5" />
                         </MultiDataTrigger>
                     </Style.Triggers>
                 </Style>
@@ -85,7 +85,7 @@
                     </GroupStyle.ContainerStyle>
                     <GroupStyle.HeaderTemplate>
                         <DataTemplate>
-                            <Border Background="#FFF2F2F2" BorderBrush="#FFE0E0E0" BorderThickness="1" Padding="8" CornerRadius="4">
+                            <Border Background="#E3F2FD" BorderBrush="#90CAF9" BorderThickness="1" Padding="8" CornerRadius="4">
                                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                     <TextBlock Text="{Binding Items[0].LineSummary.DisplayName}" FontWeight="SemiBold" />
                                     <TextBlock Text="{Binding Items[0].LineSummary.RangeDisplay}" Margin="12,0,0,0" />

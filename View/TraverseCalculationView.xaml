@@ -4,11 +4,17 @@
              xmlns:converters="clr-namespace:Nivtropy.Converters"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:scm="clr-namespace:System.ComponentModel;assembly=WindowsBase"
              mc:Ignorable="d"
              d:DesignHeight="450"
              d:DesignWidth="800">
     <UserControl.Resources>
         <converters:MethodDeltaConverter x:Key="MethodDeltaConverter" />
+        <CollectionViewSource x:Key="RowsGrouped" Source="{Binding Rows}">
+            <CollectionViewSource.GroupDescriptions>
+                <PropertyGroupDescription PropertyName="LineName" />
+            </CollectionViewSource.GroupDescriptions>
+        </CollectionViewSource>
     </UserControl.Resources>
     <Grid>
         <Grid.RowDefinitions>
@@ -18,33 +24,29 @@
         </Grid.RowDefinitions>
 
         <StackPanel Grid.Row="0"
-                    Margin="8"
-                    Orientation="Vertical">
+                    Margin="8,8,8,4"
+                    Orientation="Horizontal">
             <TextBlock Text="Расчёт нивелирного хода"
-                       FontSize="16"
-                       FontWeight="SemiBold" />
-            <TextBlock Margin="0,4,0,0"
-                       Text="Суммарные параметры всех загруженных ходов." />
-            <StackPanel Orientation="Horizontal"
-                        Margin="0,12,0,0">
-                <StackPanel Orientation="Horizontal">
-                    <TextBlock Text="Метод:" VerticalAlignment="Center" />
-                    <TextBlock Text="{Binding SelectedMethod.Display}"
-                               FontWeight="SemiBold"
-                               Margin="8,0,0,0"
-                               VerticalAlignment="Center" />
-                </StackPanel>
-                <StackPanel Orientation="Horizontal" Margin="16,0,0,0">
-                    <TextBlock Text="Класс:" VerticalAlignment="Center" />
-                    <TextBlock Text="{Binding SelectedClass.Display}"
-                               FontWeight="SemiBold"
-                               Margin="8,0,0,0"
-                               VerticalAlignment="Center" />
-                </StackPanel>
+                       FontSize="14"
+                       FontWeight="SemiBold"
+                       VerticalAlignment="Center" />
+            <StackPanel Orientation="Horizontal" Margin="24,0,0,0">
+                <TextBlock Text="Метод:" VerticalAlignment="Center" />
+                <TextBlock Text="{Binding SelectedMethod.Display}"
+                           FontWeight="SemiBold"
+                           Margin="6,0,0,0"
+                           VerticalAlignment="Center" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Margin="16,0,0,0">
+                <TextBlock Text="Класс:" VerticalAlignment="Center" />
+                <TextBlock Text="{Binding SelectedClass.Display}"
+                           FontWeight="SemiBold"
+                           Margin="6,0,0,0"
+                           VerticalAlignment="Center" />
             </StackPanel>
         </StackPanel>
 
-        <Grid Grid.Row="1" Margin="8">
+        <Grid Grid.Row="1" Margin="8,4,8,4">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="*" />
@@ -71,32 +73,32 @@
                 <TextBlock Text="{Binding AllowableClosure, StringFormat=0.0000}" />
             </StackPanel>
 
-            <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,16,0,0">
+            <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,8,0,0">
                 <TextBlock Text="Сумма HDback, м" FontWeight="SemiBold" />
                 <TextBlock Text="{Binding TotalBackDistance, StringFormat=0.00}" />
             </StackPanel>
-            <StackPanel Grid.Row="1" Grid.Column="1" Margin="0,16,0,0">
+            <StackPanel Grid.Row="1" Grid.Column="1" Margin="0,8,0,0">
                 <TextBlock Text="Сумма HDfore, м" FontWeight="SemiBold" />
                 <TextBlock Text="{Binding TotalForeDistance, StringFormat=0.00}" />
             </StackPanel>
-            <StackPanel Grid.Row="1" Grid.Column="2" Margin="0,16,0,0">
+            <StackPanel Grid.Row="1" Grid.Column="2" Margin="0,8,0,0">
                 <TextBlock Text="Средняя длина, м" FontWeight="SemiBold" />
                 <TextBlock Text="{Binding TotalAverageDistance, StringFormat=0.00}" />
             </StackPanel>
 
-            <StackPanel Grid.Row="2" Grid.Column="0" Margin="0,16,0,0">
+            <StackPanel Grid.Row="2" Grid.Column="0" Margin="0,8,0,0">
                 <TextBlock Text="Допуск по методу, м" FontWeight="SemiBold" />
                 <TextBlock Text="{Binding MethodTolerance, StringFormat=0.0000}" />
             </StackPanel>
-            <StackPanel Grid.Row="2" Grid.Column="1" Margin="0,16,0,0">
+            <StackPanel Grid.Row="2" Grid.Column="1" Margin="0,8,0,0">
                 <TextBlock Text="Допуск по классу, м" FontWeight="SemiBold" />
                 <TextBlock Text="{Binding ClassTolerance, StringFormat=0.0000}" />
             </StackPanel>
-            <StackPanel Grid.Row="2" Grid.Column="2" Margin="0,16,0,0">
+            <StackPanel Grid.Row="2" Grid.Column="2" Margin="0,8,0,0">
                 <TextBlock Text="Δh по модулю, м" FontWeight="SemiBold" />
                 <TextBlock Text="{Binding ClosureAbsolute, StringFormat=0.0000}" />
             </StackPanel>
-            <StackPanel Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="3" Margin="0,16,0,0" Orientation="Vertical">
+            <StackPanel Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="3" Margin="0,8,0,0" Orientation="Vertical">
                 <TextBlock Text="{Binding SelectedMethod.Description}" />
                 <TextBlock Text="{Binding SelectedClass.Description}"
                            Margin="0,4,0,0" />
@@ -110,13 +112,39 @@
                            Background="#FFEAEAEA"
                            Text="{Binding ClosureVerdict}" />
                 <DataGrid x:Name="RowsGrid"
-                          ItemsSource="{Binding Rows}"
+                          ItemsSource="{Binding Source={StaticResource RowsGrouped}}"
                           AutoGenerateColumns="False"
                           CanUserAddRows="False"
                           IsReadOnly="True"
                           HeadersVisibility="Column"
                           Margin="0"
-                          RowHeaderWidth="0">
+                          RowHeaderWidth="0"
+                          EnableRowVirtualization="True"
+                          SelectionUnit="FullRow">
+                    <DataGrid.GroupStyle>
+                        <GroupStyle>
+                            <GroupStyle.ContainerStyle>
+                                <Style TargetType="GroupItem">
+                                    <Setter Property="Margin" Value="0,4,0,0" />
+                                </Style>
+                            </GroupStyle.ContainerStyle>
+                            <GroupStyle.HeaderTemplate>
+                                <DataTemplate>
+                                    <Border Background="#E3F2FD" BorderBrush="#90CAF9" BorderThickness="1" Padding="8" CornerRadius="4">
+                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
+                                            <TextBlock Text="{Binding ItemCount, StringFormat=' • Станций: {0}'}" Margin="12,0,0,0" Foreground="#FF606060" />
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </GroupStyle.HeaderTemplate>
+                            <GroupStyle.Panel>
+                                <ItemsPanelTemplate>
+                                    <DataGridRowsPresenter />
+                                </ItemsPanelTemplate>
+                            </GroupStyle.Panel>
+                        </GroupStyle>
+                    </DataGrid.GroupStyle>
                     <DataGrid.Columns>
                         <DataGridTextColumn Header="№" Binding="{Binding Index}" Width="60" />
                         <DataGridTextColumn Header="Ход" Binding="{Binding LineName}" Width="120" />
