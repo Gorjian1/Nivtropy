@@ -10,7 +10,7 @@ namespace Nivtropy.Converters
     {
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
-            if (value is CollectionViewGroup group)
+            if (value is System.Windows.Data.CollectionViewGroup group)
             {
                 var items = group.Items.OfType<TraverseRow>().ToList();
                 if (items.Count == 0)

@@ -207,7 +207,7 @@
                                 </Style>
                             </DataGridTextColumn.HeaderStyle>
                         </DataGridTextColumn>
-                        <DataGridTextColumn Header="Поправка, мм" Binding="{Binding Correction}" Width="120">
+                        <DataGridTextColumn Header="Поправка, мм" Width="120">
                             <DataGridTextColumn.HeaderStyle>
                                 <Style TargetType="DataGridColumnHeader">
                                     <Setter Property="ToolTip" Value="Поправка для распределения невязки" />
