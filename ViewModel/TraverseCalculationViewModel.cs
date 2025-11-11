@@ -159,13 +159,25 @@ namespace Nivtropy.ViewModels
         public double TotalBackDistance
         {
             get => _totalBackDistance;
-            private set => SetField(ref _totalBackDistance, value);
+            private set
+            {
+                if (SetField(ref _totalBackDistance, value))
+                {
+                    OnPropertyChanged(nameof(TotalAverageLength));
+                }
+            }
         }
 
         public double TotalForeDistance
         {
             get => _totalForeDistance;
-            private set => SetField(ref _totalForeDistance, value);
+            private set
+            {
+                if (SetField(ref _totalForeDistance, value))
+                {
+                    OnPropertyChanged(nameof(TotalAverageLength));
+                }
+            }
         }
 
         public double TotalAverageDistance
@@ -515,6 +527,23 @@ namespace Nivtropy.ViewModels
                     lineSummary.IsArmDifferenceAccumulationExceeded =
                         lineSummary.ArmDifferenceAccumulation.Value > accumulationTolerance;
                 }
+            }
+
+            // Принудительное обновление отображения через сброс коллекции
+            RefreshRowsDisplay();
+        }
+
+        /// <summary>
+        /// Обновляет отображение строк в DataGrid путём принудительного уведомления об изменении
+        /// </summary>
+        private void RefreshRowsDisplay()
+        {
+            // Создаём копию для принудительного обновления привязок
+            var tempRows = _rows.ToList();
+            _rows.Clear();
+            foreach (var row in tempRows)
+            {
+                _rows.Add(row);
             }
         }
 

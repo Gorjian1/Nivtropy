@@ -117,39 +117,34 @@
                             <GroupStyle.HeaderTemplate>
                                 <DataTemplate>
                                     <Border Background="#E3F2FD" BorderBrush="#90CAF9" BorderThickness="1" Padding="8" CornerRadius="4">
-                                        <Grid>
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="Auto" />
-                                                <ColumnDefinition Width="*" />
-                                            </Grid.ColumnDefinitions>
-                                            <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                                                <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
-                                                <TextBlock Text="{Binding ItemCount, StringFormat=' • Станций: {0}'}" Margin="12,0,0,0" Foreground="#FF606060" />
-                                                <TextBlock Text=" • ΣΔh: " Margin="12,0,0,0" Foreground="#FF606060" />
-                                                <TextBlock Text="{Binding Converter={StaticResource GroupClosureConverter}, StringFormat=+0.0000;-0.0000;0.0000}"
-                                                           FontWeight="SemiBold"
-                                                           Foreground="#FF1976D2" />
-                                                <TextBlock Text=" м" Foreground="#FF606060" />
-                                            </StackPanel>
-                                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Right">
-                                                <TextBlock Text="Длина: " Foreground="#FF606060" />
-                                                <TextBlock Text="{Binding Items[0].LineSummary.TotalDistanceBack, StringFormat=0.00}" FontWeight="SemiBold" />
-                                                <TextBlock Text=" м (назад), " Foreground="#FF606060" Margin="2,0,0,0" />
-                                                <TextBlock Text="{Binding Items[0].LineSummary.TotalDistanceFore, StringFormat=0.00}" FontWeight="SemiBold" />
-                                                <TextBlock Text=" м (вперёд), " Foreground="#FF606060" Margin="2,0,0,0" />
-                                                <TextBlock Text="{Binding Items[0].LineSummary.TotalAverageLength, StringFormat=0.00}" FontWeight="Bold" Foreground="#FF1976D2" />
-                                                <TextBlock Text=" м (общая)" Foreground="#FF606060" Margin="2,0,0,0" />
-                                                <TextBlock Text=" • Σ|разность плеч|: " Foreground="#FF606060" Margin="12,0,0,0" />
-                                                <TextBlock Text="{Binding Items[0].LineSummary.ArmDifferenceAccumulation, StringFormat=0.0000}"
-                                                           FontWeight="Bold">
-                                                    <TextBlock.Foreground>
-                                                        <Binding Path="Items[0].LineSummary.IsArmDifferenceAccumulationExceeded"
-                                                                 Converter="{StaticResource ArmDifferenceExceededToBrushConverter}" />
-                                                    </TextBlock.Foreground>
-                                                </TextBlock>
-                                                <TextBlock Text=" м" Foreground="#FF606060" Margin="2,0,0,0" />
-                                            </StackPanel>
-                                        </Grid>
+                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
+                                            <TextBlock Text=" • Станций: " Margin="12,0,0,0" Foreground="#FF606060" />
+                                            <TextBlock Text="{Binding ItemCount}" FontWeight="SemiBold" />
+                                            <TextBlock Text=" • ΣΔh: " Margin="12,0,0,0" Foreground="#FF606060" />
+                                            <TextBlock Text="{Binding Converter={StaticResource GroupClosureConverter}, StringFormat=+0.0000;-0.0000;0.0000}"
+                                                       FontWeight="SemiBold"
+                                                       Foreground="#FF1976D2" />
+                                            <TextBlock Text=" м" Foreground="#FF606060" />
+                                            <TextBlock Text=" • Длина назад: " Margin="12,0,0,0" Foreground="#FF606060" />
+                                            <TextBlock Text="{Binding Items[0].LineSummary.TotalDistanceBack, StringFormat=0.00}" FontWeight="SemiBold" />
+                                            <TextBlock Text=" м" Foreground="#FF606060" />
+                                            <TextBlock Text=" • Длина вперёд: " Margin="12,0,0,0" Foreground="#FF606060" />
+                                            <TextBlock Text="{Binding Items[0].LineSummary.TotalDistanceFore, StringFormat=0.00}" FontWeight="SemiBold" />
+                                            <TextBlock Text=" м" Foreground="#FF606060" />
+                                            <TextBlock Text=" • Общая длина: " Margin="12,0,0,0" Foreground="#FF606060" />
+                                            <TextBlock Text="{Binding Items[0].LineSummary.TotalAverageLength, StringFormat=0.00}" FontWeight="Bold" Foreground="#FF1976D2" />
+                                            <TextBlock Text=" м" Foreground="#FF606060" />
+                                            <TextBlock Text=" • Σ|разность плеч|: " Foreground="#FF606060" Margin="12,0,0,0" />
+                                            <TextBlock Text="{Binding Items[0].LineSummary.ArmDifferenceAccumulation, StringFormat=0.0000}"
+                                                       FontWeight="Bold">
+                                                <TextBlock.Foreground>
+                                                    <Binding Path="Items[0].LineSummary.IsArmDifferenceAccumulationExceeded"
+                                                             Converter="{StaticResource ArmDifferenceExceededToBrushConverter}" />
+                                                </TextBlock.Foreground>
+                                            </TextBlock>
+                                            <TextBlock Text=" м" Foreground="#FF606060" />
+                                        </StackPanel>
                                     </Border>
                                 </DataTemplate>
                             </GroupStyle.HeaderTemplate>
@@ -213,19 +208,12 @@
                                 </Style>
                             </DataGridTextColumn.HeaderStyle>
                         </DataGridTextColumn>
-                        <DataGridTextColumn Header="Поправка, мм" Width="120">
+                        <DataGridTextColumn Header="Поправка, м" Binding="{Binding Correction, StringFormat=+0.0000;-0.0000;0.0000}" Width="120">
                             <DataGridTextColumn.HeaderStyle>
                                 <Style TargetType="DataGridColumnHeader">
                                     <Setter Property="ToolTip" Value="Поправка для распределения невязки" />
                                 </Style>
                             </DataGridTextColumn.HeaderStyle>
-                            <DataGridTextColumn.Binding>
-                                <Binding Path="Correction">
-                                    <Binding.Converter>
-                                        <converters:MetersToMillimetersConverter />
-                                    </Binding.Converter>
-                                </Binding>
-                            </DataGridTextColumn.Binding>
                         </DataGridTextColumn>
                         <DataGridTextColumn Header="Δh испр., м" Binding="{Binding AdjustedDeltaH, StringFormat=+0.0000;-0.0000;0.0000}" Width="120">
                             <DataGridTextColumn.HeaderStyle>
