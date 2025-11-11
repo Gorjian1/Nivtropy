@@ -44,6 +44,7 @@ namespace Nivtropy.ViewModels
         private double? _methodTolerance;
         private double? _classTolerance;
         private int _stationsCount;
+        private TraverseRow? _selectedRow;
 
         public TraverseCalculationViewModel(DataViewModel dataViewModel)
         {
@@ -183,6 +184,76 @@ namespace Nivtropy.ViewModels
             private set => SetField(ref _stationsCount, value);
         }
 
+        public TraverseRow? SelectedRow
+        {
+            get => _selectedRow;
+            set
+            {
+                if (SetField(ref _selectedRow, value))
+                {
+                    OnPropertyChanged(nameof(CanSetBackHeight));
+                    OnPropertyChanged(nameof(CanSetForeHeight));
+                    OnPropertyChanged(nameof(CanClearBackHeight));
+                    OnPropertyChanged(nameof(CanClearForeHeight));
+                }
+            }
+        }
+
+        public bool CanSetBackHeight => SelectedRow != null && !string.IsNullOrWhiteSpace(SelectedRow.BackCode);
+        public bool CanSetForeHeight => SelectedRow != null && !string.IsNullOrWhiteSpace(SelectedRow.ForeCode);
+        public bool CanClearBackHeight => SelectedRow != null && !string.IsNullOrWhiteSpace(SelectedRow.BackCode)
+            && _dataViewModel.HasKnownHeight(SelectedRow.BackCode);
+        public bool CanClearForeHeight => SelectedRow != null && !string.IsNullOrWhiteSpace(SelectedRow.ForeCode)
+            && _dataViewModel.HasKnownHeight(SelectedRow.ForeCode);
+
+        /// <summary>
+        /// Устанавливает известную высоту для задней точки выбранной станции
+        /// </summary>
+        public void SetKnownHeightForBackPoint(double height)
+        {
+            if (SelectedRow == null || string.IsNullOrWhiteSpace(SelectedRow.BackCode))
+                return;
+
+            _dataViewModel.SetKnownHeight(SelectedRow.BackCode, height);
+            UpdateRows();
+        }
+
+        /// <summary>
+        /// Устанавливает известную высоту для передней точки выбранной станции
+        /// </summary>
+        public void SetKnownHeightForForePoint(double height)
+        {
+            if (SelectedRow == null || string.IsNullOrWhiteSpace(SelectedRow.ForeCode))
+                return;
+
+            _dataViewModel.SetKnownHeight(SelectedRow.ForeCode, height);
+            UpdateRows();
+        }
+
+        /// <summary>
+        /// Удаляет известную высоту у задней точки выбранной станции
+        /// </summary>
+        public void ClearKnownHeightForBackPoint()
+        {
+            if (SelectedRow == null || string.IsNullOrWhiteSpace(SelectedRow.BackCode))
+                return;
+
+            _dataViewModel.ClearKnownHeight(SelectedRow.BackCode);
+            UpdateRows();
+        }
+
+        /// <summary>
+        /// Удаляет известную высоту у передней точки выбранной станции
+        /// </summary>
+        public void ClearKnownHeightForForePoint()
+        {
+            if (SelectedRow == null || string.IsNullOrWhiteSpace(SelectedRow.ForeCode))
+                return;
+
+            _dataViewModel.ClearKnownHeight(SelectedRow.ForeCode);
+            UpdateRows();
+        }
+
         private void DataViewModelOnPropertyChanged(object? sender, PropertyChangedEventArgs e)
         {
             if (e.PropertyName == nameof(DataViewModel.SelectedRun))
@@ -213,6 +284,9 @@ namespace Nivtropy.ViewModels
             }
 
             var items = TraverseBuilder.Build(records);
+
+            // Рассчитываем высоты точек
+            CalculateHeights(items);
 
             foreach (var row in items)
             {
@@ -313,6 +387,54 @@ namespace Nivtropy.ViewModels
                 ToleranceMode.SqrtLength => option.Coefficient * Math.Sqrt(Math.Max(TotalLengthKilometers, 1e-6)),
                 _ => null
             };
+        }
+
+        /// <summary>
+        /// Рассчитывает высоты точек на основе известных высот и превышений
+        /// </summary>
+        private void CalculateHeights(List<TraverseRow> items)
+        {
+            if (items.Count == 0)
+                return;
+
+            double? runningHeight = null;
+
+            for (int i = 0; i < items.Count; i++)
+            {
+                var row = items[i];
+
+                // Проверяем известные высоты для задней и передней точек
+                row.BackKnownHeight = !string.IsNullOrWhiteSpace(row.BackCode)
+                    ? _dataViewModel.GetKnownHeight(row.BackCode)
+                    : null;
+                row.ForeKnownHeight = !string.IsNullOrWhiteSpace(row.ForeCode)
+                    ? _dataViewModel.GetKnownHeight(row.ForeCode)
+                    : null;
+
+                // Если у задней точки есть известная высота - используем её
+                if (row.BackKnownHeight.HasValue)
+                {
+                    runningHeight = row.BackKnownHeight.Value;
+                }
+
+                // Рассчитываем высоту задней точки
+                row.BackCalculatedHeight = runningHeight;
+
+                // Рассчитываем высоту передней точки на основе превышения
+                if (row.DeltaH.HasValue && runningHeight.HasValue)
+                {
+                    runningHeight = runningHeight.Value - row.DeltaH.Value;
+                }
+
+                // Если у передней точки есть известная высота - используем её
+                if (row.ForeKnownHeight.HasValue)
+                {
+                    runningHeight = row.ForeKnownHeight.Value;
+                }
+
+                // Рассчитываем высоту передней точки
+                row.ForeCalculatedHeight = runningHeight;
+            }
         }
 
         private bool SetField<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)

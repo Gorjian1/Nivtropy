@@ -21,6 +21,7 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
@@ -67,7 +68,29 @@
             <TextBlock Text="м" Margin="2,0,0,0" VerticalAlignment="Center" Foreground="#FF606060" />
         </StackPanel>
 
-        <Border Grid.Row="2" Margin="8" BorderBrush="#FFB0B0B0" BorderThickness="1">
+        <!-- Панель управления известными высотами -->
+        <Border Grid.Row="2" Margin="8,4,8,4" BorderBrush="#FF6B9BD1" BorderThickness="1" Background="#FFF0F4FF">
+            <StackPanel Margin="8,4">
+                <TextBlock Text="Установить известную высоту точке (выберите строку в таблице):" FontWeight="SemiBold" Margin="0,0,0,4" />
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="Задняя:" VerticalAlignment="Center" FontWeight="SemiBold" Margin="0,0,8,0" />
+                    <TextBlock Text="{Binding SelectedRow.BackCode}" VerticalAlignment="Center" FontWeight="Bold" Margin="0,0,8,0" MinWidth="50" />
+                    <TextBox x:Name="BackHeightTextBox" Width="100" VerticalAlignment="Center" Margin="0,0,8,0" />
+                    <Button Content="Установить" Padding="8,4" Click="SetBackHeightButton_Click" IsEnabled="{Binding CanSetBackHeight}" />
+                    <Button Content="Очистить" Padding="8,4" Margin="8,0,0,0" Click="ClearBackHeightButton_Click" IsEnabled="{Binding CanClearBackHeight}" />
+
+                    <Rectangle Width="1" Fill="#FF6B9BD1" Margin="16,0" />
+
+                    <TextBlock Text="Передняя:" VerticalAlignment="Center" FontWeight="SemiBold" Margin="0,0,8,0" />
+                    <TextBlock Text="{Binding SelectedRow.ForeCode}" VerticalAlignment="Center" FontWeight="Bold" Margin="0,0,8,0" MinWidth="50" />
+                    <TextBox x:Name="ForeHeightTextBox" Width="100" VerticalAlignment="Center" Margin="0,0,8,0" />
+                    <Button Content="Установить" Padding="8,4" Click="SetForeHeightButton_Click" IsEnabled="{Binding CanSetForeHeight}" />
+                    <Button Content="Очистить" Padding="8,4" Margin="8,0,0,0" Click="ClearForeHeightButton_Click" IsEnabled="{Binding CanClearForeHeight}" />
+                </StackPanel>
+            </StackPanel>
+        </Border>
+
+        <Border Grid.Row="3" Margin="8" BorderBrush="#FFB0B0B0" BorderThickness="1">
             <DockPanel>
                 <TextBlock DockPanel.Dock="Top"
                            Padding="4"
@@ -75,6 +98,7 @@
                            Text="{Binding ClosureVerdict}" />
                 <DataGrid x:Name="RowsGrid"
                           ItemsSource="{Binding Source={StaticResource RowsGrouped}}"
+                          SelectedItem="{Binding SelectedRow, Mode=TwoWay}"
                           AutoGenerateColumns="False"
                           CanUserAddRows="False"
                           IsReadOnly="True"
@@ -178,6 +202,20 @@
                             <DataGridTextColumn.HeaderStyle>
                                 <Style TargetType="DataGridColumnHeader">
                                     <Setter Property="ToolTip" Value="Горизонтальное расстояние до передней рейки" />
+                                </Style>
+                            </DataGridTextColumn.HeaderStyle>
+                        </DataGridTextColumn>
+                        <DataGridTextColumn Header="H зад., м" Binding="{Binding BackHeightDisplay}" Width="150">
+                            <DataGridTextColumn.HeaderStyle>
+                                <Style TargetType="DataGridColumnHeader">
+                                    <Setter Property="ToolTip" Value="Высота задней точки (известная или рассчитанная)" />
+                                </Style>
+                            </DataGridTextColumn.HeaderStyle>
+                        </DataGridTextColumn>
+                        <DataGridTextColumn Header="H перед., м" Binding="{Binding ForeHeightDisplay}" Width="150">
+                            <DataGridTextColumn.HeaderStyle>
+                                <Style TargetType="DataGridColumnHeader">
+                                    <Setter Property="ToolTip" Value="Высота передней точки (известная или рассчитанная)" />
                                 </Style>
                             </DataGridTextColumn.HeaderStyle>
                         </DataGridTextColumn>

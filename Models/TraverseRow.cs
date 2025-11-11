@@ -21,5 +21,43 @@ namespace Nivtropy.Models
         public string Station => string.IsNullOrWhiteSpace(BackCode) && string.IsNullOrWhiteSpace(ForeCode)
             ? LineName
             : $"{BackCode ?? "?"} → {ForeCode ?? "?"}";
+
+        /// <summary>
+        /// Известная высота задней точки (если установлена)
+        /// </summary>
+        public double? BackKnownHeight { get; set; }
+
+        /// <summary>
+        /// Известная высота передней точки (если установлена)
+        /// </summary>
+        public double? ForeKnownHeight { get; set; }
+
+        /// <summary>
+        /// Рассчитанная высота задней точки
+        /// </summary>
+        public double? BackCalculatedHeight { get; set; }
+
+        /// <summary>
+        /// Рассчитанная высота передней точки
+        /// </summary>
+        public double? ForeCalculatedHeight { get; set; }
+
+        /// <summary>
+        /// Отображаемая высота задней точки (известная или рассчитанная)
+        /// </summary>
+        public string BackHeightDisplay => BackKnownHeight.HasValue
+            ? $"{BackKnownHeight.Value:F4} (задано)"
+            : BackCalculatedHeight.HasValue
+                ? $"{BackCalculatedHeight.Value:F4}"
+                : "—";
+
+        /// <summary>
+        /// Отображаемая высота передней точки (известная или рассчитанная)
+        /// </summary>
+        public string ForeHeightDisplay => ForeKnownHeight.HasValue
+            ? $"{ForeKnownHeight.Value:F4} (задано)"
+            : ForeCalculatedHeight.HasValue
+                ? $"{ForeCalculatedHeight.Value:F4}"
+                : "—";
     }
 }
