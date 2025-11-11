@@ -99,6 +99,7 @@ namespace Nivtropy.ViewModels
                     _selectedClass = value;
                     OnPropertyChanged();
                     UpdateTolerance();
+                    CheckArmDifferenceTolerances(); // Пересчёт при смене класса
                 }
             }
         }
@@ -172,6 +173,11 @@ namespace Nivtropy.ViewModels
             get => _totalAverageDistance;
             private set => SetField(ref _totalAverageDistance, value);
         }
+
+        /// <summary>
+        /// Общая длина хода: среднее между назад и вперёд (в метрах)
+        /// </summary>
+        public double TotalAverageLength => (TotalBackDistance + TotalForeDistance) / 2.0;
 
         /// <summary>
         /// Длина хода в километрах (используется в формулах допусков по классу)
