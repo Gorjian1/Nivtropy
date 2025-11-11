@@ -28,11 +28,11 @@ namespace Nivtropy.ViewModels
         // Допуски разности плеч: на станции и накопление за ход
         private readonly LevelingClassOption[] _classes =
         {
-            new("I", "Класс I: 4 мм · √L", ToleranceMode.SqrtLength, 0.004, armDiffStation: 0.5, armDiffAccumulation: 1.0),
-            new("II", "Класс II: 8 мм · √L", ToleranceMode.SqrtLength, 0.008, armDiffStation: 1.0, armDiffAccumulation: 2.0),
-            new("III", "Класс III: 10 мм · √L", ToleranceMode.SqrtLength, 0.010, armDiffStation: 2.0, armDiffAccumulation: 5.0),
-            new("IV", "Класс IV: 20 мм · √L", ToleranceMode.SqrtLength, 0.020, armDiffStation: 5.0, armDiffAccumulation: 10.0),
-            new("Техническое", "Техническое: 50 мм · √L", ToleranceMode.SqrtLength, 0.050, armDiffStation: 10.0, armDiffAccumulation: 20.0)
+            new("I", "Класс I: 4 мм · √L", ToleranceMode.SqrtLength, 0.004, ArmDiffStation: 0.5, ArmDiffAccumulation: 1.0),
+            new("II", "Класс II: 8 мм · √L", ToleranceMode.SqrtLength, 0.008, ArmDiffStation: 1.0, ArmDiffAccumulation: 2.0),
+            new("III", "Класс III: 10 мм · √L", ToleranceMode.SqrtLength, 0.010, ArmDiffStation: 2.0, ArmDiffAccumulation: 5.0),
+            new("IV", "Класс IV: 20 мм · √L", ToleranceMode.SqrtLength, 0.020, ArmDiffStation: 5.0, ArmDiffAccumulation: 10.0),
+            new("Техническое", "Техническое: 50 мм · √L", ToleranceMode.SqrtLength, 0.050, ArmDiffStation: 10.0, ArmDiffAccumulation: 20.0)
         };
 
         private LevelingMethodOption? _selectedMethod;
