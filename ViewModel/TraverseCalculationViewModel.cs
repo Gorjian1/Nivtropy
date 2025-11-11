@@ -279,8 +279,17 @@ namespace Nivtropy.ViewModels
 
             var items = TraverseBuilder.Build(records);
 
-            // Рассчитываем поправки для распределения невязки
-            CalculateCorrections(items);
+            // Группируем станции по ходам для корректного расчета поправок
+            var traverseGroups = items.GroupBy(r => r.LineName).ToList();
+
+            // Рассчитываем поправки для каждого хода отдельно
+            foreach (var group in traverseGroups)
+            {
+                CalculateCorrections(group.ToList());
+            }
+
+            // Обновляем накопление разности плеч для каждого хода
+            UpdateArmDifferenceAccumulation(traverseGroups);
 
             // Рассчитываем высоты точек
             CalculateHeights(items);
@@ -389,11 +398,18 @@ namespace Nivtropy.ViewModels
 
         /// <summary>
         /// Рассчитывает поправки для распределения невязки пропорционально длинам станций
+        /// Невязка рассчитывается для конкретного хода (группы станций)
         /// </summary>
         private void CalculateCorrections(List<TraverseRow> items)
         {
             if (items.Count == 0)
                 return;
+
+            // Вычисляем невязку для данного хода
+            var sign = MethodOrientationSign;
+            var traverseClosure = items
+                .Where(r => r.DeltaH.HasValue)
+                .Sum(r => r.DeltaH!.Value * sign);
 
             // Вычисляем общую длину хода (среднее расстояние для каждой станции)
             double totalDistance = 0;
@@ -407,9 +423,9 @@ namespace Nivtropy.ViewModels
             {
                 // Если нет данных о расстояниях, распределяем поровну на все станции
                 var adjustableCount = items.Count(r => r.DeltaH.HasValue);
-                if (adjustableCount > 0 && Closure.HasValue)
+                if (adjustableCount > 0)
                 {
-                    var correctionPerStation = -Closure.Value / adjustableCount;
+                    var correctionPerStation = -traverseClosure / adjustableCount;
                     foreach (var row in items)
                     {
                         if (row.DeltaH.HasValue)
@@ -420,16 +436,13 @@ namespace Nivtropy.ViewModels
             }
 
             // Распределяем невязку пропорционально длинам
-            if (Closure.HasValue)
+            var correctionFactor = -traverseClosure / totalDistance;
+            foreach (var row in items)
             {
-                var correctionFactor = -Closure.Value / totalDistance;
-                foreach (var row in items)
+                if (row.DeltaH.HasValue)
                 {
-                    if (row.DeltaH.HasValue)
-                    {
-                        var avgDistance = ((row.HdBack_m ?? 0) + (row.HdFore_m ?? 0)) / 2.0;
-                        row.Correction = correctionFactor * avgDistance;
-                    }
+                    var avgDistance = ((row.HdBack_m ?? 0) + (row.HdFore_m ?? 0)) / 2.0;
+                    row.Correction = correctionFactor * avgDistance;
                 }
             }
         }
@@ -487,6 +500,80 @@ namespace Nivtropy.ViewModels
                 {
                     row.ForeHeight = foreKnownHeight.Value;
                     row.IsForeHeightKnown = true;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Обновляет накопление разности плеч для каждого хода на основе TraverseRow
+        /// Обновляет существующие LineSummary в DataViewModel.Runs
+        /// </summary>
+        private void UpdateArmDifferenceAccumulation(List<IGrouping<string, TraverseRow>> traverseGroups)
+        {
+            foreach (var group in traverseGroups)
+            {
+                var lineName = group.Key;
+                var rows = group.ToList();
+
+                // Находим индекс существующего LineSummary
+                var existingIndex = -1;
+                LineSummary? existingSummary = null;
+                for (int i = 0; i < _dataViewModel.Runs.Count; i++)
+                {
+                    if (_dataViewModel.Runs[i].DisplayName == lineName)
+                    {
+                        existingIndex = i;
+                        existingSummary = _dataViewModel.Runs[i];
+                        break;
+                    }
+                }
+
+                if (existingSummary == null)
+                    continue;
+
+                // Вычисляем накопление разности плеч и длины для этого хода
+                double? accumulation = null;
+                double? totalDistanceBack = null;
+                double? totalDistanceFore = null;
+
+                foreach (var row in rows)
+                {
+                    if (row.ArmDifference_m.HasValue)
+                    {
+                        accumulation = (accumulation ?? 0) + row.ArmDifference_m.Value;
+                    }
+
+                    if (row.HdBack_m.HasValue)
+                    {
+                        totalDistanceBack = (totalDistanceBack ?? 0) + row.HdBack_m.Value;
+                    }
+
+                    if (row.HdFore_m.HasValue)
+                    {
+                        totalDistanceFore = (totalDistanceFore ?? 0) + row.HdFore_m.Value;
+                    }
+                }
+
+                // Создаем новый LineSummary с обновленными значениями
+                var newSummary = new LineSummary(
+                    existingSummary.Index,
+                    existingSummary.StartTarget,
+                    existingSummary.StartStation,
+                    existingSummary.EndTarget,
+                    existingSummary.EndStation,
+                    existingSummary.RecordCount,
+                    existingSummary.DeltaHSum,
+                    totalDistanceBack,
+                    totalDistanceFore,
+                    accumulation);
+
+                // Заменяем в коллекции
+                _dataViewModel.Runs[existingIndex] = newSummary;
+
+                // Обновляем ссылки в TraverseRow
+                foreach (var row in rows)
+                {
+                    row.LineSummary = newSummary;
                 }
             }
         }
