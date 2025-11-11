@@ -51,29 +51,13 @@
                       SelectionUnit="FullRow">
                 <DataGrid.RowStyle>
                     <Style TargetType="DataGridRow">
-                        <Setter Property="Margin" Value="0,0,0,2" />
-                        <Setter Property="Background" Value="Transparent" />
+                        <Setter Property="Margin" Value="0,0,0,0" />
+                        <Setter Property="Background" Value="White" />
                         <Style.Triggers>
                             <Trigger Property="IsSelected" Value="True">
                                 <Setter Property="Background" Value="{DynamicResource {x:Static SystemColors.HighlightBrushKey}}" />
                                 <Setter Property="Foreground" Value="{DynamicResource {x:Static SystemColors.HighlightTextBrushKey}}" />
                             </Trigger>
-                            <MultiDataTrigger>
-                                <MultiDataTrigger.Conditions>
-                                    <Condition Binding="{Binding IsLineStart}" Value="True" />
-                                    <Condition Binding="{Binding RelativeSource={RelativeSource Self}, Path=IsSelected}" Value="False" />
-                                </MultiDataTrigger.Conditions>
-                                <Setter Property="FontWeight" Value="SemiBold" />
-                                <Setter Property="Background" Value="#E8F5E9" />
-                            </MultiDataTrigger>
-                            <MultiDataTrigger>
-                                <MultiDataTrigger.Conditions>
-                                    <Condition Binding="{Binding IsLineEnd}" Value="True" />
-                                    <Condition Binding="{Binding RelativeSource={RelativeSource Self}, Path=IsSelected}" Value="False" />
-                                </MultiDataTrigger.Conditions>
-                                <Setter Property="FontWeight" Value="SemiBold" />
-                                <Setter Property="Background" Value="#F3E5F5" />
-                            </MultiDataTrigger>
                         </Style.Triggers>
                     </Style>
                 </DataGrid.RowStyle>
@@ -92,8 +76,8 @@
                                         <TextBlock Text="{Binding Items[0].LineSummary.DisplayName}" FontWeight="SemiBold" />
                                         <TextBlock Text=" • " Margin="12,0,0,0" Foreground="#FF606060" />
                                         <TextBlock Text="{Binding Items[0].LineSummary.RangeDisplay}" />
-                                        <TextBlock Text=" • " Margin="12,0,0,0" Foreground="#FF606060" />
-                                        <TextBlock Text="{Binding Items[0].LineSummary.CombinedStats}" />
+                                        <TextBlock Text=" • Отсчётов: " Margin="12,0,0,0" Foreground="#FF606060" />
+                                        <TextBlock Text="{Binding Items[0].LineSummary.RecordCount}" FontWeight="SemiBold" />
                                     </StackPanel>
                                 </Border>
                             </DataTemplate>

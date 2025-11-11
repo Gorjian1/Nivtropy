@@ -69,8 +69,6 @@ namespace Nivtropy.ViewModels
 
         public ICommand OpenFileCommand => new RelayCommand(_ => OpenFile());
         public ICommand RefreshCommand => new RelayCommand(_ => Refresh());
-        public ICommand ExportCsvCommand => new RelayCommand(_ => ExportCsv(), _ => DataViewModel.Records.Count > 0);
-        public ICommand CheckToleranceCommand => new RelayCommand(_ => CheckTolerance(), _ => DataViewModel.Records.Count > 0);
 
         private void UpdateCurrentView()
         {
@@ -112,32 +110,6 @@ namespace Nivtropy.ViewModels
                     SyncSelectionWithData();
                 }
             }
-        }
-
-        private void ExportCsv()
-        {
-            var sfd = new SaveFileDialog
-            {
-                Title = "Экспорт CSV",
-                Filter = "CSV (*.csv)|*.csv",
-                FileName = System.IO.Path.ChangeExtension(System.IO.Path.GetFileName(DataViewModel.SourcePath) ?? "export", ".csv")
-            };
-            if (sfd.ShowDialog() == true)
-            {
-                try
-                {
-                    DataViewModel.ExportCsv(sfd.FileName);
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show(ex.Message, "Ошибка экспорта");
-                }
-            }
-        }
-
-        private void CheckTolerance()
-        {
-            MessageBox.Show("Проверка допусков будет реализована на шаге обработки.", "Nivtropy");
         }
 
         private void SyncSelectionWithData()

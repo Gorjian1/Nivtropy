@@ -24,19 +24,6 @@
                         <Separator/>
                         <Button Content="Обновить"
                                 Command="{Binding RefreshCommand}"/>
-                        <Button Content="Экспорт CSV"
-                                Command="{Binding ExportCsvCommand}"/>
-                        <Separator/>
-                        <Button Content="Проверка допуска"
-                                Command="{Binding CheckToleranceCommand}"/>
-                    </ToolBar>
-                    <ToolBar>
-                        <Label Content="Ход:"/>
-                        <ComboBox Width="240"
-                                  ItemsSource="{Binding DataViewModel.Runs}"
-                                  SelectedItem="{Binding DataViewModel.SelectedRun, Mode=TwoWay}"
-                                  DisplayMemberPath="Header"
-                                  ToolTipService.ShowDuration="20000"/>
                     </ToolBar>
                 </ToolBarTray>
             </TabItem>
