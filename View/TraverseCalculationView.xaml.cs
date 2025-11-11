@@ -13,12 +13,41 @@ namespace Nivtropy.Views
             InitializeComponent();
         }
 
-        private void SetBackHeightButton_Click(object sender, RoutedEventArgs e)
+        private void PointComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            // Обновляем кнопки при выборе точки
+            if (DataContext is TraverseCalculationViewModel viewModel)
+            {
+                viewModel.UpdateSelectedPoint(GetSelectedPoint());
+            }
+        }
+
+        private string? GetSelectedPoint()
+        {
+            if (PointComboBox.SelectedItem is ComboBoxItem item)
+            {
+                var tag = item.Tag?.ToString();
+                if (DataContext is TraverseCalculationViewModel viewModel && viewModel.SelectedRow != null)
+                {
+                    return tag == "Back" ? viewModel.SelectedRow.BackCode : viewModel.SelectedRow.ForeCode;
+                }
+            }
+            return null;
+        }
+
+        private void SetHeightButton_Click(object sender, RoutedEventArgs e)
         {
             if (DataContext is not TraverseCalculationViewModel viewModel)
                 return;
 
-            var heightText = BackHeightTextBox.Text?.Trim();
+            var pointCode = GetSelectedPoint();
+            if (string.IsNullOrWhiteSpace(pointCode))
+            {
+                MessageBox.Show("Выберите точку из списка.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            var heightText = HeightTextBox.Text?.Trim();
             if (string.IsNullOrWhiteSpace(heightText))
             {
                 MessageBox.Show("Введите значение высоты.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
@@ -31,64 +60,27 @@ namespace Nivtropy.Views
                 return;
             }
 
-            viewModel.SetKnownHeightForBackPoint(height);
-            MessageBox.Show($"Высота {height:F4} м установлена для задней точки {viewModel.SelectedRow?.BackCode}.", "Успешно", MessageBoxButton.OK, MessageBoxImage.Information);
-            BackHeightTextBox.Clear();
+            viewModel.SetKnownHeightForPoint(pointCode, height);
+            MessageBox.Show($"Высота {height:F4} м установлена для точки {pointCode}.", "Успешно", MessageBoxButton.OK, MessageBoxImage.Information);
+            HeightTextBox.Clear();
         }
 
-        private void SetForeHeightButton_Click(object sender, RoutedEventArgs e)
+        private void ClearHeightButton_Click(object sender, RoutedEventArgs e)
         {
             if (DataContext is not TraverseCalculationViewModel viewModel)
                 return;
 
-            var heightText = ForeHeightTextBox.Text?.Trim();
-            if (string.IsNullOrWhiteSpace(heightText))
-            {
-                MessageBox.Show("Введите значение высоты.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
-                return;
-            }
-
-            if (!double.TryParse(heightText, NumberStyles.Float, CultureInfo.InvariantCulture, out var height))
-            {
-                MessageBox.Show("Некорректное значение высоты. Используйте формат: 100.0000", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
-                return;
-            }
-
-            viewModel.SetKnownHeightForForePoint(height);
-            MessageBox.Show($"Высота {height:F4} м установлена для передней точки {viewModel.SelectedRow?.ForeCode}.", "Успешно", MessageBoxButton.OK, MessageBoxImage.Information);
-            ForeHeightTextBox.Clear();
-        }
-
-        private void ClearBackHeightButton_Click(object sender, RoutedEventArgs e)
-        {
-            if (DataContext is not TraverseCalculationViewModel viewModel)
-                return;
-
-            var pointCode = viewModel.SelectedRow?.BackCode;
+            var pointCode = GetSelectedPoint();
             if (string.IsNullOrWhiteSpace(pointCode))
+            {
+                MessageBox.Show("Выберите точку из списка.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
+            }
 
-            var result = MessageBox.Show($"Удалить известную высоту для задней точки {pointCode}?", "Подтверждение", MessageBoxButton.YesNo, MessageBoxImage.Question);
+            var result = MessageBox.Show($"Удалить известную высоту для точки {pointCode}?", "Подтверждение", MessageBoxButton.YesNo, MessageBoxImage.Question);
             if (result == MessageBoxResult.Yes)
             {
-                viewModel.ClearKnownHeightForBackPoint();
-                MessageBox.Show($"Известная высота для точки {pointCode} удалена.", "Успешно", MessageBoxButton.OK, MessageBoxImage.Information);
-            }
-        }
-
-        private void ClearForeHeightButton_Click(object sender, RoutedEventArgs e)
-        {
-            if (DataContext is not TraverseCalculationViewModel viewModel)
-                return;
-
-            var pointCode = viewModel.SelectedRow?.ForeCode;
-            if (string.IsNullOrWhiteSpace(pointCode))
-                return;
-
-            var result = MessageBox.Show($"Удалить известную высоту для передней точки {pointCode}?", "Подтверждение", MessageBoxButton.YesNo, MessageBoxImage.Question);
-            if (result == MessageBoxResult.Yes)
-            {
-                viewModel.ClearKnownHeightForForePoint();
+                viewModel.ClearKnownHeightForPoint(pointCode);
                 MessageBox.Show($"Известная высота для точки {pointCode} удалена.", "Успешно", MessageBoxButton.OK, MessageBoxImage.Information);
             }
         }

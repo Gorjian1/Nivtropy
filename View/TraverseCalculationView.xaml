@@ -71,21 +71,18 @@
         <!-- Панель управления известными высотами -->
         <Border Grid.Row="2" Margin="8,4,8,4" BorderBrush="#FF6B9BD1" BorderThickness="1" Background="#FFF0F4FF">
             <StackPanel Margin="8,4">
-                <TextBlock Text="Установить известную высоту точке (выберите строку в таблице):" FontWeight="SemiBold" Margin="0,0,0,4" />
+                <TextBlock Text="Установить известную отметку (высоту Z) точке:" FontWeight="SemiBold" Margin="0,0,0,4" />
                 <StackPanel Orientation="Horizontal">
-                    <TextBlock Text="Задняя:" VerticalAlignment="Center" FontWeight="SemiBold" Margin="0,0,8,0" />
-                    <TextBlock Text="{Binding SelectedRow.BackCode}" VerticalAlignment="Center" FontWeight="Bold" Margin="0,0,8,0" MinWidth="50" />
-                    <TextBox x:Name="BackHeightTextBox" Width="100" VerticalAlignment="Center" Margin="0,0,8,0" />
-                    <Button Content="Установить" Padding="8,4" Click="SetBackHeightButton_Click" IsEnabled="{Binding CanSetBackHeight}" />
-                    <Button Content="Очистить" Padding="8,4" Margin="8,0,0,0" Click="ClearBackHeightButton_Click" IsEnabled="{Binding CanClearBackHeight}" />
-
-                    <Rectangle Width="1" Fill="#FF6B9BD1" Margin="16,0" />
-
-                    <TextBlock Text="Передняя:" VerticalAlignment="Center" FontWeight="SemiBold" Margin="0,0,8,0" />
-                    <TextBlock Text="{Binding SelectedRow.ForeCode}" VerticalAlignment="Center" FontWeight="Bold" Margin="0,0,8,0" MinWidth="50" />
-                    <TextBox x:Name="ForeHeightTextBox" Width="100" VerticalAlignment="Center" Margin="0,0,8,0" />
-                    <Button Content="Установить" Padding="8,4" Click="SetForeHeightButton_Click" IsEnabled="{Binding CanSetForeHeight}" />
-                    <Button Content="Очистить" Padding="8,4" Margin="8,0,0,0" Click="ClearForeHeightButton_Click" IsEnabled="{Binding CanClearForeHeight}" />
+                    <TextBlock Text="Точка:" VerticalAlignment="Center" Margin="0,0,8,0" />
+                    <ComboBox x:Name="PointComboBox" Width="150" VerticalAlignment="Center" Margin="0,0,8,0" SelectionChanged="PointComboBox_SelectionChanged">
+                        <ComboBoxItem Tag="Back" Content="{Binding SelectedRow.BackCode, StringFormat='Задняя: {0}'}" />
+                        <ComboBoxItem Tag="Fore" Content="{Binding SelectedRow.ForeCode, StringFormat='Передняя: {0}'}" />
+                    </ComboBox>
+                    <TextBlock Text="Высота Z, м:" VerticalAlignment="Center" Margin="8,0,8,0" />
+                    <TextBox x:Name="HeightTextBox" Width="120" VerticalAlignment="Center" Margin="0,0,8,0" />
+                    <Button Content="Установить" Padding="8,4" Click="SetHeightButton_Click" IsEnabled="{Binding CanSetHeight}" />
+                    <Button Content="Очистить" Padding="8,4" Margin="8,0,0,0" Click="ClearHeightButton_Click" IsEnabled="{Binding CanClearHeight}" />
+                    <TextBlock Text="(Выберите строку в таблице)" VerticalAlignment="Center" Margin="16,0,0,0" Foreground="Gray" FontStyle="Italic" />
                 </StackPanel>
             </StackPanel>
         </Border>

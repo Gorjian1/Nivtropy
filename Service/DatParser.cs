@@ -47,8 +47,9 @@ namespace Nivtropy.Services
                     continue;
 
                 // Пропускаем строки, которые содержат только Z (вычисленные нивелиром высоты)
-                // Оставляем только строки с Rb и/или Rf
-                if (!record.Rb_m.HasValue && !record.Rf_m.HasValue)
+                // НО сохраняем маркеры линий (Start-Line, End-Line, Cont-Line) - они нужны для группировки
+                var isLineMarker = record.LineMarker == "Start-Line" || record.LineMarker == "End-Line" || record.LineMarker == "Cont-Line";
+                if (!record.Rb_m.HasValue && !record.Rf_m.HasValue && !isLineMarker)
                     continue;
 
                 yield return record;

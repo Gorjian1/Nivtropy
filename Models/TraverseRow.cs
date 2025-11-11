@@ -23,41 +23,41 @@ namespace Nivtropy.Models
             : $"{BackCode ?? "?"} → {ForeCode ?? "?"}";
 
         /// <summary>
-        /// Известная высота задней точки (если установлена)
+        /// Отметка (высота) задней точки
         /// </summary>
-        public double? BackKnownHeight { get; set; }
+        public double? BackHeight { get; set; }
 
         /// <summary>
-        /// Известная высота передней точки (если установлена)
+        /// Отметка (высота) передней точки
         /// </summary>
-        public double? ForeKnownHeight { get; set; }
+        public double? ForeHeight { get; set; }
 
         /// <summary>
-        /// Рассчитанная высота задней точки
+        /// Флаг, что высота задней точки известна (задана вручную)
         /// </summary>
-        public double? BackCalculatedHeight { get; set; }
+        public bool IsBackHeightKnown { get; set; }
 
         /// <summary>
-        /// Рассчитанная высота передней точки
+        /// Флаг, что высота передней точки известна (задана вручную)
         /// </summary>
-        public double? ForeCalculatedHeight { get; set; }
+        public bool IsForeHeightKnown { get; set; }
 
         /// <summary>
-        /// Отображаемая высота задней точки (известная или рассчитанная)
+        /// Отображение высоты задней точки
         /// </summary>
-        public string BackHeightDisplay => BackKnownHeight.HasValue
-            ? $"{BackKnownHeight.Value:F4} (задано)"
-            : BackCalculatedHeight.HasValue
-                ? $"{BackCalculatedHeight.Value:F4}"
-                : "—";
+        public string BackHeightDisplay => BackHeight.HasValue
+            ? IsBackHeightKnown
+                ? $"{BackHeight.Value:F4} (задано)"
+                : $"{BackHeight.Value:F4}"
+            : "—";
 
         /// <summary>
-        /// Отображаемая высота передней точки (известная или рассчитанная)
+        /// Отображение высоты передней точки
         /// </summary>
-        public string ForeHeightDisplay => ForeKnownHeight.HasValue
-            ? $"{ForeKnownHeight.Value:F4} (задано)"
-            : ForeCalculatedHeight.HasValue
-                ? $"{ForeCalculatedHeight.Value:F4}"
-                : "—";
+        public string ForeHeightDisplay => ForeHeight.HasValue
+            ? IsForeHeightKnown
+                ? $"{ForeHeight.Value:F4} (задано)"
+                : $"{ForeHeight.Value:F4}"
+            : "—";
     }
 }

@@ -45,6 +45,7 @@ namespace Nivtropy.ViewModels
         private double? _classTolerance;
         private int _stationsCount;
         private TraverseRow? _selectedRow;
+        private string? _selectedPointCode;
 
         public TraverseCalculationViewModel(DataViewModel dataViewModel)
         {
@@ -187,70 +188,43 @@ namespace Nivtropy.ViewModels
         public TraverseRow? SelectedRow
         {
             get => _selectedRow;
-            set
-            {
-                if (SetField(ref _selectedRow, value))
-                {
-                    OnPropertyChanged(nameof(CanSetBackHeight));
-                    OnPropertyChanged(nameof(CanSetForeHeight));
-                    OnPropertyChanged(nameof(CanClearBackHeight));
-                    OnPropertyChanged(nameof(CanClearForeHeight));
-                }
-            }
+            set => SetField(ref _selectedRow, value);
         }
 
-        public bool CanSetBackHeight => SelectedRow != null && !string.IsNullOrWhiteSpace(SelectedRow.BackCode);
-        public bool CanSetForeHeight => SelectedRow != null && !string.IsNullOrWhiteSpace(SelectedRow.ForeCode);
-        public bool CanClearBackHeight => SelectedRow != null && !string.IsNullOrWhiteSpace(SelectedRow.BackCode)
-            && _dataViewModel.HasKnownHeight(SelectedRow.BackCode);
-        public bool CanClearForeHeight => SelectedRow != null && !string.IsNullOrWhiteSpace(SelectedRow.ForeCode)
-            && _dataViewModel.HasKnownHeight(SelectedRow.ForeCode);
+        public bool CanSetHeight => !string.IsNullOrWhiteSpace(_selectedPointCode);
+        public bool CanClearHeight => !string.IsNullOrWhiteSpace(_selectedPointCode) && _dataViewModel.HasKnownHeight(_selectedPointCode);
 
         /// <summary>
-        /// Устанавливает известную высоту для задней точки выбранной станции
+        /// Обновляет выбранную точку для установки высоты
         /// </summary>
-        public void SetKnownHeightForBackPoint(double height)
+        public void UpdateSelectedPoint(string? pointCode)
         {
-            if (SelectedRow == null || string.IsNullOrWhiteSpace(SelectedRow.BackCode))
+            _selectedPointCode = pointCode;
+            OnPropertyChanged(nameof(CanSetHeight));
+            OnPropertyChanged(nameof(CanClearHeight));
+        }
+
+        /// <summary>
+        /// Устанавливает известную высоту для точки
+        /// </summary>
+        public void SetKnownHeightForPoint(string pointCode, double height)
+        {
+            if (string.IsNullOrWhiteSpace(pointCode))
                 return;
 
-            _dataViewModel.SetKnownHeight(SelectedRow.BackCode, height);
+            _dataViewModel.SetKnownHeight(pointCode, height);
             UpdateRows();
         }
 
         /// <summary>
-        /// Устанавливает известную высоту для передней точки выбранной станции
+        /// Удаляет известную высоту у точки
         /// </summary>
-        public void SetKnownHeightForForePoint(double height)
+        public void ClearKnownHeightForPoint(string pointCode)
         {
-            if (SelectedRow == null || string.IsNullOrWhiteSpace(SelectedRow.ForeCode))
+            if (string.IsNullOrWhiteSpace(pointCode))
                 return;
 
-            _dataViewModel.SetKnownHeight(SelectedRow.ForeCode, height);
-            UpdateRows();
-        }
-
-        /// <summary>
-        /// Удаляет известную высоту у задней точки выбранной станции
-        /// </summary>
-        public void ClearKnownHeightForBackPoint()
-        {
-            if (SelectedRow == null || string.IsNullOrWhiteSpace(SelectedRow.BackCode))
-                return;
-
-            _dataViewModel.ClearKnownHeight(SelectedRow.BackCode);
-            UpdateRows();
-        }
-
-        /// <summary>
-        /// Удаляет известную высоту у передней точки выбранной станции
-        /// </summary>
-        public void ClearKnownHeightForForePoint()
-        {
-            if (SelectedRow == null || string.IsNullOrWhiteSpace(SelectedRow.ForeCode))
-                return;
-
-            _dataViewModel.ClearKnownHeight(SelectedRow.ForeCode);
+            _dataViewModel.ClearKnownHeight(pointCode);
             UpdateRows();
         }
 
@@ -391,49 +365,58 @@ namespace Nivtropy.ViewModels
 
         /// <summary>
         /// Рассчитывает высоты точек на основе известных высот и превышений
+        /// Логика нивелирования: H_fore = H_back + Δh, где Δh = Rb - Rf
         /// </summary>
         private void CalculateHeights(List<TraverseRow> items)
         {
             if (items.Count == 0)
                 return;
 
-            double? runningHeight = null;
-
             for (int i = 0; i < items.Count; i++)
             {
                 var row = items[i];
 
-                // Проверяем известные высоты для задней и передней точек
-                row.BackKnownHeight = !string.IsNullOrWhiteSpace(row.BackCode)
+                // Проверяем известные высоты
+                var backKnownHeight = !string.IsNullOrWhiteSpace(row.BackCode)
                     ? _dataViewModel.GetKnownHeight(row.BackCode)
                     : null;
-                row.ForeKnownHeight = !string.IsNullOrWhiteSpace(row.ForeCode)
+                var foreKnownHeight = !string.IsNullOrWhiteSpace(row.ForeCode)
                     ? _dataViewModel.GetKnownHeight(row.ForeCode)
                     : null;
 
-                // Если у задней точки есть известная высота - используем её
-                if (row.BackKnownHeight.HasValue)
+                // Устанавливаем высоту задней точки
+                if (backKnownHeight.HasValue)
                 {
-                    runningHeight = row.BackKnownHeight.Value;
+                    row.BackHeight = backKnownHeight.Value;
+                    row.IsBackHeightKnown = true;
+                }
+                else if (i > 0 && !string.IsNullOrWhiteSpace(row.BackCode))
+                {
+                    // Пытаемся найти эту точку как переднюю в предыдущих станциях
+                    for (int j = i - 1; j >= 0; j--)
+                    {
+                        if (items[j].ForeCode == row.BackCode && items[j].ForeHeight.HasValue)
+                        {
+                            row.BackHeight = items[j].ForeHeight.Value;
+                            row.IsBackHeightKnown = items[j].IsForeHeightKnown;
+                            break;
+                        }
+                    }
                 }
 
-                // Рассчитываем высоту задней точки
-                row.BackCalculatedHeight = runningHeight;
-
-                // Рассчитываем высоту передней точки на основе превышения
-                if (row.DeltaH.HasValue && runningHeight.HasValue)
+                // Рассчитываем высоту передней точки: H_fore = H_back + Δh
+                if (row.BackHeight.HasValue && row.DeltaH.HasValue)
                 {
-                    runningHeight = runningHeight.Value - row.DeltaH.Value;
+                    row.ForeHeight = row.BackHeight.Value + row.DeltaH.Value;
+                    row.IsForeHeightKnown = false;
                 }
 
-                // Если у передней точки есть известная высота - используем её
-                if (row.ForeKnownHeight.HasValue)
+                // Если у передней точки есть известная высота - перезаписываем
+                if (foreKnownHeight.HasValue)
                 {
-                    runningHeight = row.ForeKnownHeight.Value;
+                    row.ForeHeight = foreKnownHeight.Value;
+                    row.IsForeHeightKnown = true;
                 }
-
-                // Рассчитываем высоту передней точки
-                row.ForeCalculatedHeight = runningHeight;
             }
         }
 
