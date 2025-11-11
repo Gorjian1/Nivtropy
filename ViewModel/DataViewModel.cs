@@ -61,12 +61,10 @@ namespace Nivtropy.ViewModels
             var parser = new DatParser();
             var parsed = parser.Parse(path).ToList();
 
-            // Фильтрация ошибочных измерений (помеченных ##### и замененных повторными)
-            var validRecords = parsed.Where(r => !r.IsInvalidMeasurement).ToList();
+            // Фильтрация теперь выполняется в парсере
+            AnnotateRuns(parsed);
 
-            AnnotateRuns(validRecords);
-
-            foreach (var rec in validRecords)
+            foreach (var rec in parsed)
             {
                 Records.Add(rec);
             }

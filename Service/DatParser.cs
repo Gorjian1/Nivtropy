@@ -37,6 +37,20 @@ namespace Nivtropy.Services
                     continue;
 
                 var record = ParseLine(line, measurementPatterns, ref autoStation);
+
+                // Пропускаем строки с ##### (ошибочные измерения, которые будут заменены)
+                if (record.IsInvalidMeasurement)
+                    continue;
+
+                // Пропускаем строки с маркерами "Measurement repeated" (не содержат данных)
+                if (record.LineMarker == "Measurement-Repeated")
+                    continue;
+
+                // Пропускаем строки, которые содержат только Z (вычисленные нивелиром высоты)
+                // Оставляем только строки с Rb и/или Rf
+                if (!record.Rb_m.HasValue && !record.Rf_m.HasValue)
+                    continue;
+
                 yield return record;
             }
         }
