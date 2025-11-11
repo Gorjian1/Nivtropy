@@ -9,6 +9,16 @@ namespace Nivtropy.Models
         public string? Target { get; set; }
         public string? StationCode { get; set; }
 
+        /// <summary>
+        /// Маркер хода: "Start-Line", "End-Line", "Cont-Line" или null для обычных измерений
+        /// </summary>
+        public string? LineMarker { get; set; }
+
+        /// <summary>
+        /// Флаг ошибочного измерения (помечено ##### в файле, будет заменено повторным)
+        /// </summary>
+        public bool IsInvalidMeasurement { get; set; }
+
         public double? Rb_m { get; set; }
         public double? Rf_m { get; set; }
         public double? HdBack_m { get; set; }

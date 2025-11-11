@@ -144,9 +144,17 @@ namespace Nivtropy.Services
             var modeSegment = ExtractModeSegment(line, adrMatch, measurementIndex);
             var modeTokens = PopulateModeAndTarget(record, modeSegment);
 
+            // Распознавание маркеров хода (Start-Line, End-Line, Cont-Line)
+            DetectLineMarker(record, line);
+
+            // Распознавание ошибочных измерений (помечены ##### или Measurement repeated)
+            DetectInvalidMeasurement(record, line);
+
             var stationCode = ExtractStationCode(modeSegment, line);
             if (stationCode != null)
             {
+                // Очистка маркера ##### из кода станции
+                stationCode = stationCode.Replace("#####", "").Trim();
                 record.StationCode = stationCode;
                 if (int.TryParse(stationCode, NumberStyles.Integer, CI, out var parsed))
                     autoStation = parsed + 1;
@@ -213,6 +221,8 @@ namespace Nivtropy.Services
         {
             var tokens = Regex.Split(segment ?? string.Empty, @"[|\t ]+")
                 .Where(t => !string.IsNullOrWhiteSpace(t))
+                .Select(t => t.Replace("#####", "").Trim()) // Очистка ##### из токенов
+                .Where(t => !string.IsNullOrWhiteSpace(t))
                 .ToArray();
 
             if (tokens.Length == 0)
@@ -251,6 +261,49 @@ namespace Nivtropy.Services
                 return numberMatches[^1].Groups[1].Value;
 
             return null;
+        }
+
+        /// <summary>
+        /// Определяет маркеры хода (Start-Line, End-Line, Cont-Line) из строки
+        /// </summary>
+        private static void DetectLineMarker(MeasurementRecord record, string line)
+        {
+            if (string.IsNullOrWhiteSpace(line))
+                return;
+
+            // Проверка на наличие маркеров хода в строке
+            if (Regex.IsMatch(line, @"\bStart-Line\b", RegexOptions.IgnoreCase))
+            {
+                record.LineMarker = "Start-Line";
+            }
+            else if (Regex.IsMatch(line, @"\bEnd-Line\b", RegexOptions.IgnoreCase))
+            {
+                record.LineMarker = "End-Line";
+            }
+            else if (Regex.IsMatch(line, @"\bCont-Line\b", RegexOptions.IgnoreCase))
+            {
+                record.LineMarker = "Cont-Line";
+            }
+            else if (Regex.IsMatch(line, @"\bMeasurement\s+repeated\b", RegexOptions.IgnoreCase))
+            {
+                record.LineMarker = "Measurement-Repeated";
+            }
+        }
+
+        /// <summary>
+        /// Определяет ошибочные измерения (помечены ##### в коде станции)
+        /// Такие измерения были повторены и должны игнорироваться при расчётах
+        /// </summary>
+        private static void DetectInvalidMeasurement(MeasurementRecord record, string line)
+        {
+            if (string.IsNullOrWhiteSpace(line))
+                return;
+
+            // Проверка на наличие ##### в строке (маркер ошибочного измерения)
+            if (line.Contains("#####"))
+            {
+                record.IsInvalidMeasurement = true;
+            }
         }
 
         private static void PopulateMeasurements(MeasurementRecord record, string line, IReadOnlyDictionary<string, Regex> patterns)
