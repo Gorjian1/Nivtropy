@@ -16,6 +16,8 @@ namespace Nivtropy.Services
             TraverseRow? pending = null;
             int idx = 1;
             LineSummary? currentLineSummary = run;
+            bool isFirstPointOfLine = false; // Флаг для отслеживания первой точки нового хода
+            string? firstPointCode = null; // Код первой точки хода
 
             foreach (var r in records)
             {
@@ -31,6 +33,8 @@ namespace Nivtropy.Services
                     line = r.LineSummary.DisplayName;
                     currentLineSummary = r.LineSummary;
                     idx = 1;
+                    isFirstPointOfLine = true; // Начинается новый ход
+                    firstPointCode = null;
                 }
 
                 // Обновляем currentLineSummary если она еще null
@@ -46,12 +50,33 @@ namespace Nivtropy.Services
                     var modeUpper = r.Mode.Trim().ToUpperInvariant();
                     if (modeUpper == "BF" || modeUpper == "FB")
                         mode = modeUpper;
+
+                    isFirstPointOfLine = true; // Start-Line также начинает новый ход
                 }
 
                 bool isBF = mode == "BF";
 
                 if (r.Rb_m.HasValue)
                 {
+                    // Если это первая точка нового хода, создаём виртуальную станцию
+                    if (isFirstPointOfLine && firstPointCode == null)
+                    {
+                        firstPointCode = r.StationCode;
+
+                        // Создаём виртуальную станцию для первой точки хода
+                        // Эта станция представляет репер, от которого начинается ход
+                        var virtualStation = new TraverseRow
+                        {
+                            LineName = line,
+                            Index = idx++,
+                            BackCode = r.StationCode,
+                            LineSummary = currentLineSummary
+                        };
+                        list.Add(virtualStation);
+
+                        isFirstPointOfLine = false;
+                    }
+
                     if (pending == null)
                     {
                         // В режиме BF: Rb это задняя точка (Back)

@@ -133,7 +133,10 @@ namespace Nivtropy.ViewModels
 
             var groups = new List<List<MeasurementRecord>>();
             var current = new List<MeasurementRecord>();
+            var continuationMarkers = new List<bool>(); // Отслеживает, является ли группа продолжением
             MeasurementRecord? previous = null;
+            bool isNextContinuation = false;
+
             foreach (var record in records)
             {
                 if (previous != null && ShouldStartNewLine(previous, record))
@@ -141,8 +144,12 @@ namespace Nivtropy.ViewModels
                     if (current.Count > 0)
                     {
                         groups.Add(current);
+                        continuationMarkers.Add(isNextContinuation);
                         current = new List<MeasurementRecord>();
                     }
+
+                    // Проверяем, является ли новая группа продолжением
+                    isNextContinuation = record.LineMarker == "Cont-Line";
                 }
 
                 current.Add(record);
@@ -152,16 +159,33 @@ namespace Nivtropy.ViewModels
             if (current.Count > 0)
             {
                 groups.Add(current);
+                continuationMarkers.Add(isNextContinuation);
             }
 
             int index = 1;
-            foreach (var group in groups)
+            int? lastNonContinuationIndex = null;
+
+            for (int g = 0; g < groups.Count; g++)
             {
-                var summary = BuildSummary(index, group);
+                var group = groups[g];
+                var isContinuation = continuationMarkers[g];
+
+                // Определяем индекс хода-предшественника для продолжений
+                int? continuationOfIndex = null;
+                if (isContinuation && lastNonContinuationIndex.HasValue)
+                {
+                    continuationOfIndex = lastNonContinuationIndex.Value;
+                }
+                else if (!isContinuation)
+                {
+                    lastNonContinuationIndex = index;
+                }
+
+                var summary = BuildSummary(index, group, continuationOfIndex);
                 Runs.Add(summary);
 
-                var start = group.FirstOrDefault(g => g.Rb_m.HasValue) ?? group.First();
-                var end = group.LastOrDefault(g => g.Rf_m.HasValue) ?? group.Last();
+                var start = group.FirstOrDefault(gr => gr.Rb_m.HasValue) ?? group.First();
+                var end = group.LastOrDefault(gr => gr.Rf_m.HasValue) ?? group.Last();
 
                 for (int i = 0; i < group.Count; i++)
                 {
@@ -216,7 +240,7 @@ namespace Nivtropy.ViewModels
             return false;
         }
 
-        private static LineSummary BuildSummary(int index, IReadOnlyList<MeasurementRecord> group)
+        private static LineSummary BuildSummary(int index, IReadOnlyList<MeasurementRecord> group, int? continuationOfIndex = null)
         {
             var start = group.FirstOrDefault(r => r.Rb_m.HasValue) ?? group.First();
             var end = group.LastOrDefault(r => r.Rf_m.HasValue) ?? group.Last();
@@ -261,7 +285,8 @@ namespace Nivtropy.ViewModels
                 deltaSum,
                 totalDistanceBack,
                 totalDistanceFore,
-                armDiffAccumulation);
+                armDiffAccumulation,
+                continuationOfIndex);
         }
 
         public void ExportCsv(string path)
