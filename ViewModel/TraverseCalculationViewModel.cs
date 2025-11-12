@@ -203,47 +203,8 @@ namespace Nivtropy.ViewModels
         /// <summary>
         /// Длина хода в километрах (используется в формулах допусков по классу)
         /// По теории - берется длина в один конец, не среднее
-        /// Для составных ходов (продолжений) включает длину предшествующих частей
         /// </summary>
-        public double TotalLengthKilometers
-        {
-            get
-            {
-                var currentRun = SelectedRun;
-                if (currentRun == null)
-                    return TotalBackDistance / 1000.0;
-
-                // Если это продолжение хода, суммируем длины с предшествующими частями
-                if (currentRun.ContinuationOfLineIndex.HasValue)
-                {
-                    var totalDistance = TotalBackDistance;
-
-                    // Находим все предшествующие части хода
-                    var predecessorIndex = currentRun.ContinuationOfLineIndex.Value;
-                    var predecessor = _dataViewModel.Runs.FirstOrDefault(r => r.Index == predecessorIndex);
-
-                    while (predecessor != null)
-                    {
-                        totalDistance += predecessor.TotalDistanceBack ?? 0;
-
-                        // Проверяем, является ли предшественник тоже продолжением
-                        if (predecessor.ContinuationOfLineIndex.HasValue)
-                        {
-                            predecessorIndex = predecessor.ContinuationOfLineIndex.Value;
-                            predecessor = _dataViewModel.Runs.FirstOrDefault(r => r.Index == predecessorIndex);
-                        }
-                        else
-                        {
-                            break;
-                        }
-                    }
-
-                    return totalDistance / 1000.0;
-                }
-
-                return TotalBackDistance / 1000.0;
-            }
-        }
+        public double TotalLengthKilometers => TotalBackDistance / 1000.0;
 
         public double MethodOrientationSign => SelectedMethod?.OrientationSign ?? 1.0;
 
@@ -891,9 +852,7 @@ namespace Nivtropy.ViewModels
                     existingSummary.DeltaHSum,
                     totalDistanceBack,
                     totalDistanceFore,
-                    accumulation,
-                    existingSummary.ContinuationOfLineIndex,
-                    existingSummary.DisplayIndex);
+                    accumulation);
 
                 // Заменяем в коллекции
                 _dataViewModel.Runs[existingIndex] = newSummary;
