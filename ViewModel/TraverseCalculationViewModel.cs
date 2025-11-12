@@ -565,7 +565,8 @@ namespace Nivtropy.ViewModels
                     existingSummary.DeltaHSum,
                     totalDistanceBack,
                     totalDistanceFore,
-                    accumulation);
+                    accumulation,
+                    existingSummary.SegmentIndex);
 
                 // Заменяем в коллекции
                 _dataViewModel.Runs[existingIndex] = newSummary;

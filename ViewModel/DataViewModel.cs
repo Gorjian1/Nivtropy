@@ -154,10 +154,38 @@ namespace Nivtropy.ViewModels
                 groups.Add(current);
             }
 
-            int index = 1;
-            foreach (var group in groups)
+            int traverseIndex = 1;
+            int segmentIndex = 0;
+
+            for (int groupIdx = 0; groupIdx < groups.Count; groupIdx++)
             {
-                var summary = BuildSummary(index, group);
+                var group = groups[groupIdx];
+
+                // Определяем, это продолжение или новый ход
+                bool isContinuation = group.Any(r => r.LineMarker == "Cont-Line");
+                bool isNewTraverse = group.Any(r => r.LineMarker == "Start-Line");
+
+                if (isNewTraverse)
+                {
+                    // Start-Line начинает новый ход
+                    segmentIndex = 0;
+                    if (groupIdx > 0) // Увеличиваем индекс только если это не первая группа
+                    {
+                        traverseIndex++;
+                    }
+                }
+                else if (isContinuation)
+                {
+                    // Cont-Line продолжает текущий ход
+                    segmentIndex++;
+                }
+                else if (groupIdx == 0)
+                {
+                    // Первая группа без явных маркеров
+                    segmentIndex = 0;
+                }
+
+                var summary = BuildSummary(traverseIndex, group, segmentIndex);
                 Runs.Add(summary);
 
                 var start = group.FirstOrDefault(g => g.Rb_m.HasValue) ?? group.First();
@@ -171,8 +199,6 @@ namespace Nivtropy.ViewModels
                     rec.IsLineStart = ReferenceEquals(rec, start);
                     rec.IsLineEnd = ReferenceEquals(rec, end);
                 }
-
-                index++;
             }
         }
 
@@ -216,7 +242,7 @@ namespace Nivtropy.ViewModels
             return false;
         }
 
-        private static LineSummary BuildSummary(int index, IReadOnlyList<MeasurementRecord> group)
+        private static LineSummary BuildSummary(int index, IReadOnlyList<MeasurementRecord> group, int segmentIndex = 0)
         {
             var start = group.FirstOrDefault(r => r.Rb_m.HasValue) ?? group.First();
             var end = group.LastOrDefault(r => r.Rf_m.HasValue) ?? group.Last();
@@ -261,7 +287,8 @@ namespace Nivtropy.ViewModels
                 deltaSum,
                 totalDistanceBack,
                 totalDistanceFore,
-                armDiffAccumulation);
+                armDifferenceAccumulation: armDiffAccumulation,
+                segmentIndex: segmentIndex);
         }
 
         public void ExportCsv(string path)
