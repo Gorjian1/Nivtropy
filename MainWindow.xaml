@@ -71,6 +71,10 @@
                                 Command="{Binding CalculationViewModel.RemoveBenchmarkCommand}"
                                 CommandParameter="{Binding SelectedItem, ElementName=BenchmarksComboBox}"
                                 ToolTip="Удалить выбранный репер"/>
+                        <Separator/>
+                        <Button Content="Экспорт в Excel"
+                                Command="{Binding CalculationViewModel.ExportCommand}"
+                                ToolTip="Экспортировать данные в Excel"/>
                     </ToolBar>
                 </ToolBarTray>
             </TabItem>

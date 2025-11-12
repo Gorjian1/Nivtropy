@@ -6,6 +6,8 @@ using System.ComponentModel;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Windows.Input;
+using ClosedXML.Excel;
+using Microsoft.Win32;
 using Nivtropy.Models;
 using Nivtropy.Services;
 
@@ -288,6 +290,7 @@ namespace Nivtropy.ViewModels
 
         public ICommand AddBenchmarkCommand => new RelayCommand(_ => AddBenchmark(), _ => CanAddBenchmark);
         public ICommand RemoveBenchmarkCommand => new RelayCommand(param => RemoveBenchmark(param as BenchmarkItem));
+        public ICommand ExportCommand => new RelayCommand(_ => ExportToExcel(), _ => Rows.Count > 0);
 
         public bool CanSetHeight => !string.IsNullOrWhiteSpace(_selectedPointCode);
         public bool CanClearHeight => !string.IsNullOrWhiteSpace(_selectedPointCode) && _dataViewModel.HasKnownHeight(_selectedPointCode);
@@ -363,6 +366,157 @@ namespace Nivtropy.ViewModels
             _dataViewModel.ClearKnownHeight(benchmark.Code);
             UpdateBenchmarks();
             UpdateRows();
+        }
+
+        /// <summary>
+        /// Экспортирует данные в Excel
+        /// </summary>
+        private void ExportToExcel()
+        {
+            var saveFileDialog = new SaveFileDialog
+            {
+                Filter = "Excel файлы (*.xlsx)|*.xlsx",
+                DefaultExt = "xlsx",
+                FileName = $"Нивелирование_{DateTime.Now:yyyy-MM-dd_HH-mm-ss}.xlsx"
+            };
+
+            if (saveFileDialog.ShowDialog() != true)
+                return;
+
+            try
+            {
+                using var workbook = new XLWorkbook();
+                var worksheet = workbook.Worksheets.Add("Нивелирование");
+
+                // Заголовок
+                int row = 1;
+                worksheet.Cell(row, 1).Value = "Расчёт нивелирного хода";
+                worksheet.Cell(row, 1).Style.Font.Bold = true;
+                worksheet.Cell(row, 1).Style.Font.FontSize = 14;
+                row += 2;
+
+                // Общая статистика
+                worksheet.Cell(row, 1).Value = "Метод:";
+                worksheet.Cell(row, 2).Value = SelectedMethod?.Display ?? "";
+                row++;
+                worksheet.Cell(row, 1).Value = "Класс:";
+                worksheet.Cell(row, 2).Value = SelectedClass?.Display ?? "";
+                row++;
+                worksheet.Cell(row, 1).Value = "Станций:";
+                worksheet.Cell(row, 2).Value = StationsCount;
+                row++;
+                worksheet.Cell(row, 1).Value = "ΣΔh:";
+                worksheet.Cell(row, 2).Value = Closure;
+                worksheet.Cell(row, 2).Style.NumberFormat.Format = "+0.0000;-0.0000;0.0000";
+                row++;
+                worksheet.Cell(row, 1).Value = "Допуск невязки:";
+                worksheet.Cell(row, 2).Value = AllowableClosure;
+                worksheet.Cell(row, 2).Style.NumberFormat.Format = "0.0000";
+                row++;
+                worksheet.Cell(row, 1).Value = "Вердикт:";
+                worksheet.Cell(row, 2).Value = ClosureVerdict;
+                row += 2;
+
+                // Группировка по ходам
+                var groupedRows = _rows.GroupBy(r => r.LineName).ToList();
+
+                foreach (var group in groupedRows)
+                {
+                    // Заголовок хода
+                    var firstRow = group.First();
+                    var lineSummary = firstRow.LineSummary;
+
+                    worksheet.Cell(row, 1).Value = $"{group.Key}";
+                    worksheet.Cell(row, 1).Style.Font.Bold = true;
+                    worksheet.Cell(row, 1).Style.Fill.BackgroundColor = XLColor.LightBlue;
+                    worksheet.Range(row, 1, row, 11).Merge();
+                    row++;
+
+                    // Статистика хода
+                    if (lineSummary != null)
+                    {
+                        worksheet.Cell(row, 1).Value = $"Станций: {group.Count()}";
+                        worksheet.Cell(row, 3).Value = $"ΣΔh: {group.Where(r => r.DeltaH.HasValue).Sum(r => r.DeltaH!.Value):+0.0000;-0.0000;0.0000}";
+                        worksheet.Cell(row, 5).Value = $"Длина назад: {lineSummary.TotalDistanceBack:0.00} м";
+                        worksheet.Cell(row, 7).Value = $"Длина вперёд: {lineSummary.TotalDistanceFore:0.00} м";
+                        worksheet.Cell(row, 9).Value = $"Общая длина: {lineSummary.TotalAverageLength:0.00} м";
+                        row++;
+                    }
+
+                    // Заголовки столбцов таблицы
+                    int col = 1;
+                    worksheet.Cell(row, col++).Value = "№";
+                    worksheet.Cell(row, col++).Value = "Точка";
+                    worksheet.Cell(row, col++).Value = "Станция";
+                    worksheet.Cell(row, col++).Value = "Rb, м";
+                    worksheet.Cell(row, col++).Value = "Rf, м";
+                    worksheet.Cell(row, col++).Value = "Δh, м";
+                    worksheet.Cell(row, col++).Value = "Поправка, мм";
+                    worksheet.Cell(row, col++).Value = "Δh испр., м";
+                    worksheet.Cell(row, col++).Value = "Z, м";
+                    worksheet.Cell(row, col++).Value = "Длина ст., м";
+                    worksheet.Cell(row, col++).Value = "Разн. плеч, м";
+
+                    worksheet.Range(row, 1, row, col - 1).Style.Font.Bold = true;
+                    worksheet.Range(row, 1, row, col - 1).Style.Fill.BackgroundColor = XLColor.LightGray;
+                    row++;
+
+                    // Данные станций
+                    foreach (var dataRow in group)
+                    {
+                        col = 1;
+                        worksheet.Cell(row, col++).Value = dataRow.Index;
+                        worksheet.Cell(row, col++).Value = dataRow.PointCode;
+                        worksheet.Cell(row, col++).Value = dataRow.Station;
+                        worksheet.Cell(row, col++).Value = dataRow.Rb_m;
+                        worksheet.Cell(row, col++).Value = dataRow.Rf_m;
+                        worksheet.Cell(row, col++).Value = dataRow.DeltaH;
+                        worksheet.Cell(row, col++).Value = dataRow.Correction.HasValue ? dataRow.Correction.Value * 1000 : (double?)null; // в мм
+                        worksheet.Cell(row, col++).Value = dataRow.AdjustedDeltaH;
+                        worksheet.Cell(row, col++).Value = dataRow.IsVirtualStation ? dataRow.BackHeight : dataRow.ForeHeight;
+                        worksheet.Cell(row, col++).Value = dataRow.StationLength_m;
+                        worksheet.Cell(row, col++).Value = dataRow.ArmDifference_m;
+
+                        // Форматирование чисел
+                        worksheet.Cell(row, 4).Style.NumberFormat.Format = "0.0000";
+                        worksheet.Cell(row, 5).Style.NumberFormat.Format = "0.0000";
+                        worksheet.Cell(row, 6).Style.NumberFormat.Format = "+0.0000;-0.0000;0.0000";
+                        worksheet.Cell(row, 7).Style.NumberFormat.Format = "0.0";
+                        worksheet.Cell(row, 8).Style.NumberFormat.Format = "+0.0000;-0.0000;0.0000";
+                        worksheet.Cell(row, 9).Style.NumberFormat.Format = "0.0000";
+                        worksheet.Cell(row, 10).Style.NumberFormat.Format = "0.00";
+                        worksheet.Cell(row, 11).Style.NumberFormat.Format = "0.0000";
+
+                        // Выделение превышения допуска разности плеч
+                        if (dataRow.IsArmDifferenceExceeded)
+                        {
+                            worksheet.Cell(row, 11).Style.Font.FontColor = XLColor.Red;
+                            worksheet.Cell(row, 11).Style.Font.Bold = true;
+                        }
+
+                        row++;
+                    }
+
+                    row++; // Пустая строка между ходами
+                }
+
+                // Автоподбор ширины столбцов
+                worksheet.Columns().AdjustToContents();
+
+                workbook.SaveAs(saveFileDialog.FileName);
+
+                System.Windows.MessageBox.Show($"Данные успешно экспортированы в:\n{saveFileDialog.FileName}",
+                    "Экспорт завершён",
+                    System.Windows.MessageBoxButton.OK,
+                    System.Windows.MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                System.Windows.MessageBox.Show($"Ошибка при экспорте:\n{ex.Message}",
+                    "Ошибка экспорта",
+                    System.Windows.MessageBoxButton.OK,
+                    System.Windows.MessageBoxImage.Error);
+            }
         }
 
         /// <summary>
