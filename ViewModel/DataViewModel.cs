@@ -162,8 +162,8 @@ namespace Nivtropy.ViewModels
                 continuationMarkers.Add(isNextContinuation);
             }
 
-            int index = 1;
-            int? lastNonContinuationIndex = null;
+            int displayIndex = 1; // Индекс для отображения (используется в названии хода)
+            int actualIndex = 1;  // Уникальный индекс для каждого хода
 
             for (int g = 0; g < groups.Count; g++)
             {
@@ -172,16 +172,21 @@ namespace Nivtropy.ViewModels
 
                 // Определяем индекс хода-предшественника для продолжений
                 int? continuationOfIndex = null;
-                if (isContinuation && lastNonContinuationIndex.HasValue)
+                if (isContinuation)
                 {
-                    continuationOfIndex = lastNonContinuationIndex.Value;
+                    // Для продолжений используем индекс предыдущего обычного хода
+                    continuationOfIndex = displayIndex - 1;
                 }
-                else if (!isContinuation)
+                else
                 {
-                    lastNonContinuationIndex = index;
+                    // Для обычных ходов увеличиваем displayIndex
+                    if (g > 0)
+                    {
+                        displayIndex++;
+                    }
                 }
 
-                var summary = BuildSummary(index, group, continuationOfIndex);
+                var summary = BuildSummary(actualIndex, group, continuationOfIndex, displayIndex);
                 Runs.Add(summary);
 
                 var start = group.FirstOrDefault(gr => gr.Rb_m.HasValue) ?? group.First();
@@ -196,7 +201,7 @@ namespace Nivtropy.ViewModels
                     rec.IsLineEnd = ReferenceEquals(rec, end);
                 }
 
-                index++;
+                actualIndex++; // Всегда увеличиваем уникальный индекс
             }
         }
 
@@ -240,7 +245,7 @@ namespace Nivtropy.ViewModels
             return false;
         }
 
-        private static LineSummary BuildSummary(int index, IReadOnlyList<MeasurementRecord> group, int? continuationOfIndex = null)
+        private static LineSummary BuildSummary(int index, IReadOnlyList<MeasurementRecord> group, int? continuationOfIndex = null, int displayIndex = 0)
         {
             var start = group.FirstOrDefault(r => r.Rb_m.HasValue) ?? group.First();
             var end = group.LastOrDefault(r => r.Rf_m.HasValue) ?? group.Last();
@@ -286,7 +291,8 @@ namespace Nivtropy.ViewModels
                 totalDistanceBack,
                 totalDistanceFore,
                 armDiffAccumulation,
-                continuationOfIndex);
+                continuationOfIndex,
+                displayIndex);
         }
 
         public void ExportCsv(string path)

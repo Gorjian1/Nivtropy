@@ -15,7 +15,8 @@ namespace Nivtropy.Models
             double? totalDistanceBack = null,
             double? totalDistanceFore = null,
             double? armDifferenceAccumulation = null,
-            int? continuationOfLineIndex = null)
+            int? continuationOfLineIndex = null,
+            int displayIndex = 0)
         {
             Index = index;
             StartTarget = startTarget;
@@ -28,6 +29,7 @@ namespace Nivtropy.Models
             TotalDistanceFore = totalDistanceFore;
             ArmDifferenceAccumulation = armDifferenceAccumulation;
             ContinuationOfLineIndex = continuationOfLineIndex;
+            DisplayIndex = displayIndex > 0 ? displayIndex : index;
         }
 
         public int Index { get; }
@@ -60,6 +62,11 @@ namespace Nivtropy.Models
         public int? ContinuationOfLineIndex { get; }
 
         /// <summary>
+        /// Индекс для отображения (порядковый номер хода без учёта продолжений)
+        /// </summary>
+        public int DisplayIndex { get; }
+
+        /// <summary>
         /// Общая длина хода: сумма длин назад и вперёд (в метрах)
         /// </summary>
         public double? TotalAverageLength => TotalDistanceBack.HasValue && TotalDistanceFore.HasValue
@@ -82,8 +89,8 @@ namespace Nivtropy.Models
         public string EndLabel => FormatPoint(EndTarget, EndStation);
 
         public string DisplayName => ContinuationOfLineIndex.HasValue
-            ? $"Ход {ContinuationOfLineIndex.Value:D2}*"
-            : $"Ход {Index:D2}";
+            ? $"Ход {DisplayIndex:D2}*"
+            : $"Ход {DisplayIndex:D2}";
         public string RangeDisplay => $"{StartLabel} → {EndLabel}";
         public string Header => $"{DisplayName}: {RangeDisplay}";
 

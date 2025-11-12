@@ -738,7 +738,8 @@ namespace Nivtropy.ViewModels
                     totalDistanceBack,
                     totalDistanceFore,
                     accumulation,
-                    existingSummary.ContinuationOfLineIndex);
+                    existingSummary.ContinuationOfLineIndex,
+                    existingSummary.DisplayIndex);
 
                 // Заменяем в коллекции
                 _dataViewModel.Runs[existingIndex] = newSummary;

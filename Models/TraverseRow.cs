@@ -93,5 +93,33 @@ namespace Nivtropy.Models
         public string ForeHeightDisplay => ForeHeight.HasValue
             ? $"{ForeHeight.Value:F4}"
             : "—";
+
+        /// <summary>
+        /// Отображение кода точки: для виртуальных станций показывает BackCode, для обычных - ForeCode
+        /// </summary>
+        public string PointCode => string.IsNullOrWhiteSpace(ForeCode) ? (BackCode ?? "—") : ForeCode;
+
+        /// <summary>
+        /// Проверка, является ли это виртуальной станцией (только BackCode, без ForeCode и измерений)
+        /// </summary>
+        public bool IsVirtualStation => string.IsNullOrWhiteSpace(ForeCode) && !DeltaH.HasValue;
+
+        /// <summary>
+        /// Отображение высоты для таблицы: для виртуальных станций - BackHeight, для обычных - ForeHeight
+        /// </summary>
+        public string HeightDisplay
+        {
+            get
+            {
+                if (IsVirtualStation)
+                {
+                    return BackHeight.HasValue ? $"{BackHeight.Value:F4}" : "—";
+                }
+                else
+                {
+                    return ForeHeight.HasValue ? $"{ForeHeight.Value:F4}" : "—";
+                }
+            }
+        }
     }
 }
