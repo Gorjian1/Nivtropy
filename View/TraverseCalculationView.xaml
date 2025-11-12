@@ -102,7 +102,7 @@
                 <TextBlock>
                     <Run Text="Установленные реперы:" FontWeight="SemiBold" />
                     <Run Text=" " />
-                    <Run Text="{Binding Benchmarks.Count, StringFormat='{}{0} шт.'}" />
+                    <Run Text="{Binding Benchmarks.Count, Mode=OneWay, StringFormat='{}{0} шт.'}" />
                 </TextBlock>
             </Expander.Header>
             <Border BorderBrush="#FFCCCCCC" BorderThickness="1" Background="White" MaxHeight="200" Margin="0,4,0,0">
