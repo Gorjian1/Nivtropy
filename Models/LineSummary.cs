@@ -51,7 +51,7 @@ namespace Nivtropy.Models
         public double? TotalDistanceFore { get; }
 
         /// <summary>
-        /// Накопление разности плеч за ход (сумма модулей) в метрах
+        /// Накопление разности плеч за ход (относительное значение с учетом знака) в метрах
         /// </summary>
         public double? ArmDifferenceAccumulation { get; }
 

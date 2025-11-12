@@ -272,10 +272,10 @@ namespace Nivtropy.ViewModels
                     totalDistanceFore = (totalDistanceFore ?? 0d) + rec.HdFore_m.Value;
                 }
 
-                // Накопление разности плеч (сумма модулей)
+                // Накопление разности плеч (относительное значение с учетом знака)
                 if (rec.HdBack_m.HasValue && rec.HdFore_m.HasValue)
                 {
-                    var armDiff = Math.Abs(rec.HdBack_m.Value - rec.HdFore_m.Value);
+                    var armDiff = rec.HdBack_m.Value - rec.HdFore_m.Value;
                     armDiffAccumulation = (armDiffAccumulation ?? 0d) + armDiff;
                 }
             }

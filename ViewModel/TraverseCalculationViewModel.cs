@@ -922,7 +922,7 @@ namespace Nivtropy.ViewModels
             {
                 if (row.ArmDifference_m.HasValue)
                 {
-                    row.IsArmDifferenceExceeded = row.ArmDifference_m.Value > stationTolerance;
+                    row.IsArmDifferenceExceeded = Math.Abs(row.ArmDifference_m.Value) > stationTolerance;
                 }
                 else
                 {
@@ -940,7 +940,7 @@ namespace Nivtropy.ViewModels
                 if (lineSummary != null && lineSummary.ArmDifferenceAccumulation.HasValue)
                 {
                     lineSummary.IsArmDifferenceAccumulationExceeded =
-                        lineSummary.ArmDifferenceAccumulation.Value > accumulationTolerance;
+                        Math.Abs(lineSummary.ArmDifferenceAccumulation.Value) > accumulationTolerance;
                 }
             }
 
