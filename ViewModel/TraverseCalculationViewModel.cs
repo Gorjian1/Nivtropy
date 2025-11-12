@@ -14,6 +14,8 @@ namespace Nivtropy.ViewModels
     {
         private readonly DataViewModel _dataViewModel;
         private readonly ObservableCollection<TraverseRow> _rows = new();
+        private readonly ObservableCollection<PointItem> _availablePoints = new();
+        private readonly ObservableCollection<BenchmarkItem> _benchmarks = new();
 
         // Методы нивелирования для двойного хода
         // Допуск: 4 мм × √n, где n - число станций
@@ -48,6 +50,8 @@ namespace Nivtropy.ViewModels
         private int _stationsCount;
         private TraverseRow? _selectedRow;
         private string? _selectedPointCode;
+        private PointItem? _selectedPoint;
+        private string? _newBenchmarkHeight;
 
         public TraverseCalculationViewModel(DataViewModel dataViewModel)
         {
@@ -66,6 +70,8 @@ namespace Nivtropy.ViewModels
 
         public ObservableCollection<TraverseRow> Rows => _rows;
         public ObservableCollection<LineSummary> Runs => _dataViewModel.Runs;
+        public ObservableCollection<PointItem> AvailablePoints => _availablePoints;
+        public ObservableCollection<BenchmarkItem> Benchmarks => _benchmarks;
 
         public LevelingMethodOption[] Methods => _methods;
         public LevelingClassOption[] Classes => _classes;
@@ -250,6 +256,38 @@ namespace Nivtropy.ViewModels
             set => SetField(ref _selectedRow, value);
         }
 
+        public PointItem? SelectedPoint
+        {
+            get => _selectedPoint;
+            set
+            {
+                if (SetField(ref _selectedPoint, value))
+                {
+                    OnPropertyChanged(nameof(CanAddBenchmark));
+                }
+            }
+        }
+
+        public string? NewBenchmarkHeight
+        {
+            get => _newBenchmarkHeight;
+            set
+            {
+                if (SetField(ref _newBenchmarkHeight, value))
+                {
+                    OnPropertyChanged(nameof(CanAddBenchmark));
+                }
+            }
+        }
+
+        public bool CanAddBenchmark =>
+            SelectedPoint != null &&
+            !string.IsNullOrWhiteSpace(NewBenchmarkHeight) &&
+            double.TryParse(NewBenchmarkHeight, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out _);
+
+        public ICommand AddBenchmarkCommand => new RelayCommand(_ => AddBenchmark(), _ => CanAddBenchmark);
+        public ICommand RemoveBenchmarkCommand => new RelayCommand(param => RemoveBenchmark(param as BenchmarkItem));
+
         public bool CanSetHeight => !string.IsNullOrWhiteSpace(_selectedPointCode);
         public bool CanClearHeight => !string.IsNullOrWhiteSpace(_selectedPointCode) && _dataViewModel.HasKnownHeight(_selectedPointCode);
 
@@ -285,6 +323,96 @@ namespace Nivtropy.ViewModels
 
             _dataViewModel.ClearKnownHeight(pointCode);
             UpdateRows();
+        }
+
+        /// <summary>
+        /// Добавляет новый репер (точку с известной высотой)
+        /// </summary>
+        private void AddBenchmark()
+        {
+            if (SelectedPoint == null || string.IsNullOrWhiteSpace(NewBenchmarkHeight))
+                return;
+
+            if (!double.TryParse(NewBenchmarkHeight, System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture, out var height))
+                return;
+
+            // Устанавливаем высоту в DataViewModel
+            _dataViewModel.SetKnownHeight(SelectedPoint.Code, height);
+
+            // Обновляем список реперов
+            UpdateBenchmarks();
+
+            // Очищаем поля ввода
+            SelectedPoint = null;
+            NewBenchmarkHeight = string.Empty;
+
+            // Пересчитываем высоты
+            UpdateRows();
+        }
+
+        /// <summary>
+        /// Удаляет репер
+        /// </summary>
+        private void RemoveBenchmark(BenchmarkItem? benchmark)
+        {
+            if (benchmark == null)
+                return;
+
+            _dataViewModel.ClearKnownHeight(benchmark.Code);
+            UpdateBenchmarks();
+            UpdateRows();
+        }
+
+        /// <summary>
+        /// Обновляет список доступных точек из текущих станций
+        /// </summary>
+        private void UpdateAvailablePoints()
+        {
+            _availablePoints.Clear();
+
+            var pointsDict = new Dictionary<string, PointItem>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var row in _rows)
+            {
+                // Добавляем заднюю точку
+                if (!string.IsNullOrWhiteSpace(row.BackCode) && !pointsDict.ContainsKey(row.BackCode))
+                {
+                    var lineIndex = row.LineSummary?.Index ?? 0;
+                    pointsDict[row.BackCode] = new PointItem(row.BackCode, row.LineName, lineIndex);
+                }
+
+                // Добавляем переднюю точку
+                if (!string.IsNullOrWhiteSpace(row.ForeCode) && !pointsDict.ContainsKey(row.ForeCode))
+                {
+                    var lineIndex = row.LineSummary?.Index ?? 0;
+                    pointsDict[row.ForeCode] = new PointItem(row.ForeCode, row.LineName, lineIndex);
+                }
+            }
+
+            // Сортируем по индексу хода, затем по коду точки
+            var sortedPoints = pointsDict.Values
+                .OrderBy(p => p.LineIndex)
+                .ThenBy(p => p.Code)
+                .ToList();
+
+            foreach (var point in sortedPoints)
+            {
+                _availablePoints.Add(point);
+            }
+        }
+
+        /// <summary>
+        /// Обновляет список реперов из DataViewModel
+        /// </summary>
+        private void UpdateBenchmarks()
+        {
+            _benchmarks.Clear();
+
+            foreach (var kvp in _dataViewModel.KnownHeights.OrderBy(k => k.Key))
+            {
+                _benchmarks.Add(new BenchmarkItem(kvp.Key, kvp.Value));
+            }
         }
 
         private void DataViewModelOnPropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -344,6 +472,10 @@ namespace Nivtropy.ViewModels
             TotalAverageDistance = StationsCount > 0
                 ? (TotalBackDistance + TotalForeDistance) / 2.0
                 : 0;
+
+            // Обновляем списки доступных точек и реперов
+            UpdateAvailablePoints();
+            UpdateBenchmarks();
 
             RecalculateClosure();
             UpdateTolerance();
