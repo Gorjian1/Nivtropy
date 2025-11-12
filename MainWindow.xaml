@@ -62,29 +62,15 @@
                                 ToolTip="Добавить репер с указанной высотой"/>
                         <Separator/>
                         <Label Content="Установлено:"/>
-                        <ComboBox Width="220"
+                        <ComboBox x:Name="BenchmarksComboBox"
+                                  Width="220"
                                   ItemsSource="{Binding CalculationViewModel.Benchmarks}"
                                   DisplayMemberPath="DisplayName"
-                                  ToolTip="Список установленных реперов">
-                            <ComboBox.ItemTemplate>
-                                <DataTemplate>
-                                    <Grid>
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="Auto"/>
-                                        </Grid.ColumnDefinitions>
-                                        <TextBlock Grid.Column="0" Text="{Binding DisplayName}" VerticalAlignment="Center"/>
-                                        <Button Grid.Column="1"
-                                                Content="✕"
-                                                Padding="4,0"
-                                                Margin="4,0,0,0"
-                                                Command="{Binding DataContext.CalculationViewModel.RemoveBenchmarkCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                CommandParameter="{Binding}"
-                                                ToolTip="Удалить репер"/>
-                                    </Grid>
-                                </DataTemplate>
-                            </ComboBox.ItemTemplate>
-                        </ComboBox>
+                                  ToolTip="Список установленных реперов"/>
+                        <Button Content="Удалить"
+                                Command="{Binding CalculationViewModel.RemoveBenchmarkCommand}"
+                                CommandParameter="{Binding SelectedItem, ElementName=BenchmarksComboBox}"
+                                ToolTip="Удалить выбранный репер"/>
                     </ToolBar>
                 </ToolBarTray>
             </TabItem>
