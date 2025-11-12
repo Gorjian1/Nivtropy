@@ -156,6 +156,8 @@ namespace Nivtropy.ViewModels
 
             int traverseIndex = 1;
             int segmentIndex = 0;
+            // Словарь для отслеживания накопленной длины по каждому ходу (ключ = traverseIndex)
+            var accumulatedLengths = new Dictionary<int, double>();
 
             for (int groupIdx = 0; groupIdx < groups.Count; groupIdx++)
             {
@@ -173,6 +175,8 @@ namespace Nivtropy.ViewModels
                     {
                         traverseIndex++;
                     }
+                    // Сбрасываем накопленную длину для нового хода
+                    accumulatedLengths[traverseIndex] = 0;
                 }
                 else if (isContinuation)
                 {
@@ -183,9 +187,23 @@ namespace Nivtropy.ViewModels
                 {
                     // Первая группа без явных маркеров
                     segmentIndex = 0;
+                    accumulatedLengths[traverseIndex] = 0;
                 }
 
                 var summary = BuildSummary(traverseIndex, group, segmentIndex);
+
+                // Вычисляем и устанавливаем накопленную длину
+                if (summary.TotalDistanceBack.HasValue)
+                {
+                    if (!accumulatedLengths.ContainsKey(traverseIndex))
+                    {
+                        accumulatedLengths[traverseIndex] = 0;
+                    }
+
+                    accumulatedLengths[traverseIndex] += summary.TotalDistanceBack.Value;
+                    summary.AccumulatedDistanceBack = accumulatedLengths[traverseIndex];
+                }
+
                 Runs.Add(summary);
 
                 var start = group.FirstOrDefault(g => g.Rb_m.HasValue) ?? group.First();

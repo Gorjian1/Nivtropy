@@ -67,6 +67,13 @@ namespace Nivtropy.Models
             : null;
 
         /// <summary>
+        /// Накопленная длина от начала хода включая все предыдущие сегменты (для расчета допусков)
+        /// Для основного сегмента (SegmentIndex=0) равна TotalDistanceBack
+        /// Для продолжений (SegmentIndex>0) = сумма длин всех сегментов с начала хода
+        /// </summary>
+        public double? AccumulatedDistanceBack { get; set; }
+
+        /// <summary>
         /// Флаг превышения допуска накопления разности плеч
         /// </summary>
         public bool IsArmDifferenceAccumulationExceeded { get; set; }

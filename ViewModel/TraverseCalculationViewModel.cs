@@ -279,17 +279,22 @@ namespace Nivtropy.ViewModels
 
             var items = TraverseBuilder.Build(records);
 
-            // Группируем станции по ходам для корректного расчета поправок
-            var traverseGroups = items.GroupBy(r => r.LineName).ToList();
+            // Группируем станции по индексу хода для расчёта поправок с учётом продолжений
+            // Все сегменты одного хода (Ход 01, Ход 01*, Ход 01**) группируются вместе
+            var traverseGroupsByIndex = items
+                .Where(r => r.LineSummary != null)
+                .GroupBy(r => r.LineSummary!.Index)
+                .ToList();
 
-            // Рассчитываем поправки для каждого хода отдельно
-            foreach (var group in traverseGroups)
+            // Рассчитываем поправки для каждого хода с учётом всех его сегментов
+            foreach (var group in traverseGroupsByIndex)
             {
                 CalculateCorrections(group.ToList());
             }
 
-            // Обновляем накопление разности плеч для каждого хода
-            UpdateArmDifferenceAccumulation(traverseGroups);
+            // Группируем по имени сегмента для обновления накопления разности плеч
+            var segmentGroups = items.GroupBy(r => r.LineName).ToList();
+            UpdateArmDifferenceAccumulation(segmentGroups);
 
             // Рассчитываем высоты точек
             CalculateHeights(items);
@@ -300,7 +305,20 @@ namespace Nivtropy.ViewModels
             }
 
             StationsCount = items.Count;
-            TotalBackDistance = items.Sum(r => r.HdBack_m ?? 0);
+
+            // Для продолжений хода (SegmentIndex > 0) используем накопленную длину для расчёта допусков
+            var firstLineSummary = items.FirstOrDefault()?.LineSummary;
+            if (firstLineSummary != null && firstLineSummary.SegmentIndex > 0 && firstLineSummary.AccumulatedDistanceBack.HasValue)
+            {
+                // Для продолжений используем накопленную длину от начала хода
+                TotalBackDistance = firstLineSummary.AccumulatedDistanceBack.Value;
+            }
+            else
+            {
+                // Для основных сегментов суммируем длины текущих станций
+                TotalBackDistance = items.Sum(r => r.HdBack_m ?? 0);
+            }
+
             TotalForeDistance = items.Sum(r => r.HdFore_m ?? 0);
             TotalAverageDistance = StationsCount > 0
                 ? (TotalBackDistance + TotalForeDistance) / 2.0
