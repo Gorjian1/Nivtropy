@@ -16,6 +16,8 @@ namespace Nivtropy.Services
             TraverseRow? pending = null;
             int idx = 1;
             LineSummary? currentLineSummary = run;
+            bool justStartedTraverse = false; // Флаг для отслеживания начала хода
+            string? initialPointCode = null; // Код первой точки для создания станции #0
 
             foreach (var r in records)
             {
@@ -31,6 +33,8 @@ namespace Nivtropy.Services
                     line = r.LineSummary.DisplayName;
                     currentLineSummary = r.LineSummary;
                     idx = 1;
+                    justStartedTraverse = false;
+                    initialPointCode = null;
                 }
 
                 // Обновляем currentLineSummary если она еще null
@@ -46,12 +50,35 @@ namespace Nivtropy.Services
                     var modeUpper = r.Mode.Trim().ToUpperInvariant();
                     if (modeUpper == "BF" || modeUpper == "FB")
                         mode = modeUpper;
+
+                    justStartedTraverse = true;
+                    initialPointCode = null;
+                }
+
+                // Если только что начался ход и встретили запись с Z (но без Rb/Rf), это первая точка
+                if (justStartedTraverse && r.Z_m.HasValue && !r.Rb_m.HasValue && !r.Rf_m.HasValue && !string.IsNullOrWhiteSpace(r.StationCode))
+                {
+                    initialPointCode = r.StationCode;
+                    // Создаем станцию #0 для начальной точки (только для отображения)
+                    var initialStation = new TraverseRow
+                    {
+                        LineName = line,
+                        Index = 0,
+                        BackCode = initialPointCode,
+                        ForeCode = null,
+                        LineSummary = currentLineSummary
+                    };
+                    list.Add(initialStation);
+                    continue; // Пропускаем эту запись, она уже обработана
                 }
 
                 bool isBF = mode == "BF";
 
                 if (r.Rb_m.HasValue)
                 {
+                    // Сбрасываем флаг начала хода, так как начались реальные измерения
+                    justStartedTraverse = false;
+
                     if (pending == null)
                     {
                         // В режиме BF: Rb это задняя точка (Back)
@@ -83,6 +110,9 @@ namespace Nivtropy.Services
 
                 if (r.Rf_m.HasValue)
                 {
+                    // Сбрасываем флаг начала хода, так как начались реальные измерения
+                    justStartedTraverse = false;
+
                     if (pending == null)
                     {
                         // В режиме BF: Rf это передняя точка (Fore)
