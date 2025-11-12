@@ -44,6 +44,48 @@
                                   DisplayMemberPath="Display"
                                   ToolTip="Выбор допуска по классу"/>
                     </ToolBar>
+
+                    <!-- Панель управления реперами -->
+                    <ToolBar>
+                        <Label Content="Реперы:"/>
+                        <ComboBox Width="180"
+                                  ItemsSource="{Binding CalculationViewModel.AvailablePoints}"
+                                  SelectedItem="{Binding CalculationViewModel.SelectedPoint, Mode=TwoWay}"
+                                  DisplayMemberPath="DisplayName"
+                                  ToolTip="Выберите точку для установки известной высоты"/>
+                        <Label Content="Высота:"/>
+                        <TextBox Width="80"
+                                 Text="{Binding CalculationViewModel.NewBenchmarkHeight, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                 ToolTip="Введите известную высоту репера"/>
+                        <Button Content="Добавить"
+                                Command="{Binding CalculationViewModel.AddBenchmarkCommand}"
+                                ToolTip="Добавить репер с указанной высотой"/>
+                        <Separator/>
+                        <Label Content="Установлено:"/>
+                        <ComboBox Width="220"
+                                  ItemsSource="{Binding CalculationViewModel.Benchmarks}"
+                                  DisplayMemberPath="DisplayName"
+                                  ToolTip="Список установленных реперов">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="{Binding DisplayName}" VerticalAlignment="Center"/>
+                                        <Button Grid.Column="1"
+                                                Content="✕"
+                                                Padding="4,0"
+                                                Margin="4,0,0,0"
+                                                Command="{Binding DataContext.CalculationViewModel.RemoveBenchmarkCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                CommandParameter="{Binding}"
+                                                ToolTip="Удалить репер"/>
+                                    </Grid>
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+                    </ToolBar>
                 </ToolBarTray>
             </TabItem>
 
