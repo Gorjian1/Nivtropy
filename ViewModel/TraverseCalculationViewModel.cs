@@ -698,6 +698,10 @@ namespace Nivtropy.ViewModels
                 .Where(r => r.DeltaH.HasValue)
                 .Sum(r => r.DeltaH!.Value * sign);
 
+            var adjustableRows = items.Where(r => r.DeltaH.HasValue).ToList();
+            if (adjustableRows.Count == 0)
+                return;
+
             // Вычисляем общую длину хода (среднее расстояние для каждой станции)
             double totalDistance = 0;
             foreach (var row in items)
@@ -706,32 +710,81 @@ namespace Nivtropy.ViewModels
                 totalDistance += avgDistance;
             }
 
+            var allocations = new List<CorrectionAllocation>();
+
             if (totalDistance <= 0)
             {
                 // Если нет данных о расстояниях, распределяем поровну на все станции
-                var adjustableCount = items.Count(r => r.DeltaH.HasValue);
-                if (adjustableCount > 0)
+                var correctionPerStation = -traverseClosure / adjustableRows.Count;
+                foreach (var row in adjustableRows)
                 {
-                    var correctionPerStation = -traverseClosure / adjustableCount;
-                    foreach (var row in items)
-                    {
-                        if (row.DeltaH.HasValue)
-                            row.Correction = correctionPerStation;
-                    }
+                    allocations.Add(new CorrectionAllocation(row, correctionPerStation));
                 }
+                ApplyRoundedCorrections(allocations);
                 return;
             }
 
             // Распределяем невязку пропорционально длинам
             var correctionFactor = -traverseClosure / totalDistance;
-            foreach (var row in items)
+            foreach (var row in adjustableRows)
             {
-                if (row.DeltaH.HasValue)
-                {
-                    var avgDistance = ((row.HdBack_m ?? 0) + (row.HdFore_m ?? 0)) / 2.0;
-                    row.Correction = correctionFactor * avgDistance;
-                }
+                var avgDistance = ((row.HdBack_m ?? 0) + (row.HdFore_m ?? 0)) / 2.0;
+                allocations.Add(new CorrectionAllocation(row, correctionFactor * avgDistance));
             }
+
+            ApplyRoundedCorrections(allocations);
+        }
+
+        private const double CorrectionRoundingStep = 0.0001;
+
+        private static void ApplyRoundedCorrections(List<CorrectionAllocation> allocations)
+        {
+            if (allocations.Count == 0)
+                return;
+
+            foreach (var allocation in allocations)
+            {
+                allocation.Rounded = Math.Round(allocation.Raw, 4, MidpointRounding.AwayFromZero);
+            }
+
+            var targetTotal = allocations.Sum(a => a.Raw);
+            var roundedTotal = allocations.Sum(a => a.Rounded);
+            var remaining = Math.Round(targetTotal - roundedTotal, 4, MidpointRounding.AwayFromZero);
+
+            var steps = (int)Math.Round(remaining / CorrectionRoundingStep, MidpointRounding.AwayFromZero);
+            while (steps != 0)
+            {
+                var positive = steps > 0;
+                var candidate = allocations
+                    .OrderByDescending(a => positive ? (a.Raw - a.Rounded) : (a.Rounded - a.Raw))
+                    .ThenByDescending(a => Math.Abs(a.Raw))
+                    .FirstOrDefault();
+
+                if (candidate == null)
+                    break;
+
+                candidate.Rounded += positive ? CorrectionRoundingStep : -CorrectionRoundingStep;
+                steps += positive ? -1 : 1;
+            }
+
+            foreach (var allocation in allocations)
+            {
+                allocation.Row.Correction = allocation.Rounded;
+            }
+        }
+
+        private sealed class CorrectionAllocation
+        {
+            public CorrectionAllocation(TraverseRow row, double raw)
+            {
+                Row = row;
+                Raw = raw;
+                Rounded = raw;
+            }
+
+            public TraverseRow Row { get; }
+            public double Raw { get; }
+            public double Rounded { get; set; }
         }
 
         /// <summary>
