@@ -64,6 +64,11 @@ namespace Nivtropy.Models
         public bool IsForeHeightKnown { get; set; }
 
         /// <summary>
+        /// Флаг конфликта высот для общей точки между несколькими ходами
+        /// </summary>
+        public bool HasHeightConflict { get; set; }
+
+        /// <summary>
         /// Флаг превышения допуска разности плеч на станции
         /// </summary>
         public bool IsArmDifferenceExceeded { get; set; }

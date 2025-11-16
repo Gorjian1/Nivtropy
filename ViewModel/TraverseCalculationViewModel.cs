@@ -19,6 +19,7 @@ namespace Nivtropy.ViewModels
         private readonly ObservableCollection<TraverseRow> _rows = new();
         private readonly ObservableCollection<PointItem> _availablePoints = new();
         private readonly ObservableCollection<BenchmarkItem> _benchmarks = new();
+        private readonly Dictionary<string, double> _lineMisclosures = new(StringComparer.OrdinalIgnoreCase);
 
         // Методы нивелирования для двойного хода
         // Допуск: 4 мм × √n, где n - число станций
@@ -366,7 +367,7 @@ namespace Nivtropy.ViewModels
                 worksheet.Cell(row, 1).Value = "Станций:";
                 worksheet.Cell(row, 2).Value = StationsCount;
                 row++;
-                worksheet.Cell(row, 1).Value = "ΣΔh:";
+                worksheet.Cell(row, 1).Value = "Невязка:";
                 worksheet.Cell(row, 2).Value = Closure;
                 worksheet.Cell(row, 2).Style.NumberFormat.Format = "+0.0000;-0.0000;0.0000";
                 row++;
@@ -397,7 +398,10 @@ namespace Nivtropy.ViewModels
                     if (lineSummary != null)
                     {
                         worksheet.Cell(row, 1).Value = $"Станций: {group.Count()}";
-                        worksheet.Cell(row, 3).Value = $"ΣΔh: {group.Where(r => r.DeltaH.HasValue).Sum(r => r.DeltaH!.Value):+0.0000;-0.0000;0.0000}";
+                        var closureText = lineSummary.Closure.HasValue
+                            ? lineSummary.Closure.Value.ToString("+0.0000;-0.0000;0.0000")
+                            : "—";
+                        worksheet.Cell(row, 3).Value = $"Невязка: {closureText} м";
                         worksheet.Cell(row, 5).Value = $"Длина назад: {lineSummary.TotalDistanceBack:0.00} м";
                         worksheet.Cell(row, 7).Value = $"Длина вперёд: {lineSummary.TotalDistanceFore:0.00} м";
                         worksheet.Cell(row, 9).Value = $"Общая длина: {lineSummary.TotalAverageLength:0.00} м";
@@ -562,13 +566,27 @@ namespace Nivtropy.ViewModels
 
             var items = TraverseBuilder.Build(records);
 
-            // Группируем станции по ходам для корректного расчета поправок
-            var traverseGroups = items.GroupBy(r => r.LineName).ToList();
+            // Группируем станции по ходам для корректного расчёта поправок
+            var traverseGroups = items
+                .GroupBy(r => r.LineName)
+                .Select((g, index) =>
+                {
+                    var rowsList = g.ToList();
+                    var displayName = g.Key;
+                    var key = string.IsNullOrWhiteSpace(displayName)
+                        ? $"?_{index + 1}"
+                        : displayName;
+                    return (LineName: displayName, Key: key, Rows: rowsList);
+                })
+                .ToList();
 
-            // Рассчитываем поправки для каждого хода отдельно
+            _lineMisclosures.Clear();
+
+            // Рассчитываем поправки и невязки для каждого хода отдельно
             foreach (var group in traverseGroups)
             {
-                CalculateCorrections(group.ToList());
+                var misclosure = CalculateCorrections(group.Rows);
+                _lineMisclosures[group.Key] = misclosure;
             }
 
             // Обновляем накопление разности плеч для каждого хода
@@ -606,14 +624,11 @@ namespace Nivtropy.ViewModels
                 return;
             }
 
-            // Невязка = сумма измеренных превышений
-            // Знак ориентации определяет направление хода (прямой +1, обратный -1)
-            var sign = MethodOrientationSign;
-            var orientedClosure = _rows
-                .Where(r => r.DeltaH.HasValue)
-                .Sum(r => r.DeltaH!.Value * sign);
+            var totalClosure = _lineMisclosures.Count > 0
+                ? _lineMisclosures.Values.Sum()
+                : _rows.Where(r => r.DeltaH.HasValue).Sum(r => r.DeltaH!.Value * MethodOrientationSign);
 
-            Closure = orientedClosure;
+            Closure = totalClosure;
         }
 
         private void UpdateTolerance()
@@ -687,49 +702,210 @@ namespace Nivtropy.ViewModels
         /// Рассчитывает поправки для распределения невязки пропорционально длинам станций
         /// Невязка рассчитывается для конкретного хода (группы станций)
         /// </summary>
-        private void CalculateCorrections(List<TraverseRow> items)
+        private double CalculateCorrections(List<TraverseRow> items)
         {
             if (items.Count == 0)
-                return;
+                return 0d;
 
-            // Вычисляем невязку для данного хода
+            var sections = SplitTraverseIntoSections(items);
+            if (sections.Count == 0)
+                return 0d;
+
+            double totalMisclosure = 0;
+
+            foreach (var section in sections)
+            {
+                totalMisclosure += ApplyCorrectionsForSection(section);
+            }
+
+            return totalMisclosure;
+        }
+
+        private double ApplyCorrectionsForSection(TraverseSection section)
+        {
             var sign = MethodOrientationSign;
-            var traverseClosure = items
+
+            var measured = section.Rows
                 .Where(r => r.DeltaH.HasValue)
                 .Sum(r => r.DeltaH!.Value * sign);
 
-            // Вычисляем общую длину хода (среднее расстояние для каждой станции)
-            double totalDistance = 0;
-            foreach (var row in items)
+            var target = (section.ExpectedDeltaSum ?? 0d) * sign;
+            var misclosure = measured - target;
+
+            var adjustableRows = section.Rows.Where(r => r.DeltaH.HasValue).ToList();
+            if (adjustableRows.Count == 0)
+                return misclosure;
+
+            var totalDistance = section.Rows.Sum(r => ((r.HdBack_m ?? 0d) + (r.HdFore_m ?? 0d)) / 2.0);
+            var totalCorrection = sign == 0 ? 0d : -misclosure / sign;
+            var allocations = new List<CorrectionAllocation>();
+
+            if (Math.Abs(totalDistance) < 1e-9)
             {
-                var avgDistance = ((row.HdBack_m ?? 0) + (row.HdFore_m ?? 0)) / 2.0;
-                totalDistance += avgDistance;
+                var correctionPerStation = totalCorrection / adjustableRows.Count;
+                foreach (var row in adjustableRows)
+                {
+                    allocations.Add(new CorrectionAllocation(row, correctionPerStation));
+                }
+            }
+            else
+            {
+                var correctionFactor = totalCorrection / totalDistance;
+                foreach (var row in section.Rows)
+                {
+                    if (!row.DeltaH.HasValue)
+                        continue;
+
+                    var avgDistance = ((row.HdBack_m ?? 0d) + (row.HdFore_m ?? 0d)) / 2.0;
+                    allocations.Add(new CorrectionAllocation(row, correctionFactor * avgDistance));
+                }
             }
 
-            if (totalDistance <= 0)
+            ApplyRoundedCorrections(allocations);
+            return misclosure;
+        }
+
+        private List<TraverseSection> SplitTraverseIntoSections(List<TraverseRow> items)
+        {
+            var result = new List<TraverseSection>();
+            if (items.Count == 0)
+                return result;
+
+            var currentRows = new List<TraverseRow>();
+            double? currentStartHeight = null;
+            string? currentStartCode = null;
+
+            foreach (var row in items)
             {
-                // Если нет данных о расстояниях, распределяем поровну на все станции
-                var adjustableCount = items.Count(r => r.DeltaH.HasValue);
-                if (adjustableCount > 0)
+                var backKnown = _dataViewModel.GetKnownHeight(row.BackCode);
+
+                if (currentRows.Count == 0)
                 {
-                    var correctionPerStation = -traverseClosure / adjustableCount;
-                    foreach (var row in items)
+                    currentStartCode = row.BackCode;
+                    if (!currentStartHeight.HasValue)
                     {
-                        if (row.DeltaH.HasValue)
-                            row.Correction = correctionPerStation;
+                        currentStartHeight = backKnown;
                     }
                 }
-                return;
+                else if (!currentStartHeight.HasValue && backKnown.HasValue)
+                {
+                    if (currentRows.Count > 0)
+                    {
+                        result.Add(new TraverseSection(currentRows.ToList(), null, currentStartCode, row.BackCode));
+                        currentRows.Clear();
+                    }
+
+                    currentStartHeight = backKnown;
+                    currentStartCode = row.BackCode;
+                }
+
+                currentRows.Add(row);
+
+                var foreKnown = _dataViewModel.GetKnownHeight(row.ForeCode);
+                if (currentStartHeight.HasValue && foreKnown.HasValue)
+                {
+                    result.Add(new TraverseSection(currentRows.ToList(), foreKnown.Value - currentStartHeight.Value, currentStartCode, row.ForeCode));
+                    currentRows.Clear();
+                    currentStartHeight = foreKnown;
+                    currentStartCode = row.ForeCode;
+                }
             }
 
-            // Распределяем невязку пропорционально длинам
-            var correctionFactor = -traverseClosure / totalDistance;
-            foreach (var row in items)
+            if (currentRows.Count > 0)
             {
-                if (row.DeltaH.HasValue)
+                result.Add(new TraverseSection(currentRows.ToList(), null, currentStartCode, null));
+            }
+
+            return result;
+        }
+
+        private const double CorrectionRoundingStep = 0.0001;
+        private const double HeightConflictTolerance = 0.0001;
+
+        private static void ApplyRoundedCorrections(List<CorrectionAllocation> allocations)
+        {
+            if (allocations.Count == 0)
+                return;
+
+            foreach (var allocation in allocations)
+            {
+                allocation.Rounded = Math.Round(allocation.Raw, 4, MidpointRounding.AwayFromZero);
+            }
+
+            var targetTotal = allocations.Sum(a => a.Raw);
+            var roundedTotal = allocations.Sum(a => a.Rounded);
+            var remaining = Math.Round(targetTotal - roundedTotal, 4, MidpointRounding.AwayFromZero);
+
+            var steps = (int)Math.Round(remaining / CorrectionRoundingStep, MidpointRounding.AwayFromZero);
+            while (steps != 0)
+            {
+                var positive = steps > 0;
+                var candidate = allocations
+                    .OrderByDescending(a => positive ? (a.Raw - a.Rounded) : (a.Rounded - a.Raw))
+                    .ThenByDescending(a => Math.Abs(a.Raw))
+                    .FirstOrDefault();
+
+                if (candidate == null)
+                    break;
+
+                candidate.Rounded += positive ? CorrectionRoundingStep : -CorrectionRoundingStep;
+                steps += positive ? -1 : 1;
+            }
+
+            foreach (var allocation in allocations)
+            {
+                allocation.Row.Correction = allocation.Rounded;
+            }
+        }
+
+        private sealed class CorrectionAllocation
+        {
+            public CorrectionAllocation(TraverseRow row, double raw)
+            {
+                Row = row;
+                Raw = raw;
+                Rounded = raw;
+            }
+
+            public TraverseRow Row { get; }
+            public double Raw { get; }
+            public double Rounded { get; set; }
+        }
+
+        private sealed class TraverseSection
+        {
+            public TraverseSection(List<TraverseRow> rows, double? expectedDeltaSum, string? startPointCode, string? endPointCode)
+            {
+                Rows = rows;
+                ExpectedDeltaSum = expectedDeltaSum;
+                StartPointCode = startPointCode;
+                EndPointCode = endPointCode;
+            }
+
+            public List<TraverseRow> Rows { get; }
+            public double? ExpectedDeltaSum { get; }
+            public string? StartPointCode { get; }
+            public string? EndPointCode { get; }
+            public bool IsClosed => ExpectedDeltaSum.HasValue;
+        }
+
+        private sealed class PointHeightEntry
+        {
+            public PointHeightEntry(double height, bool isBenchmark)
+            {
+                Height = height;
+                IsBenchmark = isBenchmark;
+            }
+
+            public double Height { get; private set; }
+            public bool IsBenchmark { get; private set; }
+
+            public void Update(double height, bool isBenchmark)
+            {
+                Height = height;
+                if (isBenchmark)
                 {
-                    var avgDistance = ((row.HdBack_m ?? 0) + (row.HdFore_m ?? 0)) / 2.0;
-                    row.Correction = correctionFactor * avgDistance;
+                    IsBenchmark = true;
                 }
             }
         }
@@ -743,51 +919,77 @@ namespace Nivtropy.ViewModels
             if (items.Count == 0)
                 return;
 
-            for (int i = 0; i < items.Count; i++)
+            var registry = new Dictionary<string, PointHeightEntry>(StringComparer.OrdinalIgnoreCase);
+            foreach (var known in _dataViewModel.KnownHeights)
             {
-                var row = items[i];
+                registry[known.Key] = new PointHeightEntry(known.Value, true);
+            }
 
-                // Проверяем известные высоты
-                var backKnownHeight = !string.IsNullOrWhiteSpace(row.BackCode)
-                    ? _dataViewModel.GetKnownHeight(row.BackCode)
-                    : null;
-                var foreKnownHeight = !string.IsNullOrWhiteSpace(row.ForeCode)
-                    ? _dataViewModel.GetKnownHeight(row.ForeCode)
-                    : null;
+            foreach (var row in items)
+            {
+                row.BackHeight = null;
+                row.ForeHeight = null;
+                row.IsBackHeightKnown = false;
+                row.IsForeHeightKnown = false;
+                row.HasHeightConflict = false;
 
-                // Устанавливаем высоту задней точки
-                if (backKnownHeight.HasValue)
+                var backCode = row.BackCode?.Trim();
+                if (!string.IsNullOrWhiteSpace(backCode) && registry.TryGetValue(backCode, out var backEntry))
                 {
-                    row.BackHeight = backKnownHeight.Value;
-                    row.IsBackHeightKnown = true;
-                }
-                else if (i > 0 && !string.IsNullOrWhiteSpace(row.BackCode))
-                {
-                    // Пытаемся найти эту точку как переднюю в предыдущих станциях
-                    for (int j = i - 1; j >= 0; j--)
-                    {
-                        if (items[j].ForeCode == row.BackCode && items[j].ForeHeight.HasValue)
-                        {
-                            row.BackHeight = items[j].ForeHeight.Value;
-                            row.IsBackHeightKnown = items[j].IsForeHeightKnown;
-                            break;
-                        }
-                    }
+                    row.BackHeight = backEntry.Height;
+                    row.IsBackHeightKnown = backEntry.IsBenchmark;
                 }
 
-                // Рассчитываем высоту передней точки: H_fore = H_back + Δh (используем исправленное превышение)
+                RegisterPointHeight(registry, backCode, row.BackHeight, row.IsBackHeightKnown, row);
+
+                double? computedFore = null;
                 if (row.BackHeight.HasValue && row.AdjustedDeltaH.HasValue)
                 {
-                    row.ForeHeight = row.BackHeight.Value + row.AdjustedDeltaH.Value;
+                    computedFore = row.BackHeight.Value + row.AdjustedDeltaH.Value;
+                }
+
+                var foreCode = row.ForeCode?.Trim();
+                if (!string.IsNullOrWhiteSpace(foreCode) && registry.TryGetValue(foreCode, out var foreEntry))
+                {
+                    if (computedFore.HasValue && Math.Abs(foreEntry.Height - computedFore.Value) > HeightConflictTolerance)
+                    {
+                        row.HasHeightConflict = true;
+                    }
+
+                    row.ForeHeight = foreEntry.Height;
+                    row.IsForeHeightKnown = foreEntry.IsBenchmark;
+                }
+                else if (computedFore.HasValue)
+                {
+                    row.ForeHeight = computedFore.Value;
                     row.IsForeHeightKnown = false;
                 }
 
-                // Если у передней точки есть известная высота - перезаписываем
-                if (foreKnownHeight.HasValue)
+                RegisterPointHeight(registry, foreCode, row.ForeHeight, row.IsForeHeightKnown, row);
+            }
+        }
+
+        private void RegisterPointHeight(Dictionary<string, PointHeightEntry> registry, string? pointCode, double? height, bool isBenchmark, TraverseRow row)
+        {
+            if (string.IsNullOrWhiteSpace(pointCode) || !height.HasValue)
+                return;
+
+            var key = pointCode.Trim();
+            if (registry.TryGetValue(key, out var entry))
+            {
+                if (Math.Abs(entry.Height - height.Value) > HeightConflictTolerance)
                 {
-                    row.ForeHeight = foreKnownHeight.Value;
-                    row.IsForeHeightKnown = true;
+                    row.HasHeightConflict = true;
                 }
+
+                if (!entry.IsBenchmark || isBenchmark)
+                {
+                    entry.Update(height.Value, entry.IsBenchmark || isBenchmark);
+                }
+            }
+            else
+            {
+                registry[key] = new PointHeightEntry(height.Value, isBenchmark);
             }
         }
 
@@ -795,12 +997,12 @@ namespace Nivtropy.ViewModels
         /// Обновляет накопление разности плеч для каждого хода на основе TraverseRow
         /// Обновляет существующие LineSummary в DataViewModel.Runs
         /// </summary>
-        private void UpdateArmDifferenceAccumulation(List<IGrouping<string, TraverseRow>> traverseGroups)
+        private void UpdateArmDifferenceAccumulation(List<(string? LineName, string Key, List<TraverseRow> Rows)> traverseGroups)
         {
             foreach (var group in traverseGroups)
             {
-                var lineName = group.Key;
-                var rows = group.ToList();
+                var lineName = string.IsNullOrWhiteSpace(group.LineName) ? group.Key : group.LineName;
+                var rows = group.Rows;
 
                 // Находим индекс существующего LineSummary
                 var existingIndex = -1;
@@ -842,6 +1044,10 @@ namespace Nivtropy.ViewModels
                 }
 
                 // Создаем новый LineSummary с обновленными значениями
+                double? lineClosure = _lineMisclosures.TryGetValue(group.Key, out var closureValue)
+                    ? closureValue
+                    : null;
+
                 var newSummary = new LineSummary(
                     existingSummary.Index,
                     existingSummary.StartTarget,
@@ -852,7 +1058,8 @@ namespace Nivtropy.ViewModels
                     existingSummary.DeltaHSum,
                     totalDistanceBack,
                     totalDistanceFore,
-                    accumulation);
+                    accumulation,
+                    lineClosure);
 
                 // Заменяем в коллекции
                 _dataViewModel.Runs[existingIndex] = newSummary;

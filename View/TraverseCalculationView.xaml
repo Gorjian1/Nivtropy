@@ -10,7 +10,6 @@
              d:DesignWidth="800">
     <UserControl.Resources>
         <converters:MethodDeltaConverter x:Key="MethodDeltaConverter" />
-        <converters:GroupClosureConverter x:Key="GroupClosureConverter" />
         <converters:ArmDifferenceExceededToBrushConverter x:Key="ArmDifferenceExceededToBrushConverter" />
         <CollectionViewSource x:Key="RowsGrouped" Source="{Binding Rows}">
             <CollectionViewSource.GroupDescriptions>
@@ -53,7 +52,7 @@
             <TextBlock Text="Станций:" FontWeight="SemiBold" VerticalAlignment="Center" />
             <TextBlock Text="{Binding StationsCount}" Margin="4,0,0,0" VerticalAlignment="Center" />
             <TextBlock Text="•" Margin="12,0,12,0" VerticalAlignment="Center" Foreground="#FF606060" />
-            <TextBlock Text="ΣΔh:" FontWeight="SemiBold" VerticalAlignment="Center" />
+            <TextBlock Text="Невязка:" FontWeight="SemiBold" VerticalAlignment="Center" />
             <TextBlock Text="{Binding Closure, StringFormat=+0.0000;-0.0000;0.0000}" Margin="4,0,0,0" VerticalAlignment="Center" />
             <TextBlock Text="м" Margin="2,0,0,0" VerticalAlignment="Center" Foreground="#FF606060" />
             <TextBlock Text="•" Margin="12,0,12,0" VerticalAlignment="Center" Foreground="#FF606060" />
@@ -105,8 +104,8 @@
                                             <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
                                             <TextBlock Text=" • Станций: " Margin="12,0,0,0" Foreground="#FF606060" />
                                             <TextBlock Text="{Binding ItemCount}" FontWeight="SemiBold" />
-                                            <TextBlock Text=" • ΣΔh: " Margin="12,0,0,0" Foreground="#FF606060" />
-                                            <TextBlock Text="{Binding Converter={StaticResource GroupClosureConverter}, StringFormat=+0.0000;-0.0000;0.0000}"
+                                            <TextBlock Text=" • Невязка: " Margin="12,0,0,0" Foreground="#FF606060" />
+                                            <TextBlock Text="{Binding Items[0].LineSummary.Closure, StringFormat=+0.0000;-0.0000;0.0000, TargetNullValue=—}"
                                                        FontWeight="SemiBold"
                                                        Foreground="#FF1976D2" />
                                             <TextBlock Text=" м" Foreground="#FF606060" />
@@ -212,6 +211,16 @@
                                     <Setter Property="ToolTip" Value="Высота точки (для виртуальных станций - задняя, для обычных - передняя)" />
                                 </Style>
                             </DataGridTextColumn.HeaderStyle>
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding HasHeightConflict}" Value="True">
+                                            <Setter Property="Foreground" Value="Red" />
+                                            <Setter Property="FontWeight" Value="Bold" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
                         </DataGridTextColumn>
                     </DataGrid.Columns>
                 </DataGrid>

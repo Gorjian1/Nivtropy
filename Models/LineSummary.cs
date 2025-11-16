@@ -14,7 +14,8 @@ namespace Nivtropy.Models
             double? deltaHSum,
             double? totalDistanceBack = null,
             double? totalDistanceFore = null,
-            double? armDifferenceAccumulation = null)
+            double? armDifferenceAccumulation = null,
+            double? closure = null)
         {
             Index = index;
             StartTarget = startTarget;
@@ -26,6 +27,7 @@ namespace Nivtropy.Models
             TotalDistanceBack = totalDistanceBack;
             TotalDistanceFore = totalDistanceFore;
             ArmDifferenceAccumulation = armDifferenceAccumulation;
+            Closure = closure;
         }
 
         public int Index { get; }
@@ -50,6 +52,11 @@ namespace Nivtropy.Models
         /// Накопление разности плеч за ход (относительное значение с учетом знака) в метрах
         /// </summary>
         public double? ArmDifferenceAccumulation { get; }
+
+        /// <summary>
+        /// Невязка между измеренными превышениями и известными высотами
+        /// </summary>
+        public double? Closure { get; }
 
         /// <summary>
         /// Общая длина хода: сумма длин назад и вперёд (в метрах)

@@ -262,7 +262,8 @@ namespace Nivtropy.ViewModels
                 deltaSum,
                 totalDistanceBack,
                 totalDistanceFore,
-                armDiffAccumulation);
+                armDiffAccumulation,
+                null);
         }
 
         public void ExportCsv(string path)
