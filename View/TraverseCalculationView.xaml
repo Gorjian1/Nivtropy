@@ -10,7 +10,6 @@
              d:DesignWidth="800">
     <UserControl.Resources>
         <converters:MethodDeltaConverter x:Key="MethodDeltaConverter" />
-        <converters:GroupClosureConverter x:Key="GroupClosureConverter" />
         <converters:ArmDifferenceExceededToBrushConverter x:Key="ArmDifferenceExceededToBrushConverter" />
         <CollectionViewSource x:Key="RowsGrouped" Source="{Binding Rows}">
             <CollectionViewSource.GroupDescriptions>
@@ -106,7 +105,7 @@
                                             <TextBlock Text=" • Станций: " Margin="12,0,0,0" Foreground="#FF606060" />
                                             <TextBlock Text="{Binding ItemCount}" FontWeight="SemiBold" />
                                             <TextBlock Text=" • ΣΔh: " Margin="12,0,0,0" Foreground="#FF606060" />
-                                            <TextBlock Text="{Binding Converter={StaticResource GroupClosureConverter}, StringFormat=+0.0000;-0.0000;0.0000}"
+                                            <TextBlock Text="{Binding Items[0].LineSummary.Closure, StringFormat=+0.0000;-0.0000;0.0000}"
                                                        FontWeight="SemiBold"
                                                        Foreground="#FF1976D2" />
                                             <TextBlock Text=" м" Foreground="#FF606060" />

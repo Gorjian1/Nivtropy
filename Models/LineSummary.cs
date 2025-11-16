@@ -35,6 +35,7 @@ namespace Nivtropy.Models
         public string? EndStation { get; }
         public int RecordCount { get; }
         public double? DeltaHSum { get; }
+        public double? Closure { get; set; }
 
         /// <summary>
         /// Общая длина хода (назад) в метрах
