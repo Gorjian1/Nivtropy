@@ -349,34 +349,37 @@ namespace Nivtropy.ViewModels
                 using var workbook = new XLWorkbook();
                 var worksheet = workbook.Worksheets.Add("Нивелирование");
 
-                // Заголовок
                 int row = 1;
+
+                void WriteStat(string label, object? value, string? numberFormat = null)
+                {
+                    worksheet.Cell(row, 1).Value = label;
+                    var valueCell = worksheet.Cell(row, 2);
+                    valueCell.Value = value ?? string.Empty;
+
+                    if (!string.IsNullOrWhiteSpace(numberFormat) && value != null)
+                    {
+                        valueCell.Style.NumberFormat.Format = numberFormat;
+                    }
+
+                    row++;
+                }
+
+                // Заголовок
                 worksheet.Cell(row, 1).Value = "Расчёт нивелирного хода";
                 worksheet.Cell(row, 1).Style.Font.Bold = true;
                 worksheet.Cell(row, 1).Style.Font.FontSize = 14;
                 row += 2;
 
                 // Общая статистика
-                worksheet.Cell(row, 1).Value = "Метод:";
-                worksheet.Cell(row, 2).Value = SelectedMethod?.Display ?? "";
+                WriteStat("Метод", SelectedMethod?.Display);
+                WriteStat("Класс", SelectedClass?.Display);
+                WriteStat("Станций", StationsCount, "0");
+                WriteStat("ΣΔh, м", Closure, "+0.0000;-0.0000;0.0000");
+                WriteStat("Допуск невязки, м", AllowableClosure, "0.0000");
+                WriteStat("Вердикт", ClosureVerdict);
+
                 row++;
-                worksheet.Cell(row, 1).Value = "Класс:";
-                worksheet.Cell(row, 2).Value = SelectedClass?.Display ?? "";
-                row++;
-                worksheet.Cell(row, 1).Value = "Станций:";
-                worksheet.Cell(row, 2).Value = StationsCount;
-                row++;
-                worksheet.Cell(row, 1).Value = "ΣΔh:";
-                worksheet.Cell(row, 2).Value = Closure;
-                worksheet.Cell(row, 2).Style.NumberFormat.Format = "+0.0000;-0.0000;0.0000";
-                row++;
-                worksheet.Cell(row, 1).Value = "Допуск невязки:";
-                worksheet.Cell(row, 2).Value = AllowableClosure;
-                worksheet.Cell(row, 2).Style.NumberFormat.Format = "0.0000";
-                row++;
-                worksheet.Cell(row, 1).Value = "Вердикт:";
-                worksheet.Cell(row, 2).Value = ClosureVerdict;
-                row += 2;
 
                 // Группировка по ходам
                 var groupedRows = _rows.GroupBy(r => r.LineName).ToList();
@@ -387,20 +390,41 @@ namespace Nivtropy.ViewModels
                     var firstRow = group.First();
                     var lineSummary = firstRow.LineSummary;
 
-                    worksheet.Cell(row, 1).Value = $"{group.Key}";
+                    worksheet.Cell(row, 1).Value = group.Key;
                     worksheet.Cell(row, 1).Style.Font.Bold = true;
                     worksheet.Cell(row, 1).Style.Fill.BackgroundColor = XLColor.LightBlue;
-                    worksheet.Range(row, 1, row, 11).Merge();
+                    worksheet.Range(row, 1, row, 10).Merge();
                     row++;
 
                     // Статистика хода
                     if (lineSummary != null)
                     {
-                        worksheet.Cell(row, 1).Value = $"Станций: {group.Count()}";
-                        worksheet.Cell(row, 3).Value = $"ΣΔh: {group.Where(r => r.DeltaH.HasValue).Sum(r => r.DeltaH!.Value):+0.0000;-0.0000;0.0000}";
-                        worksheet.Cell(row, 5).Value = $"Длина назад: {lineSummary.TotalDistanceBack:0.00} м";
-                        worksheet.Cell(row, 7).Value = $"Длина вперёд: {lineSummary.TotalDistanceFore:0.00} м";
-                        worksheet.Cell(row, 9).Value = $"Общая длина: {lineSummary.TotalAverageLength:0.00} м";
+                        int statColumn = 1;
+
+                        worksheet.Cell(row, statColumn++).Value = "Станций";
+                        worksheet.Cell(row, statColumn).Value = group.Count();
+                        worksheet.Cell(row, statColumn++).Style.NumberFormat.Format = "0";
+
+                        worksheet.Cell(row, statColumn++).Value = "ΣΔh, м";
+                        worksheet.Cell(row, statColumn).Value = group.Where(r => r.DeltaH.HasValue)
+                            .Sum(r => r.DeltaH!.Value);
+                        worksheet.Cell(row, statColumn++).Style.NumberFormat.Format = "+0.0000;-0.0000;0.0000";
+
+                        worksheet.Cell(row, statColumn++).Value = "Длина назад, м";
+                        worksheet.Cell(row, statColumn).Value = lineSummary.TotalDistanceBack;
+                        worksheet.Cell(row, statColumn++).Style.NumberFormat.Format = "0.00";
+
+                        worksheet.Cell(row, statColumn++).Value = "Длина вперёд, м";
+                        worksheet.Cell(row, statColumn).Value = lineSummary.TotalDistanceFore;
+                        worksheet.Cell(row, statColumn++).Style.NumberFormat.Format = "0.00";
+
+                        worksheet.Cell(row, statColumn++).Value = "Общая длина, м";
+                        worksheet.Cell(row, statColumn).Value = lineSummary.TotalAverageLength;
+                        worksheet.Cell(row, statColumn++).Style.NumberFormat.Format = "0.00";
+
+                        worksheet.Cell(row, statColumn++).Value = "Σ|разн. плеч|, м";
+                        worksheet.Cell(row, statColumn).Value = lineSummary.ArmDifferenceAccumulation;
+                        worksheet.Cell(row, statColumn).Style.NumberFormat.Format = "0.0000";
                         row++;
                     }
 
@@ -416,11 +440,26 @@ namespace Nivtropy.ViewModels
                     worksheet.Cell(row, col++).Value = "Δh испр., м";
                     worksheet.Cell(row, col++).Value = "Z, м";
                     worksheet.Cell(row, col++).Value = "Длина ст., м";
-                    worksheet.Cell(row, col++).Value = "Разн. плеч, м";
 
                     worksheet.Range(row, 1, row, col - 1).Style.Font.Bold = true;
                     worksheet.Range(row, 1, row, col - 1).Style.Fill.BackgroundColor = XLColor.LightGray;
                     row++;
+
+                    var columnFormats = new Dictionary<int, string>
+                    {
+                        {4, "0.0000"},
+                        {5, "0.0000"},
+                        {6, "+0.0000;-0.0000;0.0000"},
+                        {7, "0.0"},
+                        {8, "+0.0000;-0.0000;0.0000"},
+                        {9, "0.0000"},
+                        {10, "0.00"}
+                    };
+
+                    foreach (var format in columnFormats)
+                    {
+                        worksheet.Column(format.Key).Style.NumberFormat.Format = format.Value;
+                    }
 
                     // Данные станций
                     foreach (var dataRow in group)
@@ -436,24 +475,6 @@ namespace Nivtropy.ViewModels
                         worksheet.Cell(row, col++).Value = dataRow.AdjustedDeltaH;
                         worksheet.Cell(row, col++).Value = dataRow.IsVirtualStation ? dataRow.BackHeight : dataRow.ForeHeight;
                         worksheet.Cell(row, col++).Value = dataRow.StationLength_m;
-                        worksheet.Cell(row, col++).Value = dataRow.ArmDifference_m;
-
-                        // Форматирование чисел
-                        worksheet.Cell(row, 4).Style.NumberFormat.Format = "0.0000";
-                        worksheet.Cell(row, 5).Style.NumberFormat.Format = "0.0000";
-                        worksheet.Cell(row, 6).Style.NumberFormat.Format = "+0.0000;-0.0000;0.0000";
-                        worksheet.Cell(row, 7).Style.NumberFormat.Format = "0.0";
-                        worksheet.Cell(row, 8).Style.NumberFormat.Format = "+0.0000;-0.0000;0.0000";
-                        worksheet.Cell(row, 9).Style.NumberFormat.Format = "0.0000";
-                        worksheet.Cell(row, 10).Style.NumberFormat.Format = "0.00";
-                        worksheet.Cell(row, 11).Style.NumberFormat.Format = "0.0000";
-
-                        // Выделение превышения допуска разности плеч
-                        if (dataRow.IsArmDifferenceExceeded)
-                        {
-                            worksheet.Cell(row, 11).Style.Font.FontColor = XLColor.Red;
-                            worksheet.Cell(row, 11).Style.Font.Bold = true;
-                        }
 
                         row++;
                     }

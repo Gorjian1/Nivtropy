@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
@@ -13,6 +14,7 @@ namespace Nivtropy.ViewModels
     {
         private readonly DataViewModel _dataViewModel;
         private readonly ObservableCollection<DesignRow> _rows = new();
+        private readonly ObservableCollection<RawCalculationItem> _rawCalculations = new();
 
         private double _targetClosure;
         private double _startHeight;
@@ -39,6 +41,7 @@ namespace Nivtropy.ViewModels
         private void OnPropertyChanged([CallerMemberName] string? name = null) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 
         public ObservableCollection<DesignRow> Rows => _rows;
+        public ObservableCollection<RawCalculationItem> RawCalculations => _rawCalculations;
         public ObservableCollection<LineSummary> Runs => _dataViewModel.Runs;
 
         public LineSummary? SelectedRun
@@ -131,6 +134,7 @@ namespace Nivtropy.ViewModels
         private void UpdateRows()
         {
             _rows.Clear();
+            _rawCalculations.Clear();
 
             if (SelectedRun == null)
             {
@@ -140,6 +144,7 @@ namespace Nivtropy.ViewModels
                 AllowableClosure = null;
                 ClosureStatus = "Нет данных";
                 TotalDistance = 0;
+                _rawCalculations.Clear();
                 return;
             }
 
@@ -155,6 +160,7 @@ namespace Nivtropy.ViewModels
                 AllowableClosure = null;
                 ClosureStatus = "Нет данных";
                 TotalDistance = 0;
+                _rawCalculations.Clear();
                 return;
             }
 
@@ -234,6 +240,72 @@ namespace Nivtropy.ViewModels
             // Средняя поправка на станцию (для информации)
             var adjustableCount = items.Count(r => r.DeltaH.HasValue);
             CorrectionPerStation = adjustableCount > 0 ? closureToDistribute / adjustableCount : 0;
+
+            UpdateRawCalculations(items);
+        }
+
+        private void UpdateRawCalculations(IList<TraverseRow> items)
+        {
+            _rawCalculations.Clear();
+
+            if (items.Count == 0)
+            {
+                return;
+            }
+
+            var armDifferences = items
+                .Select(r => r.ArmDifference_m)
+                .Where(v => v.HasValue)
+                .Select(v => Math.Abs(v.Value))
+                .ToList();
+
+            var stationLengths = items
+                .Select(r => r.StationLength_m)
+                .Where(v => v.HasValue && v.Value > 0)
+                .Select(v => v.Value)
+                .ToList();
+
+            var runningClosures = new List<double>();
+            double cumulative = 0;
+            foreach (var row in items)
+            {
+                if (!row.DeltaH.HasValue)
+                {
+                    continue;
+                }
+
+                cumulative += row.DeltaH.Value;
+                runningClosures.Add(cumulative);
+            }
+
+            _rawCalculations.Add(new RawCalculationItem(
+                "СКО разности плеч",
+                ComputeRms(armDifferences),
+                "м",
+                "Среднеквадратичное неравенство плеч по станциям"));
+
+            _rawCalculations.Add(new RawCalculationItem(
+                "СКО невязки",
+                ComputeRms(runningClosures),
+                "м",
+                "Оценка СКО по накопленной невязке хода"));
+
+            _rawCalculations.Add(new RawCalculationItem(
+                "СКО длины станции",
+                ComputeRms(stationLengths),
+                "м",
+                "RMS средних длин станций"));
+        }
+
+        private static double? ComputeRms(IReadOnlyCollection<double> values)
+        {
+            if (values.Count == 0)
+            {
+                return null;
+            }
+
+            var meanSquares = values.Sum(v => v * v) / values.Count;
+            return Math.Sqrt(meanSquares);
         }
 
         private bool SetField<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)

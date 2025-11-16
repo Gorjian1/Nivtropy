@@ -25,6 +25,7 @@
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
@@ -74,6 +75,43 @@
                 <TextBlock Text="Средняя коррекция" FontWeight="SemiBold" />
                 <TextBlock Text="{Binding CorrectionPerStation, StringFormat=+0.0000;-0.0000;0.0000}" />
             </StackPanel>
+
+            <GroupBox Grid.Row="2" Grid.ColumnSpan="4" Margin="0,24,0,0" Header="Сырые расчёты">
+                <ItemsControl ItemsSource="{Binding RawCalculations}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <UniformGrid Columns="3" />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border Margin="4"
+                                    Padding="8"
+                                    BorderBrush="#FFD0D0D0"
+                                    BorderThickness="1"
+                                    CornerRadius="4">
+                                <StackPanel>
+                                    <TextBlock Text="{Binding Label}" FontWeight="SemiBold" />
+                                    <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                                        <TextBlock Text="{Binding Value, StringFormat=0.0000}"
+                                                   FontWeight="Bold"
+                                                   FontSize="16"
+                                                   VerticalAlignment="Center" />
+                                        <TextBlock Text="{Binding Units}"
+                                                   Margin="6,0,0,0"
+                                                   VerticalAlignment="Center"
+                                                   Foreground="#FF616161" />
+                                    </StackPanel>
+                                    <TextBlock Text="{Binding Description}"
+                                               Margin="0,4,0,0"
+                                               FontSize="11"
+                                               Foreground="#FF757575" />
+                                </StackPanel>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </GroupBox>
         </Grid>
 
         <Border Grid.Row="2" Margin="8" BorderBrush="#FFB0B0B0" BorderThickness="1">
