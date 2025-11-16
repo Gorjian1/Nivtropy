@@ -28,10 +28,10 @@ namespace Nivtropy.Models
             ? HdBack_m.Value + HdFore_m.Value : null;
 
         /// <summary>
-        /// Разность плеч (неравенство плеч)
+        /// Разность плеч (неравенство плеч) - относительное значение с учетом знака
         /// </summary>
         public double? ArmDifference_m => (HdBack_m.HasValue && HdFore_m.HasValue)
-            ? Math.Abs(HdBack_m.Value - HdFore_m.Value) : null;
+            ? HdBack_m.Value - HdFore_m.Value : null;
 
         /// <summary>
         /// Устаревшее свойство для обратной совместимости

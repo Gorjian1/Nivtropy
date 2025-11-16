@@ -133,9 +133,7 @@ namespace Nivtropy.ViewModels
 
             var groups = new List<List<MeasurementRecord>>();
             var current = new List<MeasurementRecord>();
-            var continuationMarkers = new List<bool>(); // Отслеживает, является ли группа продолжением
             MeasurementRecord? previous = null;
-            bool isNextContinuation = false;
 
             foreach (var record in records)
             {
@@ -144,12 +142,8 @@ namespace Nivtropy.ViewModels
                     if (current.Count > 0)
                     {
                         groups.Add(current);
-                        continuationMarkers.Add(isNextContinuation);
                         current = new List<MeasurementRecord>();
                     }
-
-                    // Проверяем, является ли новая группа продолжением
-                    isNextContinuation = record.LineMarker == "Cont-Line";
                 }
 
                 current.Add(record);
@@ -159,34 +153,14 @@ namespace Nivtropy.ViewModels
             if (current.Count > 0)
             {
                 groups.Add(current);
-                continuationMarkers.Add(isNextContinuation);
             }
-
-            int displayIndex = 1; // Индекс для отображения (используется в названии хода)
-            int actualIndex = 1;  // Уникальный индекс для каждого хода
 
             for (int g = 0; g < groups.Count; g++)
             {
                 var group = groups[g];
-                var isContinuation = continuationMarkers[g];
+                int index = g + 1;
 
-                // Определяем индекс хода-предшественника для продолжений
-                int? continuationOfIndex = null;
-                if (isContinuation)
-                {
-                    // Для продолжений используем индекс предыдущего обычного хода
-                    continuationOfIndex = displayIndex - 1;
-                }
-                else
-                {
-                    // Для обычных ходов увеличиваем displayIndex
-                    if (g > 0)
-                    {
-                        displayIndex++;
-                    }
-                }
-
-                var summary = BuildSummary(actualIndex, group, continuationOfIndex, displayIndex);
+                var summary = BuildSummary(index, group);
                 Runs.Add(summary);
 
                 var start = group.FirstOrDefault(gr => gr.Rb_m.HasValue) ?? group.First();
@@ -200,13 +174,11 @@ namespace Nivtropy.ViewModels
                     rec.IsLineStart = ReferenceEquals(rec, start);
                     rec.IsLineEnd = ReferenceEquals(rec, end);
                 }
-
-                actualIndex++; // Всегда увеличиваем уникальный индекс
             }
         }
 
         /// <summary>
-        /// Определяет, нужно ли начать новый ход на основе маркеров Start-Line/Cont-Line
+        /// Определяет, нужно ли начать новый ход на основе маркеров Start-Line
         /// </summary>
         private static bool ShouldStartNewLine(MeasurementRecord previous, MeasurementRecord current)
         {
@@ -214,9 +186,9 @@ namespace Nivtropy.ViewModels
             if (current.LineMarker == "Start-Line")
                 return true;
 
-            // Cont-Line начинает новый ход (продолжение нивелирования как отдельный ход)
+            // Cont-Line НЕ начинает новый ход - это продолжение текущего хода
             if (current.LineMarker == "Cont-Line")
-                return true;
+                return false;
 
             // End-Line сам по себе не начинает новый ход
             // (следующая запись после End-Line может быть Start-Line или Cont-Line)
@@ -245,7 +217,7 @@ namespace Nivtropy.ViewModels
             return false;
         }
 
-        private static LineSummary BuildSummary(int index, IReadOnlyList<MeasurementRecord> group, int? continuationOfIndex = null, int displayIndex = 0)
+        private static LineSummary BuildSummary(int index, IReadOnlyList<MeasurementRecord> group)
         {
             var start = group.FirstOrDefault(r => r.Rb_m.HasValue) ?? group.First();
             var end = group.LastOrDefault(r => r.Rf_m.HasValue) ?? group.Last();
@@ -272,10 +244,10 @@ namespace Nivtropy.ViewModels
                     totalDistanceFore = (totalDistanceFore ?? 0d) + rec.HdFore_m.Value;
                 }
 
-                // Накопление разности плеч (сумма модулей)
+                // Накопление разности плеч (относительное значение с учетом знака)
                 if (rec.HdBack_m.HasValue && rec.HdFore_m.HasValue)
                 {
-                    var armDiff = Math.Abs(rec.HdBack_m.Value - rec.HdFore_m.Value);
+                    var armDiff = rec.HdBack_m.Value - rec.HdFore_m.Value;
                     armDiffAccumulation = (armDiffAccumulation ?? 0d) + armDiff;
                 }
             }
@@ -290,9 +262,7 @@ namespace Nivtropy.ViewModels
                 deltaSum,
                 totalDistanceBack,
                 totalDistanceFore,
-                armDiffAccumulation,
-                continuationOfIndex,
-                displayIndex);
+                armDiffAccumulation);
         }
 
         public void ExportCsv(string path)
