@@ -54,6 +54,16 @@ namespace Nivtropy.Models
         public double? ForeHeight { get; set; }
 
         /// <summary>
+        /// Отметка (высота) задней точки без распределения невязки (Z0)
+        /// </summary>
+        public double? BackHeightRaw { get; set; }
+
+        /// <summary>
+        /// Отметка (высота) передней точки без распределения невязки (Z0)
+        /// </summary>
+        public double? ForeHeightRaw { get; set; }
+
+        /// <summary>
         /// Флаг, что высота задней точки известна (задана вручную)
         /// </summary>
         public bool IsBackHeightKnown { get; set; }
@@ -118,6 +128,24 @@ namespace Nivtropy.Models
                 else
                 {
                     return ForeHeight.HasValue ? $"{ForeHeight.Value:F4}" : "—";
+                }
+            }
+        }
+
+        /// <summary>
+        /// Отображение высоты без уравнивания (Z0) для таблицы: для виртуальных станций - BackHeightRaw, для обычных - ForeHeightRaw
+        /// </summary>
+        public string HeightRawDisplay
+        {
+            get
+            {
+                if (IsVirtualStation)
+                {
+                    return BackHeightRaw.HasValue ? $"{BackHeightRaw.Value:F4}" : "—";
+                }
+                else
+                {
+                    return ForeHeightRaw.HasValue ? $"{ForeHeightRaw.Value:F4}" : "—";
                 }
             }
         }

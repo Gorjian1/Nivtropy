@@ -803,6 +803,105 @@ namespace Nivtropy.ViewModels
             {
                 CalculateAndAdjustSection(items, section);
             }
+
+            // Распространяем высоты между смежными ходами через общие точки
+            PropagateHeightsBetweenTraverses(items);
+        }
+
+        /// <summary>
+        /// Распространяет высоты между смежными ходами через общие точки
+        /// </summary>
+        private void PropagateHeightsBetweenTraverses(List<TraverseRow> items)
+        {
+            // Создаём словарь: код точки → список строк, где встречается эта точка
+            var pointOccurrences = new Dictionary<string, List<TraverseRow>>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var row in items)
+            {
+                // Добавляем заднюю точку
+                if (!string.IsNullOrWhiteSpace(row.BackCode))
+                {
+                    if (!pointOccurrences.ContainsKey(row.BackCode))
+                        pointOccurrences[row.BackCode] = new List<TraverseRow>();
+                    pointOccurrences[row.BackCode].Add(row);
+                }
+
+                // Добавляем переднюю точку
+                if (!string.IsNullOrWhiteSpace(row.ForeCode))
+                {
+                    if (!pointOccurrences.ContainsKey(row.ForeCode))
+                        pointOccurrences[row.ForeCode] = new List<TraverseRow>();
+                    pointOccurrences[row.ForeCode].Add(row);
+                }
+            }
+
+            // Проходим по всем точкам и распространяем высоты
+            foreach (var kvp in pointOccurrences)
+            {
+                var pointCode = kvp.Key;
+                var rows = kvp.Value;
+
+                // Находим первую строку с известной или вычисленной высотой для этой точки
+                double? knownHeight = null;
+                double? knownHeightRaw = null;
+                bool isKnown = false;
+
+                foreach (var row in rows)
+                {
+                    // Проверяем заднюю точку
+                    if (row.BackCode?.Equals(pointCode, StringComparison.OrdinalIgnoreCase) == true)
+                    {
+                        if (row.BackHeight.HasValue && (knownHeight == null || row.IsBackHeightKnown))
+                        {
+                            knownHeight = row.BackHeight.Value;
+                            knownHeightRaw = row.BackHeightRaw ?? row.BackHeight.Value;
+                            isKnown = row.IsBackHeightKnown;
+                            if (isKnown) break; // Если найдена известная высота - используем её
+                        }
+                    }
+
+                    // Проверяем переднюю точку
+                    if (row.ForeCode?.Equals(pointCode, StringComparison.OrdinalIgnoreCase) == true)
+                    {
+                        if (row.ForeHeight.HasValue && (knownHeight == null || row.IsForeHeightKnown))
+                        {
+                            knownHeight = row.ForeHeight.Value;
+                            knownHeightRaw = row.ForeHeightRaw ?? row.ForeHeight.Value;
+                            isKnown = row.IsForeHeightKnown;
+                            if (isKnown) break; // Если найдена известная высота - используем её
+                        }
+                    }
+                }
+
+                // Если нашли высоту - распространяем её на все вхождения этой точки
+                if (knownHeight.HasValue)
+                {
+                    foreach (var row in rows)
+                    {
+                        // Обновляем заднюю точку
+                        if (row.BackCode?.Equals(pointCode, StringComparison.OrdinalIgnoreCase) == true)
+                        {
+                            if (!row.BackHeight.HasValue || !row.IsBackHeightKnown)
+                            {
+                                row.BackHeight = knownHeight.Value;
+                                row.BackHeightRaw = knownHeightRaw;
+                                // Не меняем IsBackHeightKnown, если это не репер
+                            }
+                        }
+
+                        // Обновляем переднюю точку
+                        if (row.ForeCode?.Equals(pointCode, StringComparison.OrdinalIgnoreCase) == true)
+                        {
+                            if (!row.ForeHeight.HasValue || !row.IsForeHeightKnown)
+                            {
+                                row.ForeHeight = knownHeight.Value;
+                                row.ForeHeightRaw = knownHeightRaw;
+                                // Не меняем IsForeHeightKnown, если это не репер
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         /// <summary>
@@ -907,7 +1006,7 @@ namespace Nivtropy.ViewModels
         /// </summary>
         private void CalculateAndAdjustSection(List<TraverseRow> items, HeightSection section)
         {
-            // Первый проход: вычисляем высоты от начальной точки
+            // Первый проход: вычисляем Z0 (высоты без уравнивания) от начальной точки
             for (int i = section.StartIndex; i <= section.EndIndex; i++)
             {
                 var row = items[i];
@@ -920,9 +1019,10 @@ namespace Nivtropy.ViewModels
                     ? _dataViewModel.GetKnownHeight(row.ForeCode)
                     : null;
 
-                // Устанавливаем высоту задней точки
+                // Устанавливаем высоту задней точки (Z0)
                 if (backKnownHeight.HasValue)
                 {
+                    row.BackHeightRaw = backKnownHeight.Value;
                     row.BackHeight = backKnownHeight.Value;
                     row.IsBackHeightKnown = true;
                 }
@@ -931,58 +1031,63 @@ namespace Nivtropy.ViewModels
                     // Пытаемся найти эту точку как переднюю в предыдущих станциях
                     for (int j = i - 1; j >= section.StartIndex; j--)
                     {
-                        if (items[j].ForeCode == row.BackCode && items[j].ForeHeight.HasValue)
+                        if (items[j].ForeCode == row.BackCode && items[j].ForeHeightRaw.HasValue)
                         {
-                            row.BackHeight = items[j].ForeHeight.Value;
+                            row.BackHeightRaw = items[j].ForeHeightRaw.Value;
+                            row.BackHeight = items[j].ForeHeightRaw.Value;
                             row.IsBackHeightKnown = items[j].IsForeHeightKnown;
                             break;
                         }
                     }
                 }
 
-                // Рассчитываем высоту передней точки
-                if (row.BackHeight.HasValue && row.AdjustedDeltaH.HasValue)
+                // Рассчитываем Z0 передней точки (без поправки)
+                if (row.BackHeightRaw.HasValue && row.DeltaH.HasValue)
                 {
-                    row.ForeHeight = row.BackHeight.Value + row.AdjustedDeltaH.Value;
+                    row.ForeHeightRaw = row.BackHeightRaw.Value + row.DeltaH.Value;
+                    row.ForeHeight = row.ForeHeightRaw.Value;
                     row.IsForeHeightKnown = false;
+                }
+
+                // Если высота известна - устанавливаем её и для Z0, и для Z
+                if (foreKnownHeight.HasValue)
+                {
+                    row.ForeHeightRaw = foreKnownHeight.Value;
+                    row.ForeHeight = foreKnownHeight.Value;
+                    row.IsForeHeightKnown = true;
                 }
             }
 
-            // Если есть конечная опорная точка - уравниваем
+            // Второй проход: если есть конечная опорная точка - уравниваем
             if (section.EndHeight.HasValue)
             {
                 var lastRow = items[section.EndIndex];
-                if (lastRow.ForeHeight.HasValue)
+                if (lastRow.ForeHeightRaw.HasValue)
                 {
                     // Вычисляем невязку
-                    var calculatedEndHeight = lastRow.ForeHeight.Value;
+                    var calculatedEndHeight = lastRow.ForeHeightRaw.Value;
                     var closure = calculatedEndHeight - section.EndHeight.Value;
 
                     // Распределяем невязку пропорционально числу станций
                     var stationCount = section.EndIndex - section.StartIndex + 1;
                     var correctionPerStation = -closure / stationCount;
 
-                    // Применяем поправки
+                    // Применяем поправки для уравненных высот (Z)
                     for (int i = section.StartIndex; i <= section.EndIndex; i++)
                     {
                         var row = items[i];
                         var stationNumber = i - section.StartIndex + 1;
                         var correction = correctionPerStation * stationNumber;
 
-                        if (row.ForeHeight.HasValue)
+                        // Обновляем только уравненные высоты, Z0 остаётся без изменений
+                        if (row.BackHeightRaw.HasValue)
                         {
-                            row.ForeHeight = row.ForeHeight.Value + correction;
+                            row.BackHeight = row.BackHeightRaw.Value + correction;
                         }
 
-                        // Обновляем заднюю высоту для следующей станции
-                        if (i < section.EndIndex)
+                        if (row.ForeHeightRaw.HasValue)
                         {
-                            var nextRow = items[i + 1];
-                            if (!string.IsNullOrWhiteSpace(nextRow.BackCode) &&
-                                nextRow.BackCode.Equals(row.ForeCode, StringComparison.OrdinalIgnoreCase))
-                            {
-                                nextRow.BackHeight = row.ForeHeight;
-                            }
+                            row.ForeHeight = row.ForeHeightRaw.Value + correction;
                         }
                     }
 
