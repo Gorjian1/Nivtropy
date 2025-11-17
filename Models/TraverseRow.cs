@@ -121,5 +121,31 @@ namespace Nivtropy.Models
                 }
             }
         }
+
+        /// <summary>
+        /// Высота передней точки без поправки за невязку (Z0)
+        /// Рассчитывается как BackHeight + DeltaH (без применения Correction)
+        /// </summary>
+        public double? ForeHeightZ0 => BackHeight.HasValue && DeltaH.HasValue
+            ? BackHeight.Value + DeltaH.Value
+            : null;
+
+        /// <summary>
+        /// Отображение высоты Z0 для таблицы: для виртуальных станций - BackHeight, для обычных - ForeHeightZ0
+        /// </summary>
+        public string HeightZ0Display
+        {
+            get
+            {
+                if (IsVirtualStation)
+                {
+                    return BackHeight.HasValue ? $"{BackHeight.Value:F4}" : "—";
+                }
+                else
+                {
+                    return ForeHeightZ0.HasValue ? $"{ForeHeightZ0.Value:F4}" : "—";
+                }
+            }
+        }
     }
 }

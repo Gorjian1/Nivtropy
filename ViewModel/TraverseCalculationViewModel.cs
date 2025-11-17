@@ -414,9 +414,9 @@ namespace Nivtropy.ViewModels
                     worksheet.Cell(row, col++).Value = "Δh, м";
                     worksheet.Cell(row, col++).Value = "Поправка, мм";
                     worksheet.Cell(row, col++).Value = "Δh испр., м";
+                    worksheet.Cell(row, col++).Value = "Z0, м";
                     worksheet.Cell(row, col++).Value = "Z, м";
                     worksheet.Cell(row, col++).Value = "Длина ст., м";
-                    worksheet.Cell(row, col++).Value = "Разн. плеч, м";
 
                     worksheet.Range(row, 1, row, col - 1).Style.Font.Bold = true;
                     worksheet.Range(row, 1, row, col - 1).Style.Fill.BackgroundColor = XLColor.LightGray;
@@ -434,9 +434,9 @@ namespace Nivtropy.ViewModels
                         worksheet.Cell(row, col++).Value = dataRow.DeltaH;
                         worksheet.Cell(row, col++).Value = dataRow.Correction.HasValue ? dataRow.Correction.Value * 1000 : (double?)null; // в мм
                         worksheet.Cell(row, col++).Value = dataRow.AdjustedDeltaH;
+                        worksheet.Cell(row, col++).Value = dataRow.IsVirtualStation ? dataRow.BackHeight : dataRow.ForeHeightZ0;
                         worksheet.Cell(row, col++).Value = dataRow.IsVirtualStation ? dataRow.BackHeight : dataRow.ForeHeight;
                         worksheet.Cell(row, col++).Value = dataRow.StationLength_m;
-                        worksheet.Cell(row, col++).Value = dataRow.ArmDifference_m;
 
                         // Форматирование чисел
                         worksheet.Cell(row, 4).Style.NumberFormat.Format = "0.0000";
@@ -445,15 +445,8 @@ namespace Nivtropy.ViewModels
                         worksheet.Cell(row, 7).Style.NumberFormat.Format = "0.0";
                         worksheet.Cell(row, 8).Style.NumberFormat.Format = "+0.0000;-0.0000;0.0000";
                         worksheet.Cell(row, 9).Style.NumberFormat.Format = "0.0000";
-                        worksheet.Cell(row, 10).Style.NumberFormat.Format = "0.00";
-                        worksheet.Cell(row, 11).Style.NumberFormat.Format = "0.0000";
-
-                        // Выделение превышения допуска разности плеч
-                        if (dataRow.IsArmDifferenceExceeded)
-                        {
-                            worksheet.Cell(row, 11).Style.Font.FontColor = XLColor.Red;
-                            worksheet.Cell(row, 11).Style.Font.Bold = true;
-                        }
+                        worksheet.Cell(row, 10).Style.NumberFormat.Format = "0.0000";
+                        worksheet.Cell(row, 11).Style.NumberFormat.Format = "0.00";
 
                         row++;
                     }
