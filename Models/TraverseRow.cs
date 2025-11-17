@@ -44,14 +44,24 @@ namespace Nivtropy.Models
             : $"{BackCode ?? "?"} → {ForeCode ?? "?"}";
 
         /// <summary>
-        /// Отметка (высота) задней точки
+        /// Отметка (высота) задней точки (с учетом поправки за невязку)
         /// </summary>
         public double? BackHeight { get; set; }
 
         /// <summary>
-        /// Отметка (высота) передней точки
+        /// Отметка (высота) передней точки (с учетом поправки за невязку)
         /// </summary>
         public double? ForeHeight { get; set; }
+
+        /// <summary>
+        /// Отметка (высота) задней точки без поправки за невязку (Z0)
+        /// </summary>
+        public double? BackHeightZ0 { get; set; }
+
+        /// <summary>
+        /// Отметка (высота) передней точки без поправки за невязку (Z0)
+        /// </summary>
+        public double? ForeHeightZ0 { get; set; }
 
         /// <summary>
         /// Флаг, что высота задней точки известна (задана вручную)
@@ -123,15 +133,7 @@ namespace Nivtropy.Models
         }
 
         /// <summary>
-        /// Высота передней точки без поправки за невязку (Z0)
-        /// Рассчитывается как BackHeight + DeltaH (без применения Correction)
-        /// </summary>
-        public double? ForeHeightZ0 => BackHeight.HasValue && DeltaH.HasValue
-            ? BackHeight.Value + DeltaH.Value
-            : null;
-
-        /// <summary>
-        /// Отображение высоты Z0 для таблицы: для виртуальных станций - BackHeight, для обычных - ForeHeightZ0
+        /// Отображение высоты Z0 для таблицы: для виртуальных станций - BackHeightZ0, для обычных - ForeHeightZ0
         /// </summary>
         public string HeightZ0Display
         {
@@ -139,7 +141,7 @@ namespace Nivtropy.Models
             {
                 if (IsVirtualStation)
                 {
-                    return BackHeight.HasValue ? $"{BackHeight.Value:F4}" : "—";
+                    return BackHeightZ0.HasValue ? $"{BackHeightZ0.Value:F4}" : "—";
                 }
                 else
                 {

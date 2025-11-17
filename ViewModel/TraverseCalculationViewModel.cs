@@ -434,7 +434,7 @@ namespace Nivtropy.ViewModels
                         worksheet.Cell(row, col++).Value = dataRow.DeltaH;
                         worksheet.Cell(row, col++).Value = dataRow.Correction.HasValue ? dataRow.Correction.Value * 1000 : (double?)null; // в мм
                         worksheet.Cell(row, col++).Value = dataRow.AdjustedDeltaH;
-                        worksheet.Cell(row, col++).Value = dataRow.IsVirtualStation ? dataRow.BackHeight : dataRow.ForeHeightZ0;
+                        worksheet.Cell(row, col++).Value = dataRow.IsVirtualStation ? dataRow.BackHeightZ0 : dataRow.ForeHeightZ0;
                         worksheet.Cell(row, col++).Value = dataRow.IsVirtualStation ? dataRow.BackHeight : dataRow.ForeHeight;
                         worksheet.Cell(row, col++).Value = dataRow.StationLength_m;
 
@@ -783,6 +783,7 @@ namespace Nivtropy.ViewModels
         /// <summary>
         /// Рассчитывает высоты точек на основе известных высот и превышений
         /// Логика нивелирования: H_fore = H_back + Δh, где Δh = Rb - Rf
+        /// Рассчитываются две версии: с поправкой (Z) и без поправки (Z0)
         /// </summary>
         private void CalculateHeights(List<TraverseRow> items)
         {
@@ -801,10 +802,11 @@ namespace Nivtropy.ViewModels
                     ? _dataViewModel.GetKnownHeight(row.ForeCode)
                     : null;
 
-                // Устанавливаем высоту задней точки
+                // Устанавливаем высоту задней точки (с поправкой и без - одинаковые для известных высот)
                 if (backKnownHeight.HasValue)
                 {
                     row.BackHeight = backKnownHeight.Value;
+                    row.BackHeightZ0 = backKnownHeight.Value;
                     row.IsBackHeightKnown = true;
                 }
                 else if (i > 0 && !string.IsNullOrWhiteSpace(row.BackCode))
@@ -812,26 +814,43 @@ namespace Nivtropy.ViewModels
                     // Пытаемся найти эту точку как переднюю в предыдущих станциях
                     for (int j = i - 1; j >= 0; j--)
                     {
-                        if (items[j].ForeCode == row.BackCode && items[j].ForeHeight.HasValue)
+                        if (items[j].ForeCode == row.BackCode)
                         {
-                            row.BackHeight = items[j].ForeHeight.Value;
-                            row.IsBackHeightKnown = items[j].IsForeHeightKnown;
+                            // Копируем высоту с поправкой
+                            if (items[j].ForeHeight.HasValue)
+                            {
+                                row.BackHeight = items[j].ForeHeight.Value;
+                                row.IsBackHeightKnown = items[j].IsForeHeightKnown;
+                            }
+
+                            // Копируем высоту без поправки (Z0)
+                            if (items[j].ForeHeightZ0.HasValue)
+                            {
+                                row.BackHeightZ0 = items[j].ForeHeightZ0.Value;
+                            }
                             break;
                         }
                     }
                 }
 
-                // Рассчитываем высоту передней точки: H_fore = H_back + Δh (используем исправленное превышение)
+                // Рассчитываем высоту передней точки с поправкой: H_fore = H_back + Δh_испр
                 if (row.BackHeight.HasValue && row.AdjustedDeltaH.HasValue)
                 {
                     row.ForeHeight = row.BackHeight.Value + row.AdjustedDeltaH.Value;
                     row.IsForeHeightKnown = false;
                 }
 
-                // Если у передней точки есть известная высота - перезаписываем
+                // Рассчитываем высоту передней точки без поправки (Z0): H_fore = H_back + Δh
+                if (row.BackHeightZ0.HasValue && row.DeltaH.HasValue)
+                {
+                    row.ForeHeightZ0 = row.BackHeightZ0.Value + row.DeltaH.Value;
+                }
+
+                // Если у передней точки есть известная высота - перезаписываем обе версии
                 if (foreKnownHeight.HasValue)
                 {
                     row.ForeHeight = foreKnownHeight.Value;
+                    row.ForeHeightZ0 = foreKnownHeight.Value;
                     row.IsForeHeightKnown = true;
                 }
             }
