@@ -2,11 +2,10 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
-using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
-using System.Text;
+using System.Windows;
 using Nivtropy.Models;
 using Nivtropy.Services;
 
@@ -17,8 +16,8 @@ namespace Nivtropy.ViewModels
         public ObservableCollection<MeasurementRecord> Records { get; } = new();
         public ObservableCollection<LineSummary> Runs { get; } = new();
 
-        // Словарь известных высот точек: ключ - код точки, значение - высота
-        private readonly Dictionary<string, double> _knownHeights = new(StringComparer.OrdinalIgnoreCase);
+        // Словарь известных высот точек: ключ - код точки, значение - коллекция отметок
+        private readonly Dictionary<string, List<KnownHeightEntry>> _knownHeights = new(StringComparer.OrdinalIgnoreCase);
 
         private string? _sourcePath;
         public string? SourcePath
@@ -77,35 +76,123 @@ namespace Nivtropy.ViewModels
         /// <summary>
         /// Устанавливает известную высоту для точки
         /// </summary>
-        public void SetKnownHeight(string pointCode, double height)
+        public void SetKnownHeight(KnownHeightEntry entry)
         {
-            if (string.IsNullOrWhiteSpace(pointCode))
+            if (string.IsNullOrWhiteSpace(entry.PointCode))
                 return;
 
-            _knownHeights[pointCode.Trim()] = height;
+            var code = entry.PointCode.Trim();
+
+            if (!_knownHeights.TryGetValue(code, out var list))
+            {
+                list = new List<KnownHeightEntry>();
+                _knownHeights[code] = list;
+            }
+
+            var existing = list.FirstOrDefault(e => e.MatchesScope(entry.LineIndex, entry.OrientationCode));
+            if (existing != null)
+            {
+                list.Remove(existing);
+            }
+            else if (!entry.HasScope && list.Any())
+            {
+                // Предупреждаем о потенциальном конфликте при добавлении общей отметки
+                MessageBox.Show(
+                    $"Для точки {code} уже заданы отметки, связанные с конкретными ходами. Укажите ход или ориентацию, чтобы избежать конфликтов.",
+                    "Конфликт известных высот",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+            }
+
+            list.Add(entry);
             OnPropertyChanged(nameof(KnownHeights));
         }
 
         /// <summary>
-        /// Получает известную высоту точки, если она установлена
+        /// Получает известную высоту точки, если она установлена, с учётом хода/ориентации
         /// </summary>
-        public double? GetKnownHeight(string pointCode)
+        public double? GetKnownHeight(string pointCode, int? lineIndex = null, string? orientationCode = null)
+        {
+            var entry = GetKnownHeightEntry(pointCode, lineIndex, orientationCode);
+            return entry?.Height;
+        }
+
+        /// <summary>
+        /// Получает запись известной высоты точки
+        /// </summary>
+        public KnownHeightEntry? GetKnownHeightEntry(string pointCode, int? lineIndex = null, string? orientationCode = null)
         {
             if (string.IsNullOrWhiteSpace(pointCode))
                 return null;
 
-            return _knownHeights.TryGetValue(pointCode.Trim(), out var height) ? height : null;
+            var code = pointCode.Trim();
+            if (!_knownHeights.TryGetValue(code, out var list) || list.Count == 0)
+                return null;
+
+            // 1. Точная привязка: ход + ориентация
+            if (lineIndex.HasValue)
+            {
+                var exact = list.FirstOrDefault(e => e.LineIndex == lineIndex && e.MatchesScope(lineIndex, orientationCode));
+                if (exact != null)
+                    return exact;
+            }
+
+            // 2. Привязка по ориентации
+            var orientationMatch = list.FirstOrDefault(e => e.MatchesScope(null, orientationCode));
+            if (orientationMatch != null)
+                return orientationMatch;
+
+            // 3. Привязка по ходу без ориентации
+            if (lineIndex.HasValue)
+            {
+                var lineMatch = list.FirstOrDefault(e => e.LineIndex == lineIndex && string.IsNullOrWhiteSpace(e.OrientationCode));
+                if (lineMatch != null)
+                    return lineMatch;
+            }
+
+            // 4. Любая доступная запись
+            return list.First();
         }
 
         /// <summary>
         /// Удаляет известную высоту точки
         /// </summary>
-        public void ClearKnownHeight(string pointCode)
+        public void ClearKnownHeight(string pointCode, int? lineIndex = null, string? orientationCode = null)
         {
             if (string.IsNullOrWhiteSpace(pointCode))
                 return;
 
-            _knownHeights.Remove(pointCode.Trim());
+            var code = pointCode.Trim();
+            if (!_knownHeights.TryGetValue(code, out var list))
+                return;
+
+            if (lineIndex.HasValue || !string.IsNullOrWhiteSpace(orientationCode))
+            {
+                list.RemoveAll(e => e.MatchesScope(lineIndex, orientationCode));
+                if (list.Count == 0)
+                {
+                    _knownHeights.Remove(code);
+                }
+            }
+            else
+            {
+                _knownHeights.Remove(code);
+            }
+
+            OnPropertyChanged(nameof(KnownHeights));
+        }
+
+        public void ClearKnownHeight(KnownHeightEntry entry)
+        {
+            if (!_knownHeights.TryGetValue(entry.PointCode, out var list))
+                return;
+
+            list.Remove(entry);
+            if (list.Count == 0)
+            {
+                _knownHeights.Remove(entry.PointCode);
+            }
+
             OnPropertyChanged(nameof(KnownHeights));
         }
 
@@ -123,7 +210,12 @@ namespace Nivtropy.ViewModels
         /// <summary>
         /// Словарь всех известных высот (только для чтения)
         /// </summary>
-        public IReadOnlyDictionary<string, double> KnownHeights => _knownHeights;
+        public IReadOnlyDictionary<string, List<KnownHeightEntry>> KnownHeights => _knownHeights;
+
+        public IEnumerable<KnownHeightEntry> GetKnownHeightEntries()
+        {
+            return _knownHeights.Values.SelectMany(v => v).ToList();
+        }
 
         private void AnnotateRuns(IList<MeasurementRecord> records)
         {

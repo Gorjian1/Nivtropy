@@ -274,7 +274,8 @@ namespace Nivtropy.ViewModels
             if (string.IsNullOrWhiteSpace(pointCode))
                 return;
 
-            _dataViewModel.SetKnownHeight(pointCode, height);
+            var entry = new KnownHeightEntry(pointCode, height, SelectedRun?.DisplayName, SelectedRun?.Index, SelectedMethod?.Code);
+            _dataViewModel.SetKnownHeight(entry);
             UpdateRows();
         }
 
@@ -286,7 +287,7 @@ namespace Nivtropy.ViewModels
             if (string.IsNullOrWhiteSpace(pointCode))
                 return;
 
-            _dataViewModel.ClearKnownHeight(pointCode);
+            _dataViewModel.ClearKnownHeight(pointCode, SelectedRun?.Index, SelectedMethod?.Code);
             UpdateRows();
         }
 
@@ -303,7 +304,8 @@ namespace Nivtropy.ViewModels
                 return;
 
             // Устанавливаем высоту в DataViewModel
-            _dataViewModel.SetKnownHeight(SelectedPoint.Code, height);
+            var entry = new KnownHeightEntry(SelectedPoint.Code, height, SelectedPoint.LineName, SelectedPoint.LineIndex, SelectedMethod?.Code);
+            _dataViewModel.SetKnownHeight(entry);
 
             // Обновляем список реперов
             UpdateBenchmarks();
@@ -324,7 +326,7 @@ namespace Nivtropy.ViewModels
             if (benchmark == null)
                 return;
 
-            _dataViewModel.ClearKnownHeight(benchmark.Code);
+            _dataViewModel.ClearKnownHeight(benchmark.Entry);
             UpdateBenchmarks();
             UpdateRows();
         }
@@ -525,9 +527,13 @@ namespace Nivtropy.ViewModels
         {
             _benchmarks.Clear();
 
-            foreach (var kvp in _dataViewModel.KnownHeights.OrderBy(k => k.Key))
+            foreach (var entry in _dataViewModel
+                         .GetKnownHeightEntries()
+                         .OrderBy(e => e.PointCode)
+                         .ThenBy(e => e.LineIndex ?? int.MaxValue)
+                         .ThenBy(e => e.OrientationCode))
             {
-                _benchmarks.Add(new BenchmarkItem(kvp.Key, kvp.Value));
+                _benchmarks.Add(new BenchmarkItem(entry));
             }
         }
 
@@ -796,50 +802,57 @@ namespace Nivtropy.ViewModels
             if (items.Count == 0)
                 return;
 
-            for (int i = 0; i < items.Count; i++)
+            var orientationCode = SelectedMethod?.Code;
+            var lineGroups = items.GroupBy(r => r.LineSummary?.Index).ToList();
+
+            foreach (var group in lineGroups)
             {
-                var row = items[i];
+                var ordered = group.OrderBy(r => r.Index).ToList();
+                var lineIndex = group.Key;
 
-                // Проверяем известные высоты
-                var backKnownHeight = !string.IsNullOrWhiteSpace(row.BackCode)
-                    ? _dataViewModel.GetKnownHeight(row.BackCode)
-                    : null;
-                var foreKnownHeight = !string.IsNullOrWhiteSpace(row.ForeCode)
-                    ? _dataViewModel.GetKnownHeight(row.ForeCode)
-                    : null;
+                for (int i = 0; i < ordered.Count; i++)
+                {
+                    var row = ordered[i];
 
-                // Устанавливаем высоту задней точки
-                if (backKnownHeight.HasValue)
-                {
-                    row.BackHeight = backKnownHeight.Value;
-                    row.IsBackHeightKnown = true;
-                }
-                else if (i > 0 && !string.IsNullOrWhiteSpace(row.BackCode))
-                {
-                    // Пытаемся найти эту точку как переднюю в предыдущих станциях
-                    for (int j = i - 1; j >= 0; j--)
+                    var backEntry = !string.IsNullOrWhiteSpace(row.BackCode)
+                        ? _dataViewModel.GetKnownHeightEntry(row.BackCode, lineIndex, orientationCode)
+                        : null;
+                    var foreEntry = !string.IsNullOrWhiteSpace(row.ForeCode)
+                        ? _dataViewModel.GetKnownHeightEntry(row.ForeCode, lineIndex, orientationCode)
+                        : null;
+
+                    // Устанавливаем высоту задней точки
+                    if (backEntry != null)
                     {
-                        if (items[j].ForeCode == row.BackCode && items[j].ForeHeight.HasValue)
+                        row.BackHeight = backEntry.Height;
+                        row.IsBackHeightKnown = true;
+                    }
+                    else if (i > 0 && !string.IsNullOrWhiteSpace(row.BackCode))
+                    {
+                        for (int j = i - 1; j >= 0; j--)
                         {
-                            row.BackHeight = items[j].ForeHeight.Value;
-                            row.IsBackHeightKnown = items[j].IsForeHeightKnown;
-                            break;
+                            if (ordered[j].ForeCode == row.BackCode && ordered[j].ForeHeight.HasValue)
+                            {
+                                row.BackHeight = ordered[j].ForeHeight.Value;
+                                row.IsBackHeightKnown = ordered[j].IsForeHeightKnown;
+                                break;
+                            }
                         }
                     }
-                }
 
-                // Рассчитываем высоту передней точки: H_fore = H_back + Δh (используем исправленное превышение)
-                if (row.BackHeight.HasValue && row.AdjustedDeltaH.HasValue)
-                {
-                    row.ForeHeight = row.BackHeight.Value + row.AdjustedDeltaH.Value;
-                    row.IsForeHeightKnown = false;
-                }
+                    // Рассчитываем высоту передней точки: H_fore = H_back + Δh (используем исправленное превышение)
+                    if (row.BackHeight.HasValue && row.AdjustedDeltaH.HasValue)
+                    {
+                        row.ForeHeight = row.BackHeight.Value + row.AdjustedDeltaH.Value;
+                        row.IsForeHeightKnown = false;
+                    }
 
-                // Если у передней точки есть известная высота - перезаписываем
-                if (foreKnownHeight.HasValue)
-                {
-                    row.ForeHeight = foreKnownHeight.Value;
-                    row.IsForeHeightKnown = true;
+                    // Если у передней точки есть известная высота - перезаписываем
+                    if (foreEntry != null)
+                    {
+                        row.ForeHeight = foreEntry.Height;
+                        row.IsForeHeightKnown = true;
+                    }
                 }
             }
         }

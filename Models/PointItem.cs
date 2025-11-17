@@ -41,26 +41,18 @@ namespace Nivtropy.Models
     /// </summary>
     public class BenchmarkItem
     {
-        public BenchmarkItem(string code, double height)
+        public BenchmarkItem(KnownHeightEntry entry)
         {
-            Code = code;
-            Height = height;
+            Entry = entry;
         }
 
-        /// <summary>
-        /// Код точки
-        /// </summary>
-        public string Code { get; }
+        public KnownHeightEntry Entry { get; }
 
-        /// <summary>
-        /// Известная высота (м)
-        /// </summary>
-        public double Height { get; }
+        public string Code => Entry.PointCode;
 
-        /// <summary>
-        /// Отображаемое имя репера
-        /// </summary>
-        public string DisplayName => $"{Code}: {Height:F4} м";
+        public double Height => Entry.Height;
+
+        public string DisplayName => Entry.DisplayName;
 
         public override string ToString() => DisplayName;
     }
