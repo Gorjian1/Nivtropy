@@ -4,6 +4,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:Nivtropy"
+        xmlns:view="clr-namespace:Nivtropy.View"
         mc:Ignorable="d"
         Title="Nivtropy" Height="720" Width="1180">
     <DockPanel>
@@ -29,54 +30,33 @@
             </TabItem>
 
             <TabItem Header="Расчёты">
-                <ToolBarTray>
-                    <ToolBar>
-                        <Label Content="Метод:"/>
-                        <ComboBox Width="140"
-                                  ItemsSource="{Binding CalculationViewModel.Methods}"
-                                  SelectedItem="{Binding CalculationViewModel.SelectedMethod, Mode=TwoWay}"
-                                  DisplayMemberPath="Display"/>
-                        <Separator/>
-                        <Label Content="Класс:"/>
-                        <ComboBox Width="160"
-                                  ItemsSource="{Binding CalculationViewModel.Classes}"
-                                  SelectedItem="{Binding CalculationViewModel.SelectedClass, Mode=TwoWay}"
-                                  DisplayMemberPath="Display"
-                                  ToolTip="Выбор допуска по классу"/>
-                    </ToolBar>
+                <DockPanel>
+                    <ToolBarTray DockPanel.Dock="Top">
+                        <ToolBar>
+                            <Label Content="Метод:"/>
+                            <ComboBox Width="140"
+                                      ItemsSource="{Binding CalculationViewModel.Methods}"
+                                      SelectedItem="{Binding CalculationViewModel.SelectedMethod, Mode=TwoWay}"
+                                      DisplayMemberPath="Display"/>
+                            <Separator/>
+                            <Label Content="Класс:"/>
+                            <ComboBox Width="160"
+                                      ItemsSource="{Binding CalculationViewModel.Classes}"
+                                      SelectedItem="{Binding CalculationViewModel.SelectedClass, Mode=TwoWay}"
+                                      DisplayMemberPath="Display"
+                                      ToolTip="Выбор допуска по классу"/>
+                            <Separator/>
+                            <Button Content="Экспорт в Excel"
+                                    Command="{Binding CalculationViewModel.ExportCommand}"
+                                    ToolTip="Экспортировать данные в Excel"/>
+                        </ToolBar>
+                    </ToolBarTray>
 
-                    <!-- Панель управления реперами -->
-                    <ToolBar>
-                        <Label Content="Реперы:"/>
-                        <ComboBox Width="180"
-                                  ItemsSource="{Binding CalculationViewModel.AvailablePoints}"
-                                  SelectedItem="{Binding CalculationViewModel.SelectedPoint, Mode=TwoWay}"
-                                  DisplayMemberPath="DisplayName"
-                                  ToolTip="Выберите точку для установки известной высоты"/>
-                        <Label Content="Высота:"/>
-                        <TextBox Width="80"
-                                 Text="{Binding CalculationViewModel.NewBenchmarkHeight, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                 ToolTip="Введите известную высоту репера"/>
-                        <Button Content="Добавить"
-                                Command="{Binding CalculationViewModel.AddBenchmarkCommand}"
-                                ToolTip="Добавить репер с указанной высотой"/>
-                        <Separator/>
-                        <Label Content="Установлено:"/>
-                        <ComboBox x:Name="BenchmarksComboBox"
-                                  Width="220"
-                                  ItemsSource="{Binding CalculationViewModel.Benchmarks}"
-                                  DisplayMemberPath="DisplayName"
-                                  ToolTip="Список установленных реперов"/>
-                        <Button Content="Удалить"
-                                Command="{Binding CalculationViewModel.RemoveBenchmarkCommand}"
-                                CommandParameter="{Binding SelectedItem, ElementName=BenchmarksComboBox}"
-                                ToolTip="Удалить выбранный репер"/>
-                        <Separator/>
-                        <Button Content="Экспорт в Excel"
-                                Command="{Binding CalculationViewModel.ExportCommand}"
-                                ToolTip="Экспортировать данные в Excel"/>
-                    </ToolBar>
-                </ToolBarTray>
+                    <!-- Улучшенная панель управления реперами -->
+                    <view:BenchmarkControlPanel DockPanel.Dock="Top"
+                                                DataContext="{Binding CalculationViewModel}"
+                                                Margin="10,5,10,0"/>
+                </DockPanel>
             </TabItem>
 
             <TabItem Header="Проектирование">

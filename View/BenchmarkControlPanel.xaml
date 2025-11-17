@@ -1,0 +1,317 @@
+<UserControl x:Class="Nivtropy.View.BenchmarkControlPanel"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             mc:Ignorable="d"
+             d:DesignHeight="50" d:DesignWidth="600">
+    <UserControl.Resources>
+        <!-- Стиль для кнопки плюс -->
+        <Style x:Key="AddButtonStyle" TargetType="Button">
+            <Setter Property="Width" Value="32"/>
+            <Setter Property="Height" Value="32"/>
+            <Setter Property="Background" Value="#4CAF50"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="FontSize" Value="18"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                CornerRadius="4"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                            VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#45a049"/>
+                </Trigger>
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="Background" Value="#CCCCCC"/>
+                    <Setter Property="Cursor" Value="Arrow"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Стиль для кнопки со стрелкой -->
+        <Style x:Key="ToggleButtonStyle" TargetType="ToggleButton">
+            <Setter Property="Width" Value="32"/>
+            <Setter Property="Height" Value="32"/>
+            <Setter Property="Background" Value="#2196F3"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Border Background="{TemplateBinding Background}"
+                                CornerRadius="4"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                            VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#1976D2"/>
+                </Trigger>
+                <Trigger Property="IsChecked" Value="True">
+                    <Setter Property="Background" Value="#1565C0"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Стиль для кнопки удаления -->
+        <Style x:Key="DeleteButtonStyle" TargetType="Button">
+            <Setter Property="Width" Value="24"/>
+            <Setter Property="Height" Value="24"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="#F44336"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="BorderBrush" Value="#F44336"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                CornerRadius="12"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                            VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#F44336"/>
+                    <Setter Property="Foreground" Value="White"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+    </UserControl.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Панель ввода -->
+        <Border Grid.Row="0"
+                Background="#F5F5F5"
+                BorderBrush="#E0E0E0"
+                BorderThickness="1"
+                CornerRadius="6"
+                Padding="10,8">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="120"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="10"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Метка "Реперы:" -->
+                <TextBlock Grid.Column="0"
+                          Text="Реперы:"
+                          VerticalAlignment="Center"
+                          FontWeight="SemiBold"
+                          Margin="0,0,10,0"/>
+
+                <!-- Фильтруемый ComboBox для выбора точки -->
+                <Grid Grid.Column="1" MinWidth="200">
+                    <ComboBox x:Name="PointComboBox"
+                              IsEditable="True"
+                              IsTextSearchEnabled="False"
+                              StaysOpenOnEdit="True"
+                              ItemsSource="{Binding FilteredPoints}"
+                              Text="{Binding PointSearchText, UpdateSourceTrigger=PropertyChanged}"
+                              SelectedItem="{Binding SelectedPoint, Mode=TwoWay}"
+                              DisplayMemberPath="DisplayName"
+                              ToolTip="Начните вводить номер точки для фильтрации">
+                        <ComboBox.ItemContainerStyle>
+                            <Style TargetType="ComboBoxItem">
+                                <Setter Property="Padding" Value="5,3"/>
+                            </Style>
+                        </ComboBox.ItemContainerStyle>
+                    </ComboBox>
+                </Grid>
+
+                <!-- Метка "Высота:" -->
+                <TextBlock Grid.Column="2"
+                          Text="Высота:"
+                          VerticalAlignment="Center"
+                          FontWeight="SemiBold"
+                          Margin="15,0,10,0"/>
+
+                <!-- Поле ввода высоты -->
+                <TextBox Grid.Column="3"
+                         x:Name="HeightTextBox"
+                         Text="{Binding NewBenchmarkHeight, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                         VerticalContentAlignment="Center"
+                         Padding="5,4"
+                         ToolTip="Введите высоту (используйте точку или запятую для дробных значений)">
+                    <TextBox.Style>
+                        <Style TargetType="TextBox">
+                            <Style.Triggers>
+                                <Trigger Property="Validation.HasError" Value="True">
+                                    <Setter Property="BorderBrush" Value="Red"/>
+                                    <Setter Property="BorderThickness" Value="2"/>
+                                </Trigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBox.Style>
+                </TextBox>
+
+                <!-- Кнопка добавления (плюс) -->
+                <Button Grid.Column="4"
+                        Content="+"
+                        Style="{StaticResource AddButtonStyle}"
+                        Command="{Binding AddBenchmarkCommand}"
+                        ToolTip="Добавить репер с указанной высотой"
+                        Margin="8,0,0,0"/>
+
+                <!-- Разделитель -->
+                <Separator Grid.Column="5"
+                          Width="2"
+                          Background="#E0E0E0"
+                          Margin="10,0"/>
+
+                <!-- Кнопка показа списка реперов -->
+                <ToggleButton Grid.Column="7"
+                             x:Name="ShowBenchmarksToggle"
+                             Style="{StaticResource ToggleButtonStyle}"
+                             ToolTip="Показать/скрыть список реперов"
+                             IsChecked="{Binding IsBenchmarkListVisible, Mode=TwoWay}">
+                    <Path Data="M 0,0 L 8,0 L 4,6 Z"
+                          Fill="White"
+                          Stretch="Uniform"
+                          Width="10"
+                          Height="8">
+                        <Path.RenderTransform>
+                            <RotateTransform x:Name="ArrowRotation" Angle="0" CenterX="5" CenterY="4"/>
+                        </Path.RenderTransform>
+                    </Path>
+                </ToggleButton>
+            </Grid>
+        </Border>
+
+        <!-- Выпадающая панель со списком реперов -->
+        <Border Grid.Row="1"
+                Background="White"
+                BorderBrush="#E0E0E0"
+                BorderThickness="1,0,1,1"
+                CornerRadius="0,0,6,6"
+                Margin="0,-1,0,0"
+                Visibility="{Binding IsBenchmarkListVisible, Converter={StaticResource BoolToVisibilityConverter}}">
+            <Grid Margin="10,8">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <!-- Заголовок списка -->
+                <TextBlock Grid.Row="0"
+                          Text="Установленные реперы:"
+                          FontWeight="SemiBold"
+                          Margin="0,0,0,8"/>
+
+                <!-- Список реперов -->
+                <ItemsControl Grid.Row="1"
+                             ItemsSource="{Binding Benchmarks}"
+                             MaxHeight="200">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border Background="#FAFAFA"
+                                    BorderBrush="#E0E0E0"
+                                    BorderThickness="1"
+                                    CornerRadius="4"
+                                    Padding="10,6"
+                                    Margin="0,0,0,4">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <!-- Информация о репере -->
+                                    <TextBlock Grid.Column="0"
+                                              Text="{Binding DisplayName}"
+                                              VerticalAlignment="Center"
+                                              FontFamily="Consolas"/>
+
+                                    <!-- Кнопка удаления -->
+                                    <Button Grid.Column="1"
+                                           Content="×"
+                                           Style="{StaticResource DeleteButtonStyle}"
+                                           Command="{Binding DataContext.RemoveBenchmarkCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                           CommandParameter="{Binding}"
+                                           ToolTip="Удалить репер"/>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                    <ItemsControl.Template>
+                        <ControlTemplate TargetType="ItemsControl">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                <ItemsPresenter/>
+                            </ScrollViewer>
+                        </ControlTemplate>
+                    </ItemsControl.Template>
+                </ItemsControl>
+
+                <!-- Сообщение, если реперов нет -->
+                <TextBlock Grid.Row="1"
+                          Text="Нет установленных реперов"
+                          FontStyle="Italic"
+                          Foreground="Gray"
+                          HorizontalAlignment="Center"
+                          Margin="0,10"
+                          Visibility="{Binding HasBenchmarks, Converter={StaticResource InverseBoolToVisibilityConverter}}"/>
+            </Grid>
+        </Border>
+    </Grid>
+
+    <UserControl.Triggers>
+        <!-- Анимация стрелки при открытии/закрытии списка -->
+        <EventTrigger SourceName="ShowBenchmarksToggle" RoutedEvent="ToggleButton.Checked">
+            <BeginStoryboard>
+                <Storyboard>
+                    <DoubleAnimation Storyboard.TargetName="ArrowRotation"
+                                    Storyboard.TargetProperty="Angle"
+                                    To="180"
+                                    Duration="0:0:0.2"/>
+                </Storyboard>
+            </BeginStoryboard>
+        </EventTrigger>
+        <EventTrigger SourceName="ShowBenchmarksToggle" RoutedEvent="ToggleButton.Unchecked">
+            <BeginStoryboard>
+                <Storyboard>
+                    <DoubleAnimation Storyboard.TargetName="ArrowRotation"
+                                    Storyboard.TargetProperty="Angle"
+                                    To="0"
+                                    Duration="0:0:0.2"/>
+                </Storyboard>
+            </BeginStoryboard>
+        </EventTrigger>
+    </UserControl.Triggers>
+</UserControl>

@@ -18,6 +18,7 @@ namespace Nivtropy.ViewModels
         private readonly DataViewModel _dataViewModel;
         private readonly ObservableCollection<TraverseRow> _rows = new();
         private readonly ObservableCollection<PointItem> _availablePoints = new();
+        private readonly ObservableCollection<PointItem> _filteredPoints = new();
         private readonly ObservableCollection<BenchmarkItem> _benchmarks = new();
 
         // Методы нивелирования для двойного хода
@@ -55,6 +56,8 @@ namespace Nivtropy.ViewModels
         private string? _selectedPointCode;
         private PointItem? _selectedPoint;
         private string? _newBenchmarkHeight;
+        private string _pointSearchText = string.Empty;
+        private bool _isBenchmarkListVisible;
 
         public TraverseCalculationViewModel(DataViewModel dataViewModel)
         {
@@ -74,6 +77,7 @@ namespace Nivtropy.ViewModels
         public ObservableCollection<TraverseRow> Rows => _rows;
         public ObservableCollection<LineSummary> Runs => _dataViewModel.Runs;
         public ObservableCollection<PointItem> AvailablePoints => _availablePoints;
+        public ObservableCollection<PointItem> FilteredPoints => _filteredPoints;
         public ObservableCollection<BenchmarkItem> Benchmarks => _benchmarks;
 
         public LevelingMethodOption[] Methods => _methods;
@@ -227,10 +231,36 @@ namespace Nivtropy.ViewModels
             {
                 if (SetField(ref _selectedPoint, value))
                 {
+                    // При выборе точки из списка обновляем текст поиска
+                    if (value != null)
+                    {
+                        _pointSearchText = value.Code;
+                        OnPropertyChanged(nameof(PointSearchText));
+                    }
                     OnPropertyChanged(nameof(CanAddBenchmark));
                 }
             }
         }
+
+        public string PointSearchText
+        {
+            get => _pointSearchText;
+            set
+            {
+                if (SetField(ref _pointSearchText, value))
+                {
+                    UpdateFilteredPoints();
+                }
+            }
+        }
+
+        public bool IsBenchmarkListVisible
+        {
+            get => _isBenchmarkListVisible;
+            set => SetField(ref _isBenchmarkListVisible, value);
+        }
+
+        public bool HasBenchmarks => _benchmarks.Count > 0;
 
         public string? NewBenchmarkHeight
         {
@@ -247,7 +277,7 @@ namespace Nivtropy.ViewModels
         public bool CanAddBenchmark =>
             SelectedPoint != null &&
             !string.IsNullOrWhiteSpace(NewBenchmarkHeight) &&
-            double.TryParse(NewBenchmarkHeight, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out _);
+            TryParseHeight(NewBenchmarkHeight, out _);
 
         public ICommand AddBenchmarkCommand => new RelayCommand(_ => AddBenchmark(), _ => CanAddBenchmark);
         public ICommand RemoveBenchmarkCommand => new RelayCommand(param => RemoveBenchmark(param as BenchmarkItem));
@@ -298,8 +328,7 @@ namespace Nivtropy.ViewModels
             if (SelectedPoint == null || string.IsNullOrWhiteSpace(NewBenchmarkHeight))
                 return;
 
-            if (!double.TryParse(NewBenchmarkHeight, System.Globalization.NumberStyles.Float,
-                System.Globalization.CultureInfo.InvariantCulture, out var height))
+            if (!TryParseHeight(NewBenchmarkHeight, out var height))
                 return;
 
             // Устанавливаем высоту в DataViewModel
@@ -311,6 +340,7 @@ namespace Nivtropy.ViewModels
             // Очищаем поля ввода
             SelectedPoint = null;
             NewBenchmarkHeight = string.Empty;
+            PointSearchText = string.Empty;
 
             // Пересчитываем высоты
             UpdateRows();
@@ -516,6 +546,9 @@ namespace Nivtropy.ViewModels
             {
                 _availablePoints.Add(point);
             }
+
+            // Обновляем отфильтрованный список
+            UpdateFilteredPoints();
         }
 
         /// <summary>
@@ -529,6 +562,8 @@ namespace Nivtropy.ViewModels
             {
                 _benchmarks.Add(new BenchmarkItem(kvp.Key, kvp.Value));
             }
+
+            OnPropertyChanged(nameof(HasBenchmarks));
         }
 
         private void DataViewModelOnPropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -790,13 +825,126 @@ namespace Nivtropy.ViewModels
         /// <summary>
         /// Рассчитывает высоты точек на основе известных высот и превышений
         /// Логика нивелирования: H_fore = H_back + Δh, где Δh = Rb - Rf
+        /// Уравнивает высоты при наличии множественных опорных точек
         /// </summary>
         private void CalculateHeights(List<TraverseRow> items)
         {
             if (items.Count == 0)
                 return;
 
+            // Находим все секции между опорными точками
+            var sections = FindBenchmarkSections(items);
+
+            foreach (var section in sections)
+            {
+                CalculateAndAdjustSection(items, section);
+            }
+        }
+
+        /// <summary>
+        /// Находит секции между опорными точками (реперами)
+        /// </summary>
+        private List<HeightSection> FindBenchmarkSections(List<TraverseRow> items)
+        {
+            var sections = new List<HeightSection>();
+            int sectionStart = -1;
+            string? startPointCode = null;
+            double? startHeight = null;
+
             for (int i = 0; i < items.Count; i++)
+            {
+                var row = items[i];
+
+                // Проверяем заднюю точку
+                var backKnownHeight = !string.IsNullOrWhiteSpace(row.BackCode)
+                    ? _dataViewModel.GetKnownHeight(row.BackCode)
+                    : null;
+
+                if (backKnownHeight.HasValue && sectionStart == -1)
+                {
+                    // Начало новой секции
+                    sectionStart = i;
+                    startPointCode = row.BackCode;
+                    startHeight = backKnownHeight.Value;
+                }
+
+                // Проверяем переднюю точку
+                var foreKnownHeight = !string.IsNullOrWhiteSpace(row.ForeCode)
+                    ? _dataViewModel.GetKnownHeight(row.ForeCode)
+                    : null;
+
+                if (foreKnownHeight.HasValue && sectionStart != -1)
+                {
+                    // Конец текущей секции
+                    sections.Add(new HeightSection
+                    {
+                        StartIndex = sectionStart,
+                        EndIndex = i,
+                        StartPointCode = startPointCode,
+                        StartHeight = startHeight.Value,
+                        EndPointCode = row.ForeCode,
+                        EndHeight = foreKnownHeight.Value
+                    });
+
+                    // Следующая секция может начаться с этой точки
+                    sectionStart = i + 1;
+                    if (sectionStart < items.Count)
+                    {
+                        var nextRow = items[sectionStart];
+                        if (!string.IsNullOrWhiteSpace(nextRow.BackCode) &&
+                            nextRow.BackCode.Equals(row.ForeCode, StringComparison.OrdinalIgnoreCase))
+                        {
+                            startPointCode = row.ForeCode;
+                            startHeight = foreKnownHeight.Value;
+                        }
+                        else
+                        {
+                            sectionStart = -1;
+                            startPointCode = null;
+                            startHeight = null;
+                        }
+                    }
+                }
+            }
+
+            // Обрабатываем секцию с только начальной точкой
+            if (sectionStart != -1 && sectionStart < items.Count)
+            {
+                sections.Add(new HeightSection
+                {
+                    StartIndex = sectionStart,
+                    EndIndex = items.Count - 1,
+                    StartPointCode = startPointCode,
+                    StartHeight = startHeight.Value,
+                    EndPointCode = null,
+                    EndHeight = null
+                });
+            }
+
+            // Если нет опорных точек, создаем пустую секцию
+            if (sections.Count == 0)
+            {
+                sections.Add(new HeightSection
+                {
+                    StartIndex = 0,
+                    EndIndex = items.Count - 1,
+                    StartPointCode = null,
+                    StartHeight = null,
+                    EndPointCode = null,
+                    EndHeight = null
+                });
+            }
+
+            return sections;
+        }
+
+        /// <summary>
+        /// Рассчитывает и уравнивает высоты для секции
+        /// </summary>
+        private void CalculateAndAdjustSection(List<TraverseRow> items, HeightSection section)
+        {
+            // Первый проход: вычисляем высоты от начальной точки
+            for (int i = section.StartIndex; i <= section.EndIndex; i++)
             {
                 var row = items[i];
 
@@ -814,10 +962,10 @@ namespace Nivtropy.ViewModels
                     row.BackHeight = backKnownHeight.Value;
                     row.IsBackHeightKnown = true;
                 }
-                else if (i > 0 && !string.IsNullOrWhiteSpace(row.BackCode))
+                else if (i > section.StartIndex && !string.IsNullOrWhiteSpace(row.BackCode))
                 {
                     // Пытаемся найти эту точку как переднюю в предыдущих станциях
-                    for (int j = i - 1; j >= 0; j--)
+                    for (int j = i - 1; j >= section.StartIndex; j--)
                     {
                         if (items[j].ForeCode == row.BackCode && items[j].ForeHeight.HasValue)
                         {
@@ -828,20 +976,70 @@ namespace Nivtropy.ViewModels
                     }
                 }
 
-                // Рассчитываем высоту передней точки: H_fore = H_back + Δh (используем исправленное превышение)
+                // Рассчитываем высоту передней точки
                 if (row.BackHeight.HasValue && row.AdjustedDeltaH.HasValue)
                 {
                     row.ForeHeight = row.BackHeight.Value + row.AdjustedDeltaH.Value;
                     row.IsForeHeightKnown = false;
                 }
+            }
 
-                // Если у передней точки есть известная высота - перезаписываем
-                if (foreKnownHeight.HasValue)
+            // Если есть конечная опорная точка - уравниваем
+            if (section.EndHeight.HasValue)
+            {
+                var lastRow = items[section.EndIndex];
+                if (lastRow.ForeHeight.HasValue)
                 {
-                    row.ForeHeight = foreKnownHeight.Value;
-                    row.IsForeHeightKnown = true;
+                    // Вычисляем невязку
+                    var calculatedEndHeight = lastRow.ForeHeight.Value;
+                    var closure = calculatedEndHeight - section.EndHeight.Value;
+
+                    // Распределяем невязку пропорционально числу станций
+                    var stationCount = section.EndIndex - section.StartIndex + 1;
+                    var correctionPerStation = -closure / stationCount;
+
+                    // Применяем поправки
+                    for (int i = section.StartIndex; i <= section.EndIndex; i++)
+                    {
+                        var row = items[i];
+                        var stationNumber = i - section.StartIndex + 1;
+                        var correction = correctionPerStation * stationNumber;
+
+                        if (row.ForeHeight.HasValue)
+                        {
+                            row.ForeHeight = row.ForeHeight.Value + correction;
+                        }
+
+                        // Обновляем заднюю высоту для следующей станции
+                        if (i < section.EndIndex)
+                        {
+                            var nextRow = items[i + 1];
+                            if (!string.IsNullOrWhiteSpace(nextRow.BackCode) &&
+                                nextRow.BackCode.Equals(row.ForeCode, StringComparison.OrdinalIgnoreCase))
+                            {
+                                nextRow.BackHeight = row.ForeHeight;
+                            }
+                        }
+                    }
+
+                    // Устанавливаем конечную точку с известной высотой
+                    lastRow.ForeHeight = section.EndHeight.Value;
+                    lastRow.IsForeHeightKnown = true;
                 }
             }
+        }
+
+        /// <summary>
+        /// Секция между опорными точками
+        /// </summary>
+        private sealed class HeightSection
+        {
+            public int StartIndex { get; set; }
+            public int EndIndex { get; set; }
+            public string? StartPointCode { get; set; }
+            public double? StartHeight { get; set; }
+            public string? EndPointCode { get; set; }
+            public double? EndHeight { get; set; }
         }
 
         /// <summary>
@@ -972,6 +1170,55 @@ namespace Nivtropy.ViewModels
             {
                 _rows.Add(row);
             }
+        }
+
+        /// <summary>
+        /// Обновляет отфильтрованный список точек на основе текста поиска
+        /// </summary>
+        private void UpdateFilteredPoints()
+        {
+            _filteredPoints.Clear();
+
+            if (string.IsNullOrWhiteSpace(_pointSearchText))
+            {
+                // Если текст поиска пустой, показываем все точки
+                foreach (var point in _availablePoints)
+                {
+                    _filteredPoints.Add(point);
+                }
+            }
+            else
+            {
+                // Фильтруем точки по коду
+                var searchText = _pointSearchText.Trim().ToLowerInvariant();
+                foreach (var point in _availablePoints)
+                {
+                    if (point.Code.ToLowerInvariant().Contains(searchText))
+                    {
+                        _filteredPoints.Add(point);
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Парсит строку высоты, поддерживая как точку, так и запятую в качестве десятичного разделителя
+        /// </summary>
+        private static bool TryParseHeight(string? input, out double value)
+        {
+            value = 0;
+
+            if (string.IsNullOrWhiteSpace(input))
+                return false;
+
+            // Заменяем запятую на точку для универсального парсинга
+            var normalizedInput = input.Trim().Replace(',', '.');
+
+            // Пытаемся распарсить с InvariantCulture (использует точку как разделитель)
+            return double.TryParse(normalizedInput,
+                System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture,
+                out value);
         }
 
         private bool SetField<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
