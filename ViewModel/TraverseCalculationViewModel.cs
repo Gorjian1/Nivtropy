@@ -18,7 +18,6 @@ namespace Nivtropy.ViewModels
         private readonly DataViewModel _dataViewModel;
         private readonly ObservableCollection<TraverseRow> _rows = new();
         private readonly ObservableCollection<PointItem> _availablePoints = new();
-        private readonly ObservableCollection<PointItem> _filteredPoints = new();
         private readonly ObservableCollection<BenchmarkItem> _benchmarks = new();
 
         // Методы нивелирования для двойного хода
@@ -56,8 +55,6 @@ namespace Nivtropy.ViewModels
         private string? _selectedPointCode;
         private PointItem? _selectedPoint;
         private string? _newBenchmarkHeight;
-        private string _pointSearchText = string.Empty;
-        private bool _isBenchmarkListVisible;
 
         public TraverseCalculationViewModel(DataViewModel dataViewModel)
         {
@@ -77,7 +74,6 @@ namespace Nivtropy.ViewModels
         public ObservableCollection<TraverseRow> Rows => _rows;
         public ObservableCollection<LineSummary> Runs => _dataViewModel.Runs;
         public ObservableCollection<PointItem> AvailablePoints => _availablePoints;
-        public ObservableCollection<PointItem> FilteredPoints => _filteredPoints;
         public ObservableCollection<BenchmarkItem> Benchmarks => _benchmarks;
 
         public LevelingMethodOption[] Methods => _methods;
@@ -231,36 +227,10 @@ namespace Nivtropy.ViewModels
             {
                 if (SetField(ref _selectedPoint, value))
                 {
-                    // При выборе точки из списка обновляем текст поиска
-                    if (value != null)
-                    {
-                        _pointSearchText = value.Code;
-                        OnPropertyChanged(nameof(PointSearchText));
-                    }
                     OnPropertyChanged(nameof(CanAddBenchmark));
                 }
             }
         }
-
-        public string PointSearchText
-        {
-            get => _pointSearchText;
-            set
-            {
-                if (SetField(ref _pointSearchText, value))
-                {
-                    UpdateFilteredPoints();
-                }
-            }
-        }
-
-        public bool IsBenchmarkListVisible
-        {
-            get => _isBenchmarkListVisible;
-            set => SetField(ref _isBenchmarkListVisible, value);
-        }
-
-        public bool HasBenchmarks => _benchmarks.Count > 0;
 
         public string? NewBenchmarkHeight
         {
@@ -340,7 +310,6 @@ namespace Nivtropy.ViewModels
             // Очищаем поля ввода
             SelectedPoint = null;
             NewBenchmarkHeight = string.Empty;
-            PointSearchText = string.Empty;
 
             // Пересчитываем высоты
             UpdateRows();
@@ -546,9 +515,6 @@ namespace Nivtropy.ViewModels
             {
                 _availablePoints.Add(point);
             }
-
-            // Обновляем отфильтрованный список
-            UpdateFilteredPoints();
         }
 
         /// <summary>
@@ -562,8 +528,6 @@ namespace Nivtropy.ViewModels
             {
                 _benchmarks.Add(new BenchmarkItem(kvp.Key, kvp.Value));
             }
-
-            OnPropertyChanged(nameof(HasBenchmarks));
         }
 
         private void DataViewModelOnPropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -1169,35 +1133,6 @@ namespace Nivtropy.ViewModels
             foreach (var row in tempRows)
             {
                 _rows.Add(row);
-            }
-        }
-
-        /// <summary>
-        /// Обновляет отфильтрованный список точек на основе текста поиска
-        /// </summary>
-        private void UpdateFilteredPoints()
-        {
-            _filteredPoints.Clear();
-
-            if (string.IsNullOrWhiteSpace(_pointSearchText))
-            {
-                // Если текст поиска пустой, показываем все точки
-                foreach (var point in _availablePoints)
-                {
-                    _filteredPoints.Add(point);
-                }
-            }
-            else
-            {
-                // Фильтруем точки по коду
-                var searchText = _pointSearchText.Trim().ToLowerInvariant();
-                foreach (var point in _availablePoints)
-                {
-                    if (point.Code.ToLowerInvariant().Contains(searchText))
-                    {
-                        _filteredPoints.Add(point);
-                    }
-                }
             }
         }
 
