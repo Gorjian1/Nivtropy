@@ -784,6 +784,10 @@ namespace Nivtropy.ViewModels
         /// Рассчитывает высоты точек на основе известных высот и превышений
         /// Логика нивелирования: H_fore = H_back + Δh, где Δh = Rb - Rf
         /// Рассчитываются две версии: с поправкой (Z) и без поправки (Z0)
+        ///
+        /// Для Z: используются известные высоты для замыкания хода
+        /// Для Z0: известные высоты используются ТОЛЬКО для начальной точки хода,
+        ///         далее идет накопление превышений без замыкания (показывает незамкнутый ход)
         /// </summary>
         private void CalculateHeights(List<TraverseRow> items)
         {
@@ -802,16 +806,11 @@ namespace Nivtropy.ViewModels
                     ? _dataViewModel.GetKnownHeight(row.ForeCode)
                     : null;
 
-                // Устанавливаем высоту задней точки (с поправкой и без - одинаковые для известных высот)
-                if (backKnownHeight.HasValue)
+                // === Обработка задней точки ===
+
+                // Всегда пытаемся скопировать высоты из предыдущих станций
+                if (i > 0 && !string.IsNullOrWhiteSpace(row.BackCode))
                 {
-                    row.BackHeight = backKnownHeight.Value;
-                    row.BackHeightZ0 = backKnownHeight.Value;
-                    row.IsBackHeightKnown = true;
-                }
-                else if (i > 0 && !string.IsNullOrWhiteSpace(row.BackCode))
-                {
-                    // Пытаемся найти эту точку как переднюю в предыдущих станциях
                     for (int j = i - 1; j >= 0; j--)
                     {
                         if (items[j].ForeCode == row.BackCode)
@@ -833,6 +832,24 @@ namespace Nivtropy.ViewModels
                     }
                 }
 
+                // Если задняя точка имеет известную высоту и мы её ещё не установили
+                // (то есть это начальная точка хода), используем известную высоту
+                if (backKnownHeight.HasValue)
+                {
+                    // Для Z (с поправкой) - всегда используем известную высоту
+                    row.BackHeight = backKnownHeight.Value;
+                    row.IsBackHeightKnown = true;
+
+                    // Для Z0 (без поправки) - используем известную высоту ТОЛЬКО если это начальная точка
+                    // (т.е. мы не скопировали Z0 из предыдущей станции)
+                    if (!row.BackHeightZ0.HasValue)
+                    {
+                        row.BackHeightZ0 = backKnownHeight.Value;
+                    }
+                }
+
+                // === Обработка передней точки ===
+
                 // Рассчитываем высоту передней точки с поправкой: H_fore = H_back + Δh_испр
                 if (row.BackHeight.HasValue && row.AdjustedDeltaH.HasValue)
                 {
@@ -846,12 +863,14 @@ namespace Nivtropy.ViewModels
                     row.ForeHeightZ0 = row.BackHeightZ0.Value + row.DeltaH.Value;
                 }
 
-                // Если у передней точки есть известная высота - перезаписываем обе версии
+                // Если у передней точки есть известная высота:
+                // - Для Z (с поправкой) - перезаписываем (замыкаем ход)
+                // - Для Z0 (без поправки) - НЕ перезаписываем (показываем незамкнутый ход)
                 if (foreKnownHeight.HasValue)
                 {
                     row.ForeHeight = foreKnownHeight.Value;
-                    row.ForeHeightZ0 = foreKnownHeight.Value;
                     row.IsForeHeightKnown = true;
+                    // row.ForeHeightZ0 НЕ перезаписываем - оставляем рассчитанное значение!
                 }
             }
         }
