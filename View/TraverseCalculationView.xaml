@@ -7,7 +7,8 @@
              xmlns:scm="clr-namespace:System.ComponentModel;assembly=WindowsBase"
              mc:Ignorable="d"
              d:DesignHeight="450"
-             d:DesignWidth="800">
+             d:DesignWidth="800"
+             x:Name="RootControl">
     <UserControl.Resources>
         <converters:MethodDeltaConverter x:Key="MethodDeltaConverter" />
         <converters:GroupClosureConverter x:Key="GroupClosureConverter" />
@@ -19,11 +20,13 @@
         </CollectionViewSource>
     </UserControl.Resources>
     <Grid>
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="*" />
-        </Grid.RowDefinitions>
+        <!-- Основное содержимое -->
+        <Grid x:Name="MainContent">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
 
         <StackPanel Grid.Row="0"
                     Margin="8,8,8,4"
@@ -153,28 +156,61 @@
                             <GroupStyle.HeaderTemplate>
                                 <DataTemplate>
                                     <Border Background="#E3F2FD" BorderBrush="#90CAF9" BorderThickness="1" Padding="8" CornerRadius="4">
-                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
-                                            <TextBlock Text=" • Станций: " Margin="12,0,0,0" Foreground="#FF606060" />
-                                            <TextBlock Text="{Binding ItemCount}" FontWeight="SemiBold" />
-                                            <TextBlock Text=" • ΣΔh: " Margin="12,0,0,0" Foreground="#FF606060" />
-                                            <TextBlock Text="{Binding Converter={StaticResource GroupClosureConverter}, StringFormat=+0.0000;-0.0000;0.0000}"
-                                                       FontWeight="SemiBold"
-                                                       Foreground="#FF1976D2" />
-                                            <TextBlock Text=" м" Foreground="#FF606060" />
-                                            <TextBlock Text=" • Длина: " Margin="12,0,0,0" Foreground="#FF606060" />
-                                            <TextBlock Text="{Binding Items[0].LineSummary.TotalAverageLength, StringFormat=0.00}" FontWeight="Bold" Foreground="#FF1976D2" />
-                                            <TextBlock Text=" м" Foreground="#FF606060" />
-                                            <TextBlock Text=" • Σ|разность плеч|: " Foreground="#FF606060" Margin="12,0,0,0" />
-                                            <TextBlock Text="{Binding Items[0].LineSummary.ArmDifferenceAccumulation, StringFormat=0.0000}"
-                                                       FontWeight="Bold">
-                                                <TextBlock.Foreground>
-                                                    <Binding Path="Items[0].LineSummary.IsArmDifferenceAccumulationExceeded"
-                                                             Converter="{StaticResource ArmDifferenceExceededToBrushConverter}" />
-                                                </TextBlock.Foreground>
-                                            </TextBlock>
-                                            <TextBlock Text=" м" Foreground="#FF606060" />
-                                        </StackPanel>
+                                        <Grid>
+                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
+                                                <TextBlock Text=" • Станций: " Margin="12,0,0,0" Foreground="#FF606060" />
+                                                <TextBlock Text="{Binding ItemCount}" FontWeight="SemiBold" />
+                                                <TextBlock Text=" • ΣΔh: " Margin="12,0,0,0" Foreground="#FF606060" />
+                                                <TextBlock Text="{Binding Converter={StaticResource GroupClosureConverter}, StringFormat=+0.0000;-0.0000;0.0000}"
+                                                           FontWeight="SemiBold"
+                                                           Foreground="#FF1976D2" />
+                                                <TextBlock Text=" м" Foreground="#FF606060" />
+                                                <TextBlock Text=" • Длина: " Margin="12,0,0,0" Foreground="#FF606060" />
+                                                <TextBlock Text="{Binding Items[0].LineSummary.TotalAverageLength, StringFormat=0.00}" FontWeight="Bold" Foreground="#FF1976D2" />
+                                                <TextBlock Text=" м" Foreground="#FF606060" />
+                                                <TextBlock Text=" • Σ|разность плеч|: " Foreground="#FF606060" Margin="12,0,0,0" />
+                                                <TextBlock Text="{Binding Items[0].LineSummary.ArmDifferenceAccumulation, StringFormat=0.0000}"
+                                                           FontWeight="Bold">
+                                                    <TextBlock.Foreground>
+                                                        <Binding Path="Items[0].LineSummary.IsArmDifferenceAccumulationExceeded"
+                                                                 Converter="{StaticResource ArmDifferenceExceededToBrushConverter}" />
+                                                    </TextBlock.Foreground>
+                                                </TextBlock>
+                                                <TextBlock Text=" м" Foreground="#FF606060" />
+                                            </StackPanel>
+                                            <Button Content="Дополнительно ▼"
+                                                    HorizontalAlignment="Right"
+                                                    Padding="12,4"
+                                                    Background="#FF1976D2"
+                                                    Foreground="White"
+                                                    BorderThickness="0"
+                                                    Cursor="Hand"
+                                                    FontSize="12"
+                                                    Tag="{Binding Name}"
+                                                    Click="ShowTraverseDetails_Click">
+                                                <Button.Style>
+                                                    <Style TargetType="Button">
+                                                        <Setter Property="Template">
+                                                            <Setter.Value>
+                                                                <ControlTemplate TargetType="Button">
+                                                                    <Border Background="{TemplateBinding Background}"
+                                                                            CornerRadius="4"
+                                                                            Padding="{TemplateBinding Padding}">
+                                                                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                                    </Border>
+                                                                    <ControlTemplate.Triggers>
+                                                                        <Trigger Property="IsMouseOver" Value="True">
+                                                                            <Setter Property="Background" Value="#FF1565C0" />
+                                                                        </Trigger>
+                                                                    </ControlTemplate.Triggers>
+                                                                </ControlTemplate>
+                                                            </Setter.Value>
+                                                        </Setter>
+                                                    </Style>
+                                                </Button.Style>
+                                            </Button>
+                                        </Grid>
                                     </Border>
                                 </DataTemplate>
                             </GroupStyle.HeaderTemplate>
@@ -186,7 +222,7 @@
                         </GroupStyle>
                     </DataGrid.GroupStyle>
                     <DataGrid.Columns>
-                        <DataGridTextColumn Binding="{Binding Index}" Width="60">
+                        <DataGridTextColumn Binding="{Binding Index}" Width="50">
                             <DataGridTextColumn.HeaderTemplate>
                                 <DataTemplate>
                                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
@@ -201,7 +237,7 @@
                                 </Style>
                             </DataGridTextColumn.HeaderStyle>
                         </DataGridTextColumn>
-                        <DataGridTextColumn Binding="{Binding PointCode}" Width="100">
+                        <DataGridTextColumn Binding="{Binding PointCode}" Width="80">
                             <DataGridTextColumn.HeaderTemplate>
                                 <DataTemplate>
                                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
@@ -216,7 +252,7 @@
                                 </Style>
                             </DataGridTextColumn.HeaderStyle>
                         </DataGridTextColumn>
-                        <DataGridTextColumn Binding="{Binding Station}" Width="180">
+                        <DataGridTextColumn Binding="{Binding Station}" Width="140">
                             <DataGridTextColumn.HeaderTemplate>
                                 <DataTemplate>
                                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
@@ -231,7 +267,7 @@
                                 </Style>
                             </DataGridTextColumn.HeaderStyle>
                         </DataGridTextColumn>
-                        <DataGridTextColumn Binding="{Binding StationLength_m, StringFormat=0.00}" Width="120">
+                        <DataGridTextColumn Binding="{Binding StationLength_m, StringFormat=0.00}" Width="100">
                             <DataGridTextColumn.HeaderTemplate>
                                 <DataTemplate>
                                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
@@ -246,7 +282,7 @@
                                 </Style>
                             </DataGridTextColumn.HeaderStyle>
                         </DataGridTextColumn>
-                        <DataGridTextColumn Binding="{Binding DeltaH, StringFormat=+0.0000;-0.0000;0.0000}" Width="100">
+                        <DataGridTextColumn Binding="{Binding DeltaH, StringFormat=+0.0000;-0.0000;0.0000}" Width="95">
                             <DataGridTextColumn.HeaderTemplate>
                                 <DataTemplate>
                                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
@@ -261,7 +297,7 @@
                                 </Style>
                             </DataGridTextColumn.HeaderStyle>
                         </DataGridTextColumn>
-                        <DataGridTextColumn Binding="{Binding Correction, StringFormat=+0.0000;-0.0000;0.0000}" Width="120">
+                        <DataGridTextColumn Binding="{Binding Correction, StringFormat=+0.0000;-0.0000;0.0000}" Width="105">
                             <DataGridTextColumn.HeaderTemplate>
                                 <DataTemplate>
                                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
@@ -276,7 +312,7 @@
                                 </Style>
                             </DataGridTextColumn.HeaderStyle>
                         </DataGridTextColumn>
-                        <DataGridTextColumn Binding="{Binding AdjustedDeltaH, StringFormat=+0.0000;-0.0000;0.0000}" Width="120">
+                        <DataGridTextColumn Binding="{Binding AdjustedDeltaH, StringFormat=+0.0000;-0.0000;0.0000}" Width="105">
                             <DataGridTextColumn.HeaderTemplate>
                                 <DataTemplate>
                                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
@@ -291,7 +327,7 @@
                                 </Style>
                             </DataGridTextColumn.HeaderStyle>
                         </DataGridTextColumn>
-                        <DataGridTextColumn Binding="{Binding HeightZ0Display}" Width="150">
+                        <DataGridTextColumn Binding="{Binding HeightZ0Display}" Width="110">
                             <DataGridTextColumn.HeaderTemplate>
                                 <DataTemplate>
                                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
@@ -306,7 +342,7 @@
                                 </Style>
                             </DataGridTextColumn.HeaderStyle>
                         </DataGridTextColumn>
-                        <DataGridTextColumn Binding="{Binding HeightDisplay}" Width="150">
+                        <DataGridTextColumn Binding="{Binding HeightDisplay}" Width="*" MinWidth="110">
                             <DataGridTextColumn.HeaderTemplate>
                                 <DataTemplate>
                                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
@@ -323,6 +359,82 @@
                         </DataGridTextColumn>
                     </DataGrid.Columns>
                 </DataGrid>
+        </Border>
+        </Grid>
+
+        <!-- Overlay popup для деталей хода -->
+        <Border x:Name="TraverseDetailsPopup"
+                Visibility="Collapsed"
+                Background="#CC000000"
+                MouseLeftButtonDown="TraverseDetailsPopup_MouseLeftButtonDown">
+            <Border Background="White"
+                    BorderBrush="#FF1976D2"
+                    BorderThickness="2"
+                    CornerRadius="8"
+                    MaxWidth="800"
+                    MaxHeight="600"
+                    Margin="50"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    MouseLeftButtonDown="PopupContent_MouseLeftButtonDown">
+                <Grid Margin="20">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <!-- Заголовок -->
+                    <Grid Grid.Row="0" Margin="0,0,0,16">
+                        <TextBlock x:Name="PopupTitle"
+                                   Text="Детали хода"
+                                   FontSize="16"
+                                   FontWeight="SemiBold"
+                                   VerticalAlignment="Center" />
+                        <Button Content="✕"
+                                HorizontalAlignment="Right"
+                                Width="30"
+                                Height="30"
+                                FontSize="18"
+                                Click="ClosePopup_Click"
+                                Cursor="Hand"
+                                Background="Transparent"
+                                BorderThickness="0"
+                                Foreground="#FF666666" />
+                    </Grid>
+
+                    <!-- Контент: Профиль хода -->
+                    <Border Grid.Row="1"
+                            BorderBrush="#FFE0E0E0"
+                            BorderThickness="1"
+                            Background="#FFFAFAFA"
+                            Padding="16">
+                        <Grid>
+                            <TextBlock Text="Профиль хода"
+                                       FontSize="14"
+                                       FontWeight="SemiBold"
+                                       Margin="0,0,0,12"
+                                       VerticalAlignment="Top" />
+                            <Canvas x:Name="ProfileCanvas"
+                                    Margin="0,40,0,40"
+                                    Background="White" />
+                            <TextBlock Text="График будет здесь"
+                                       HorizontalAlignment="Center"
+                                       VerticalAlignment="Center"
+                                       Foreground="#FF999999"
+                                       FontStyle="Italic" />
+                        </Grid>
+                    </Border>
+
+                    <!-- Подсказка -->
+                    <TextBlock Grid.Row="2"
+                               Text="Нажмите за пределами окна или на ✕ чтобы закрыть"
+                               Margin="0,12,0,0"
+                               HorizontalAlignment="Center"
+                               Foreground="#FF999999"
+                               FontSize="12" />
+                </Grid>
+            </Border>
         </Border>
     </Grid>
 </UserControl>
