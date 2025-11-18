@@ -23,6 +23,7 @@ namespace Nivtropy.ViewModels
         {
             DataViewModel = new DataViewModel();
             SettingsViewModel = new SettingsViewModel();
+            SettingsViewModel.Load();
             CalculationViewModel = new TraverseCalculationViewModel(DataViewModel, SettingsViewModel);
             DesignViewModel = new TraverseDesignViewModel(DataViewModel);
 
@@ -73,6 +74,7 @@ namespace Nivtropy.ViewModels
 
         public ICommand OpenFileCommand => new RelayCommand(_ => OpenFile());
         public ICommand RefreshCommand => new RelayCommand(_ => Refresh());
+        public ICommand ShowAboutCommand => new RelayCommand(_ => ShowAbout());
 
         private void UpdateCurrentView()
         {
@@ -120,6 +122,15 @@ namespace Nivtropy.ViewModels
         private void SyncSelectionWithData()
         {
             DataViewModel.SelectedRun = DataViewModel.Runs.FirstOrDefault();
+        }
+
+        private void ShowAbout()
+        {
+            var aboutWindow = new Views.AboutWindow
+            {
+                Owner = Application.Current.MainWindow
+            };
+            aboutWindow.ShowDialog();
         }
     }
 }

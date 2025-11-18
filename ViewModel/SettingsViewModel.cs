@@ -1,10 +1,17 @@
 using System.ComponentModel;
+using System.IO;
 using System.Runtime.CompilerServices;
+using System.Text.Json;
 
 namespace Nivtropy.ViewModels
 {
     public class SettingsViewModel : INotifyPropertyChanged
     {
+        private static readonly string SettingsPath = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            "Nivtropy",
+            "settings.json"
+        );
         // Общие настройки
         private string _tableFontFamily = "Segoe UI";
         private double _tableFontSize = 13;
@@ -121,7 +128,61 @@ namespace Nivtropy.ViewModels
                 return false;
             field = value;
             OnPropertyChanged(propertyName);
+            Save();
             return true;
+        }
+
+        public void Save()
+        {
+            try
+            {
+                var directory = Path.GetDirectoryName(SettingsPath);
+                if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+                {
+                    Directory.CreateDirectory(directory);
+                }
+
+                var options = new JsonSerializerOptions { WriteIndented = true };
+                var json = JsonSerializer.Serialize(this, options);
+                File.WriteAllText(SettingsPath, json);
+            }
+            catch
+            {
+                // Игнорируем ошибки сохранения
+            }
+        }
+
+        public void Load()
+        {
+            try
+            {
+                if (File.Exists(SettingsPath))
+                {
+                    var json = File.ReadAllText(SettingsPath);
+                    var settings = JsonSerializer.Deserialize<SettingsViewModel>(json);
+                    if (settings != null)
+                    {
+                        TableFontFamily = settings.TableFontFamily;
+                        TableFontSize = settings.TableFontSize;
+                        GridLineThickness = settings.GridLineThickness;
+                        GridLineColorIndex = settings.GridLineColorIndex;
+                        AlternatingRowColors = settings.AlternatingRowColors;
+                        ShowColumnHeaderIcons = settings.ShowColumnHeaderIcons;
+                        CheckMinimumRayLength = settings.CheckMinimumRayLength;
+                        MinimumRayLength = settings.MinimumRayLength;
+                        CheckMaximumRayLength = settings.CheckMaximumRayLength;
+                        MaximumRayLength = settings.MaximumRayLength;
+                        CheckMinimumStationLength = settings.CheckMinimumStationLength;
+                        MinimumStationLength = settings.MinimumStationLength;
+                        HeightDecimalPlaces = settings.HeightDecimalPlaces;
+                        DeltaHDecimalPlaces = settings.DeltaHDecimalPlaces;
+                    }
+                }
+            }
+            catch
+            {
+                // Игнорируем ошибки загрузки, используем значения по умолчанию
+            }
         }
     }
 }

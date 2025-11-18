@@ -24,6 +24,9 @@
                         <Separator/>
                         <Button Content="Обновить"
                                 Command="{Binding RefreshCommand}"/>
+                        <Separator/>
+                        <Button Content="О программе"
+                                Command="{Binding ShowAboutCommand}"/>
                     </ToolBar>
                 </ToolBarTray>
             </TabItem>

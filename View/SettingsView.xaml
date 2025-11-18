@@ -29,7 +29,8 @@
                                            VerticalAlignment="Center"
                                            Width="180" />
                                 <ComboBox Width="200"
-                                          SelectedItem="{Binding TableFontFamily, Mode=TwoWay}">
+                                          SelectedValue="{Binding TableFontFamily, Mode=TwoWay}"
+                                          SelectedValuePath="Content">
                                     <ComboBoxItem Content="Segoe UI" />
                                     <ComboBoxItem Content="Calibri" />
                                     <ComboBoxItem Content="Arial" />
