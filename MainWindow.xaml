@@ -47,7 +47,7 @@
 
                     <!-- Панель управления реперами -->
                     <ToolBar>
-                        <Grid>
+                        <Grid x:Name="BenchmarksToolbarGrid">
                             <!-- Компактная плашка для ввода -->
                             <Border BorderBrush="#FFB0B0B0" BorderThickness="1" CornerRadius="3" Padding="6,2" Background="White">
                                 <StackPanel Orientation="Horizontal">
@@ -122,80 +122,84 @@
                                     VerticalAlignment="Top"
                                     HorizontalAlignment="Left"
                                     Panel.ZIndex="1000">
-                                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                                    <ItemsControl ItemsSource="{Binding CalculationViewModel.Benchmarks}">
-                                        <ItemsControl.ItemTemplate>
-                                            <DataTemplate>
-                                                <Border BorderBrush="#FFE0E0E0" BorderThickness="0,0,0,1" Padding="8,6">
-                                                    <Grid>
-                                                        <Grid.ColumnDefinitions>
-                                                            <ColumnDefinition Width="*"/>
-                                                            <ColumnDefinition Width="Auto"/>
-                                                        </Grid.ColumnDefinitions>
+                                <Grid>
+                                    <!-- Список реперов -->
+                                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                                        <ItemsControl ItemsSource="{Binding CalculationViewModel.Benchmarks}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Border BorderBrush="#FFE0E0E0" BorderThickness="0,0,0,1" Padding="8,6">
+                                                        <Grid>
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="*"/>
+                                                                <ColumnDefinition Width="Auto"/>
+                                                            </Grid.ColumnDefinitions>
 
-                                                        <StackPanel Grid.Column="0" Orientation="Horizontal">
-                                                            <TextBlock Text="{Binding Code}" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                                                            <TextBlock Text=" → " Margin="6,0" Foreground="#FF606060" VerticalAlignment="Center"/>
-                                                            <TextBlock Text="{Binding Height, StringFormat=F4}" VerticalAlignment="Center"/>
-                                                            <TextBlock Text=" м" Foreground="#FF606060" VerticalAlignment="Center"/>
-                                                        </StackPanel>
+                                                            <StackPanel Grid.Column="0" Orientation="Horizontal">
+                                                                <TextBlock Text="{Binding Code}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                                                <TextBlock Text=" → " Margin="6,0" Foreground="#FF606060" VerticalAlignment="Center"/>
+                                                                <TextBlock Text="{Binding Height, StringFormat=F4}" VerticalAlignment="Center"/>
+                                                                <TextBlock Text=" м" Foreground="#FF606060" VerticalAlignment="Center"/>
+                                                            </StackPanel>
 
-                                                        <Button Grid.Column="1"
-                                                                Content="&#xE711;"
-                                                                FontFamily="Segoe MDL2 Assets"
-                                                                FontSize="14"
-                                                                Width="20" Height="20"
-                                                                Padding="0"
-                                                                Background="Transparent"
-                                                                BorderThickness="0"
-                                                                Cursor="Hand"
-                                                                ToolTip="Удалить репер"
-                                                                Click="RemoveBenchmark_Click"
-                                                                Tag="{Binding}">
-                                                            <Button.Style>
-                                                                <Style TargetType="Button">
-                                                                    <Setter Property="Foreground" Value="#FFF44336"/>
-                                                                    <Style.Triggers>
-                                                                        <Trigger Property="IsMouseOver" Value="True">
-                                                                            <Setter Property="Foreground" Value="#FFD32F2F"/>
-                                                                        </Trigger>
-                                                                    </Style.Triggers>
-                                                                </Style>
-                                                            </Button.Style>
-                                                        </Button>
-                                                    </Grid>
-                                                </Border>
-                                            </DataTemplate>
-                                        </ItemsControl.ItemTemplate>
-                                        <ItemsControl.Style>
-                                            <Style TargetType="ItemsControl">
+                                                            <Button Grid.Column="1"
+                                                                    Content="&#xE711;"
+                                                                    FontFamily="Segoe MDL2 Assets"
+                                                                    FontSize="14"
+                                                                    Width="20" Height="20"
+                                                                    Padding="0"
+                                                                    Background="Transparent"
+                                                                    BorderThickness="0"
+                                                                    Cursor="Hand"
+                                                                    ToolTip="Удалить репер"
+                                                                    Click="RemoveBenchmark_Click"
+                                                                    Tag="{Binding}">
+                                                                <Button.Style>
+                                                                    <Style TargetType="Button">
+                                                                        <Setter Property="Foreground" Value="#FFF44336"/>
+                                                                        <Style.Triggers>
+                                                                            <Trigger Property="IsMouseOver" Value="True">
+                                                                                <Setter Property="Foreground" Value="#FFD32F2F"/>
+                                                                            </Trigger>
+                                                                        </Style.Triggers>
+                                                                    </Style>
+                                                                </Button.Style>
+                                                            </Button>
+                                                        </Grid>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                            <ItemsControl.Style>
+                                                <Style TargetType="ItemsControl">
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding CalculationViewModel.Benchmarks.Count}" Value="0">
+                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </ItemsControl.Style>
+                                        </ItemsControl>
+                                    </ScrollViewer>
+
+                                    <!-- Сообщение когда список пуст -->
+                                    <TextBlock Text="Нет установленных реперов"
+                                               Foreground="#FF999999"
+                                               FontStyle="Italic"
+                                               Padding="8"
+                                               HorizontalAlignment="Center"
+                                               VerticalAlignment="Center">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Visibility" Value="Collapsed"/>
                                                 <Style.Triggers>
                                                     <DataTrigger Binding="{Binding CalculationViewModel.Benchmarks.Count}" Value="0">
-                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                        <Setter Property="Visibility" Value="Visible"/>
                                                     </DataTrigger>
                                                 </Style.Triggers>
                                             </Style>
-                                        </ItemsControl.Style>
-                                    </ItemsControl>
-                                </ScrollViewer>
-                                <!-- Сообщение когда список пуст -->
-                                <TextBlock Text="Нет установленных реперов"
-                                           Foreground="#FF999999"
-                                           FontStyle="Italic"
-                                           Padding="8"
-                                           HorizontalAlignment="Center"
-                                           VerticalAlignment="Center">
-                                    <TextBlock.Style>
-                                        <Style TargetType="TextBlock">
-                                            <Setter Property="Visibility" Value="Collapsed"/>
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding CalculationViewModel.Benchmarks.Count}" Value="0">
-                                                    <Setter Property="Visibility" Value="Visible"/>
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </TextBlock.Style>
-                                </TextBlock>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                </Grid>
                             </Border>
                         </Grid>
 
