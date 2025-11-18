@@ -22,9 +22,9 @@ namespace Nivtropy.ViewModels
         public MainViewModel()
         {
             DataViewModel = new DataViewModel();
-            CalculationViewModel = new TraverseCalculationViewModel(DataViewModel);
-            DesignViewModel = new TraverseDesignViewModel(DataViewModel);
             SettingsViewModel = new SettingsViewModel();
+            CalculationViewModel = new TraverseCalculationViewModel(DataViewModel, SettingsViewModel);
+            DesignViewModel = new TraverseDesignViewModel(DataViewModel);
 
             _dataViewControl = new DataViewControl { DataContext = DataViewModel };
             _calculationView = new TraverseCalculationView { DataContext = CalculationViewModel };

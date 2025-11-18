@@ -13,6 +13,7 @@
         <converters:MethodDeltaConverter x:Key="MethodDeltaConverter" />
         <converters:GroupClosureConverter x:Key="GroupClosureConverter" />
         <converters:ArmDifferenceExceededToBrushConverter x:Key="ArmDifferenceExceededToBrushConverter" />
+        <converters:GridLineColorConverter x:Key="GridLineColorConverter" />
         <CollectionViewSource x:Key="RowsGrouped" Source="{Binding Rows}">
             <CollectionViewSource.GroupDescriptions>
                 <PropertyGroupDescription PropertyName="LineName" />
@@ -108,10 +109,21 @@
                       RowHeaderWidth="0"
                       EnableRowVirtualization="True"
                       SelectionUnit="FullRow"
-                      AlternatingRowBackground="#FFF9F9F9"
+                      FontFamily="{Binding Settings.TableFontFamily}"
+                      FontSize="{Binding Settings.TableFontSize}"
                       GridLinesVisibility="All"
-                      VerticalGridLinesBrush="#FFE0E0E0"
-                      HorizontalGridLinesBrush="#FFE0E0E0">
+                      VerticalGridLinesBrush="{Binding Settings.GridLineColorIndex, Converter={StaticResource GridLineColorConverter}}"
+                      HorizontalGridLinesBrush="{Binding Settings.GridLineColorIndex, Converter={StaticResource GridLineColorConverter}}">
+                    <DataGrid.Style>
+                        <Style TargetType="DataGrid">
+                            <Setter Property="AlternatingRowBackground" Value="Transparent" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding Settings.AlternatingRowColors}" Value="True">
+                                    <Setter Property="AlternatingRowBackground" Value="#FFF9F9F9" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </DataGrid.Style>
                     <!-- Стили для улучшения внешнего вида -->
                     <DataGrid.CellStyle>
                         <Style TargetType="DataGridCell">
@@ -226,8 +238,8 @@
                             <DataGridTextColumn.HeaderTemplate>
                                 <DataTemplate>
                                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                                        <TextBlock Text="&#xE8EF;" FontFamily="Segoe MDL2 Assets" FontSize="12" Margin="0,0,4,0" Foreground="#FF757575" />
-                                        <TextBlock Text="№" />
+                                        <TextBlock Text="&#xE8EF;" FontFamily="Segoe MDL2 Assets" FontSize="12" Margin="0,0,4,0" Foreground="#FF757575" VerticalAlignment="Center" />
+                                        <TextBlock Text="№" VerticalAlignment="Center" />
                                     </StackPanel>
                                 </DataTemplate>
                             </DataGridTextColumn.HeaderTemplate>
@@ -241,8 +253,8 @@
                             <DataGridTextColumn.HeaderTemplate>
                                 <DataTemplate>
                                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                                        <TextBlock Text="&#xE81D;" FontFamily="Segoe MDL2 Assets" FontSize="12" Margin="0,0,4,0" Foreground="#FF2196F3" />
-                                        <TextBlock Text="Точка" />
+                                        <TextBlock Text="&#xE81D;" FontFamily="Segoe MDL2 Assets" FontSize="12" Margin="0,0,4,0" Foreground="#FF2196F3" VerticalAlignment="Center" />
+                                        <TextBlock Text="Точка" VerticalAlignment="Center" />
                                     </StackPanel>
                                 </DataTemplate>
                             </DataGridTextColumn.HeaderTemplate>
@@ -252,12 +264,12 @@
                                 </Style>
                             </DataGridTextColumn.HeaderStyle>
                         </DataGridTextColumn>
-                        <DataGridTextColumn Binding="{Binding Station}" Width="140">
+                        <DataGridTextColumn Binding="{Binding Station}" Width="1.5*" MinWidth="130">
                             <DataGridTextColumn.HeaderTemplate>
                                 <DataTemplate>
                                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                                        <TextBlock Text="&#xE81E;" FontFamily="Segoe MDL2 Assets" FontSize="12" Margin="0,0,4,0" Foreground="#FF4CAF50" />
-                                        <TextBlock Text="Станция" />
+                                        <TextBlock Text="&#xE81E;" FontFamily="Segoe MDL2 Assets" FontSize="12" Margin="0,0,4,0" Foreground="#FF4CAF50" VerticalAlignment="Center" />
+                                        <TextBlock Text="Станция" VerticalAlignment="Center" />
                                     </StackPanel>
                                 </DataTemplate>
                             </DataGridTextColumn.HeaderTemplate>
@@ -271,8 +283,8 @@
                             <DataGridTextColumn.HeaderTemplate>
                                 <DataTemplate>
                                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                                        <TextBlock Text="&#xECC6;" FontFamily="Segoe MDL2 Assets" FontSize="12" Margin="0,0,4,0" Foreground="#FF00BCD4" />
-                                        <TextBlock Text="Длина ст., м" />
+                                        <TextBlock Text="&#xECC6;" FontFamily="Segoe MDL2 Assets" FontSize="12" Margin="0,0,4,0" Foreground="#FF00BCD4" VerticalAlignment="Center" />
+                                        <TextBlock Text="Длина ст., м" VerticalAlignment="Center" />
                                     </StackPanel>
                                 </DataTemplate>
                             </DataGridTextColumn.HeaderTemplate>
@@ -286,8 +298,8 @@
                             <DataGridTextColumn.HeaderTemplate>
                                 <DataTemplate>
                                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                                        <TextBlock Text="&#xEE4A;" FontFamily="Segoe MDL2 Assets" FontSize="12" Margin="0,0,4,0" Foreground="#FF03A9F4" />
-                                        <TextBlock Text="Δh, м" />
+                                        <TextBlock Text="&#xEE4A;" FontFamily="Segoe MDL2 Assets" FontSize="12" Margin="0,0,4,0" Foreground="#FF03A9F4" VerticalAlignment="Center" />
+                                        <TextBlock Text="Δh, м" VerticalAlignment="Center" />
                                     </StackPanel>
                                 </DataTemplate>
                             </DataGridTextColumn.HeaderTemplate>
@@ -301,8 +313,8 @@
                             <DataGridTextColumn.HeaderTemplate>
                                 <DataTemplate>
                                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                                        <TextBlock Text="&#xE74E;" FontFamily="Segoe MDL2 Assets" FontSize="12" Margin="0,0,4,0" Foreground="#FFFF9800" />
-                                        <TextBlock Text="Поправка, м" />
+                                        <TextBlock Text="&#xE74E;" FontFamily="Segoe MDL2 Assets" FontSize="12" Margin="0,0,4,0" Foreground="#FFFF9800" VerticalAlignment="Center" />
+                                        <TextBlock Text="Поправка, м" VerticalAlignment="Center" />
                                     </StackPanel>
                                 </DataTemplate>
                             </DataGridTextColumn.HeaderTemplate>
@@ -312,12 +324,12 @@
                                 </Style>
                             </DataGridTextColumn.HeaderStyle>
                         </DataGridTextColumn>
-                        <DataGridTextColumn Binding="{Binding AdjustedDeltaH, StringFormat=+0.0000;-0.0000;0.0000}" Width="105">
+                        <DataGridTextColumn Binding="{Binding AdjustedDeltaH, StringFormat=+0.0000;-0.0000;0.0000}" Width="1*" MinWidth="100">
                             <DataGridTextColumn.HeaderTemplate>
                                 <DataTemplate>
                                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                                        <TextBlock Text="&#xE73E;" FontFamily="Segoe MDL2 Assets" FontSize="12" Margin="0,0,4,0" Foreground="#FF4CAF50" />
-                                        <TextBlock Text="Δh испр., м" />
+                                        <TextBlock Text="&#xE73E;" FontFamily="Segoe MDL2 Assets" FontSize="12" Margin="0,0,4,0" Foreground="#FF4CAF50" VerticalAlignment="Center" />
+                                        <TextBlock Text="Δh испр., м" VerticalAlignment="Center" />
                                     </StackPanel>
                                 </DataTemplate>
                             </DataGridTextColumn.HeaderTemplate>
@@ -327,12 +339,12 @@
                                 </Style>
                             </DataGridTextColumn.HeaderStyle>
                         </DataGridTextColumn>
-                        <DataGridTextColumn Binding="{Binding HeightZ0Display}" Width="110">
+                        <DataGridTextColumn Binding="{Binding HeightZ0Display}" Width="1*" MinWidth="105">
                             <DataGridTextColumn.HeaderTemplate>
                                 <DataTemplate>
                                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                                        <TextBlock Text="&#xE8B7;" FontFamily="Segoe MDL2 Assets" FontSize="12" Margin="0,0,4,0" Foreground="#FF9E9E9E" />
-                                        <TextBlock Text="Z0, м" />
+                                        <TextBlock Text="&#xE8B7;" FontFamily="Segoe MDL2 Assets" FontSize="12" Margin="0,0,4,0" Foreground="#FF9E9E9E" VerticalAlignment="Center" />
+                                        <TextBlock Text="Z0, м" VerticalAlignment="Center" />
                                     </StackPanel>
                                 </DataTemplate>
                             </DataGridTextColumn.HeaderTemplate>
@@ -346,8 +358,8 @@
                             <DataGridTextColumn.HeaderTemplate>
                                 <DataTemplate>
                                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                                        <TextBlock Text="&#xE8B7;" FontFamily="Segoe MDL2 Assets" FontSize="12" Margin="0,0,4,0" Foreground="#FF1976D2" />
-                                        <TextBlock Text="Z, м" />
+                                        <TextBlock Text="&#xE8B7;" FontFamily="Segoe MDL2 Assets" FontSize="12" Margin="0,0,4,0" Foreground="#FF1976D2" VerticalAlignment="Center" />
+                                        <TextBlock Text="Z, м" VerticalAlignment="Center" />
                                     </StackPanel>
                                 </DataTemplate>
                             </DataGridTextColumn.HeaderTemplate>

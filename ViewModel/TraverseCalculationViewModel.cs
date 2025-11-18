@@ -16,6 +16,7 @@ namespace Nivtropy.ViewModels
     public class TraverseCalculationViewModel : INotifyPropertyChanged
     {
         private readonly DataViewModel _dataViewModel;
+        private readonly SettingsViewModel _settingsViewModel;
         private readonly ObservableCollection<TraverseRow> _rows = new();
         private readonly ObservableCollection<PointItem> _availablePoints = new();
         private readonly ObservableCollection<BenchmarkItem> _benchmarks = new();
@@ -56,9 +57,10 @@ namespace Nivtropy.ViewModels
         private PointItem? _selectedPoint;
         private string? _newBenchmarkHeight;
 
-        public TraverseCalculationViewModel(DataViewModel dataViewModel)
+        public TraverseCalculationViewModel(DataViewModel dataViewModel, SettingsViewModel settingsViewModel)
         {
             _dataViewModel = dataViewModel;
+            _settingsViewModel = settingsViewModel;
             ((INotifyCollectionChanged)_dataViewModel.Records).CollectionChanged += (_, __) => UpdateRows();
             ((INotifyCollectionChanged)_dataViewModel.Runs).CollectionChanged += (_, __) => OnPropertyChanged(nameof(Runs));
             _dataViewModel.PropertyChanged += DataViewModelOnPropertyChanged;
@@ -75,6 +77,7 @@ namespace Nivtropy.ViewModels
         public ObservableCollection<LineSummary> Runs => _dataViewModel.Runs;
         public ObservableCollection<PointItem> AvailablePoints => _availablePoints;
         public ObservableCollection<BenchmarkItem> Benchmarks => _benchmarks;
+        public SettingsViewModel Settings => _settingsViewModel;
 
         public LevelingMethodOption[] Methods => _methods;
         public LevelingClassOption[] Classes => _classes;
