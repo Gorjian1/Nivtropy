@@ -423,9 +423,9 @@ namespace Nivtropy.ViewModels
                 worksheet.Cell(row, col++).Value = "Накопление разности плеч, м";
                 worksheet.Cell(row, col++).Value = (decimal)accumulationDifference;
                 worksheet.Cell(row, col++).Value = "ΣΔh, м";
-                worksheet.Cell(row, col++).Value = (decimal)Closure;
+                worksheet.Cell(row, col++).Value = Closure.HasValue ? (decimal)Closure.Value : (decimal?)null;
                 worksheet.Cell(row, col++).Value = "Допуск невязки, м";
-                worksheet.Cell(row, col++).Value = (decimal)AllowableClosure;
+                worksheet.Cell(row, col++).Value = AllowableClosure.HasValue ? (decimal)AllowableClosure.Value : (decimal?)null;
                 worksheet.Cell(row, col++).Value = "Вердикт";
                 worksheet.Cell(row, col++).Value = ClosureVerdict;
 
