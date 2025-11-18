@@ -84,15 +84,18 @@ namespace Nivtropy.Views
             var canvasHeight = ProfileCanvas.ActualHeight > 0 ? ProfileCanvas.ActualHeight : 300;
 
             // Собираем высоты и расстояния
-            var points = new System.Collections.Generic.List<(double height, double distance)>();
+            var points = new System.Collections.Generic.List<(double height, double distance, string pointCode, int index)>();
             double cumulativeDistance = 0;
 
-            foreach (var row in rows)
+            for (int i = 0; i < rows.Count; i++)
             {
+                var row = rows[i];
                 var height = row.IsVirtualStation ? row.BackHeight : row.ForeHeight;
+                var pointCode = row.PointCode ?? "";
+
                 if (height.HasValue)
                 {
-                    points.Add((height.Value, cumulativeDistance));
+                    points.Add((height.Value, cumulativeDistance, pointCode, i + 1));
                     // Добавляем длину станции для следующей точки
                     cumulativeDistance += row.StationLength_m ?? 0;
                 }
@@ -113,32 +116,27 @@ namespace Nivtropy.Views
             if (totalDistance < 0.001)
                 totalDistance = 1.0;
 
-            var margin = 40;
+            var margin = 50;
             var plotWidth = canvasWidth - 2 * margin;
             var plotHeight = canvasHeight - 2 * margin;
 
-            // Рисуем оси
-            var axisLine = new Line
-            {
-                X1 = margin,
-                Y1 = canvasHeight - margin,
-                X2 = canvasWidth - margin,
-                Y2 = canvasHeight - margin,
-                Stroke = new SolidColorBrush(Color.FromRgb(0xB0, 0xB0, 0xB0)),
-                StrokeThickness = 1
-            };
-            ProfileCanvas.Children.Add(axisLine);
+            // Рисуем сетку
+            DrawGrid(canvasWidth, canvasHeight, margin, plotWidth, plotHeight, minHeight, maxHeight, totalDistance);
 
-            var leftAxisLine = new Line
+            // Определяем общие точки и точки с известной высотой
+            var viewModel = DataContext as TraverseCalculationViewModel;
+            var allPointCodes = points.Select(p => p.pointCode).ToList();
+            var sharedPoints = allPointCodes.GroupBy(p => p).Where(g => g.Count() > 1).Select(g => g.Key).ToHashSet();
+
+            // Получаем точки с известными высотами
+            var knownHeightPoints = new System.Collections.Generic.HashSet<string>();
+            if (viewModel != null)
             {
-                X1 = margin,
-                Y1 = margin,
-                X2 = margin,
-                Y2 = canvasHeight - margin,
-                Stroke = new SolidColorBrush(Color.FromRgb(0xB0, 0xB0, 0xB0)),
-                StrokeThickness = 1
-            };
-            ProfileCanvas.Children.Add(leftAxisLine);
+                foreach (var benchmark in viewModel.Benchmarks)
+                {
+                    knownHeightPoints.Add(benchmark.Code);
+                }
+            }
 
             // Рисуем профиль
             var profileBrush = new SolidColorBrush(_profileColor);
@@ -161,81 +159,264 @@ namespace Nivtropy.Views
                 };
                 ProfileCanvas.Children.Add(line);
 
-                // Точка
-                var ellipse = new Ellipse
-                {
-                    Width = 7,
-                    Height = 7,
-                    Fill = profileBrush,
-                    Stroke = Brushes.White,
-                    StrokeThickness = 1.5
-                };
-                Canvas.SetLeft(ellipse, x1 - 3.5);
-                Canvas.SetTop(ellipse, y1 - 3.5);
-                ProfileCanvas.Children.Add(ellipse);
-
-                // Подпись расстояния
-                if (i > 0 && rows[i].StationLength_m.HasValue)
-                {
-                    var distLabel = new TextBlock
-                    {
-                        Text = $"{rows[i].StationLength_m.Value:F0}м",
-                        FontSize = 9,
-                        Foreground = new SolidColorBrush(Color.FromRgb(0x80, 0x80, 0x80))
-                    };
-                    Canvas.SetLeft(distLabel, (x1 + x2) / 2 - 15);
-                    Canvas.SetTop(distLabel, canvasHeight - margin + 5);
-                    ProfileCanvas.Children.Add(distLabel);
-                }
+                // Рисуем точку
+                DrawPoint(x1, y1, points[i].pointCode, points[i].index, points[i].height,
+                         sharedPoints.Contains(points[i].pointCode),
+                         knownHeightPoints.Contains(points[i].pointCode),
+                         profileBrush);
             }
 
             // Последняя точка
             var lastX = margin + (points[^1].distance / totalDistance) * plotWidth;
             var lastY = canvasHeight - margin - ((points[^1].height - minHeight) / heightRange * plotHeight);
-            var lastEllipse = new Ellipse
+            DrawPoint(lastX, lastY, points[^1].pointCode, points[^1].index, points[^1].height,
+                     sharedPoints.Contains(points[^1].pointCode),
+                     knownHeightPoints.Contains(points[^1].pointCode),
+                     profileBrush);
+        }
+
+        /// <summary>
+        /// Рисует сетку и подписи осей
+        /// </summary>
+        private void DrawGrid(double canvasWidth, double canvasHeight, double margin,
+                              double plotWidth, double plotHeight,
+                              double minHeight, double maxHeight, double totalDistance)
+        {
+            var gridBrush = new SolidColorBrush(Color.FromRgb(0xE0, 0xE0, 0xE0));
+
+            // Вертикальные линии сетки (по расстоянию)
+            int verticalLines = 10;
+            for (int i = 0; i <= verticalLines; i++)
             {
-                Width = 7,
-                Height = 7,
-                Fill = profileBrush,
-                Stroke = Brushes.White,
+                var x = margin + (i / (double)verticalLines) * plotWidth;
+                var line = new Line
+                {
+                    X1 = x,
+                    Y1 = margin,
+                    X2 = x,
+                    Y2 = canvasHeight - margin,
+                    Stroke = gridBrush,
+                    StrokeThickness = 0.5
+                };
+                ProfileCanvas.Children.Add(line);
+
+                // Подпись расстояния
+                if (i % 2 == 0)
+                {
+                    var distance = (i / (double)verticalLines) * totalDistance;
+                    var label = new TextBlock
+                    {
+                        Text = $"{distance:F0}",
+                        FontSize = 9,
+                        Foreground = new SolidColorBrush(Color.FromRgb(0x80, 0x80, 0x80))
+                    };
+                    Canvas.SetLeft(label, x - 10);
+                    Canvas.SetTop(label, canvasHeight - margin + 5);
+                    ProfileCanvas.Children.Add(label);
+                }
+            }
+
+            // Горизонтальные линии сетки (по высоте)
+            int horizontalLines = 8;
+            for (int i = 0; i <= horizontalLines; i++)
+            {
+                var y = margin + (i / (double)horizontalLines) * plotHeight;
+                var line = new Line
+                {
+                    X1 = margin,
+                    Y1 = y,
+                    X2 = canvasWidth - margin,
+                    Y2 = y,
+                    Stroke = gridBrush,
+                    StrokeThickness = 0.5
+                };
+                ProfileCanvas.Children.Add(line);
+
+                // Подпись высоты
+                if (i % 2 == 0)
+                {
+                    var height = maxHeight - (i / (double)horizontalLines) * (maxHeight - minHeight);
+                    var label = new TextBlock
+                    {
+                        Text = $"{height:F2}",
+                        FontSize = 9,
+                        Foreground = new SolidColorBrush(Color.FromRgb(0x80, 0x80, 0x80))
+                    };
+                    Canvas.SetRight(label, canvasWidth - margin + 5);
+                    Canvas.SetTop(label, y - 7);
+                    ProfileCanvas.Children.Add(label);
+                }
+            }
+
+            // Оси
+            var axisLine = new Line
+            {
+                X1 = margin,
+                Y1 = canvasHeight - margin,
+                X2 = canvasWidth - margin,
+                Y2 = canvasHeight - margin,
+                Stroke = new SolidColorBrush(Color.FromRgb(0x60, 0x60, 0x60)),
                 StrokeThickness = 1.5
             };
-            Canvas.SetLeft(lastEllipse, lastX - 3.5);
-            Canvas.SetTop(lastEllipse, lastY - 3.5);
-            ProfileCanvas.Children.Add(lastEllipse);
+            ProfileCanvas.Children.Add(axisLine);
 
-            // Подписи высот
-            var minLabel = new TextBlock
+            var leftAxisLine = new Line
             {
-                Text = $"{minHeight:F3} м",
-                FontSize = 10,
-                Foreground = new SolidColorBrush(Color.FromRgb(0x60, 0x60, 0x60))
+                X1 = margin,
+                Y1 = margin,
+                X2 = margin,
+                Y2 = canvasHeight - margin,
+                Stroke = new SolidColorBrush(Color.FromRgb(0x60, 0x60, 0x60)),
+                StrokeThickness = 1.5
             };
-            Canvas.SetRight(minLabel, canvasWidth - margin + 5);
-            Canvas.SetBottom(minLabel, margin - 5);
-            ProfileCanvas.Children.Add(minLabel);
+            ProfileCanvas.Children.Add(leftAxisLine);
 
-            var maxLabel = new TextBlock
+            // Подписи осей
+            var xAxisLabel = new TextBlock
             {
-                Text = $"{maxHeight:F3} м",
-                FontSize = 10,
-                Foreground = new SolidColorBrush(Color.FromRgb(0x60, 0x60, 0x60))
-            };
-            Canvas.SetRight(maxLabel, canvasWidth - margin + 5);
-            Canvas.SetTop(maxLabel, margin - 5);
-            ProfileCanvas.Children.Add(maxLabel);
-
-            // Подпись общей длины
-            var totalLabel = new TextBlock
-            {
-                Text = $"Σ {totalDistance:F2} м",
+                Text = "Длина, м",
                 FontSize = 10,
                 FontWeight = FontWeights.SemiBold,
-                Foreground = new SolidColorBrush(Color.FromRgb(0x60, 0x60, 0x60))
+                Foreground = new SolidColorBrush(Color.FromRgb(0x40, 0x40, 0x40))
             };
-            Canvas.SetLeft(totalLabel, canvasWidth - margin - 60);
-            Canvas.SetTop(totalLabel, canvasHeight - margin + 5);
-            ProfileCanvas.Children.Add(totalLabel);
+            Canvas.SetLeft(xAxisLabel, canvasWidth / 2 - 30);
+            Canvas.SetTop(xAxisLabel, canvasHeight - 15);
+            ProfileCanvas.Children.Add(xAxisLabel);
+
+            var yAxisLabel = new TextBlock
+            {
+                Text = "Высота, м",
+                FontSize = 10,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = new SolidColorBrush(Color.FromRgb(0x40, 0x40, 0x40)),
+                RenderTransform = new RotateTransform(-90)
+            };
+            Canvas.SetLeft(yAxisLabel, 10);
+            Canvas.SetTop(yAxisLabel, canvasHeight / 2 + 30);
+            ProfileCanvas.Children.Add(yAxisLabel);
+        }
+
+        /// <summary>
+        /// Рисует точку с учётом её типа
+        /// </summary>
+        private void DrawPoint(double x, double y, string pointCode, int index, double height,
+                               bool isShared, bool hasKnownHeight, SolidColorBrush brush)
+        {
+            // Определяем размер точки
+            double size = isShared ? 10 : 7;
+
+            if (isShared && hasKnownHeight)
+            {
+                // Общая точка с известной высотой: большой кружок с крестиком и обводкой
+                var outerCircle = new Ellipse
+                {
+                    Width = size,
+                    Height = size,
+                    Fill = Brushes.White,
+                    Stroke = brush,
+                    StrokeThickness = 2
+                };
+                Canvas.SetLeft(outerCircle, x - size / 2);
+                Canvas.SetTop(outerCircle, y - size / 2);
+                ProfileCanvas.Children.Add(outerCircle);
+
+                // Крестик
+                var cross1 = new Line
+                {
+                    X1 = x - 3,
+                    Y1 = y - 3,
+                    X2 = x + 3,
+                    Y2 = y + 3,
+                    Stroke = brush,
+                    StrokeThickness = 1.5
+                };
+                ProfileCanvas.Children.Add(cross1);
+
+                var cross2 = new Line
+                {
+                    X1 = x - 3,
+                    Y1 = y + 3,
+                    X2 = x + 3,
+                    Y2 = y - 3,
+                    Stroke = brush,
+                    StrokeThickness = 1.5
+                };
+                ProfileCanvas.Children.Add(cross2);
+
+                // Tooltip
+                outerCircle.ToolTip = $"Точка {pointCode} (№{index})\nВысота: {height:F4} м\n(общая, с известной высотой)";
+            }
+            else if (isShared)
+            {
+                // Общая точка: большой кружок с белым центром
+                var outerCircle = new Ellipse
+                {
+                    Width = size,
+                    Height = size,
+                    Fill = Brushes.White,
+                    Stroke = brush,
+                    StrokeThickness = 2
+                };
+                Canvas.SetLeft(outerCircle, x - size / 2);
+                Canvas.SetTop(outerCircle, y - size / 2);
+                outerCircle.ToolTip = $"Точка {pointCode} (№{index})\nВысота: {height:F4} м\n(общая с другими ходами)";
+                ProfileCanvas.Children.Add(outerCircle);
+            }
+            else if (hasKnownHeight)
+            {
+                // Точка с известной высотой: кружок с крестиком
+                var circle = new Ellipse
+                {
+                    Width = size,
+                    Height = size,
+                    Fill = brush,
+                    Stroke = Brushes.White,
+                    StrokeThickness = 1.5
+                };
+                Canvas.SetLeft(circle, x - size / 2);
+                Canvas.SetTop(circle, y - size / 2);
+                circle.ToolTip = $"Точка {pointCode} (№{index})\nВысота: {height:F4} м\n(известная высота)";
+                ProfileCanvas.Children.Add(circle);
+
+                // Крестик
+                var cross1 = new Line
+                {
+                    X1 = x - 2.5,
+                    Y1 = y - 2.5,
+                    X2 = x + 2.5,
+                    Y2 = y + 2.5,
+                    Stroke = Brushes.White,
+                    StrokeThickness = 1.2
+                };
+                ProfileCanvas.Children.Add(cross1);
+
+                var cross2 = new Line
+                {
+                    X1 = x - 2.5,
+                    Y1 = y + 2.5,
+                    X2 = x + 2.5,
+                    Y2 = y - 2.5,
+                    Stroke = Brushes.White,
+                    StrokeThickness = 1.2
+                };
+                ProfileCanvas.Children.Add(cross2);
+            }
+            else
+            {
+                // Обычная точка
+                var ellipse = new Ellipse
+                {
+                    Width = size,
+                    Height = size,
+                    Fill = brush,
+                    Stroke = Brushes.White,
+                    StrokeThickness = 1.5
+                };
+                Canvas.SetLeft(ellipse, x - size / 2);
+                Canvas.SetTop(ellipse, y - size / 2);
+                ellipse.ToolTip = $"Точка {pointCode} (№{index})\nВысота: {height:F4} м";
+                ProfileCanvas.Children.Add(ellipse);
+            }
         }
 
         /// <summary>
