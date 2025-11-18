@@ -106,7 +106,8 @@
                       EnableRowVirtualization="True"
                       SelectionUnit="FullRow"
                       AlternatingRowBackground="#FFF9F9F9"
-                      GridLinesVisibility="Horizontal"
+                      GridLinesVisibility="All"
+                      VerticalGridLinesBrush="#FFE0E0E0"
                       HorizontalGridLinesBrush="#FFE0E0E0">
                     <!-- Стили для улучшения внешнего вида -->
                     <DataGrid.CellStyle>
@@ -185,63 +186,135 @@
                         </GroupStyle>
                     </DataGrid.GroupStyle>
                     <DataGrid.Columns>
-                        <DataGridTextColumn Header="№" Binding="{Binding Index}" Width="60">
+                        <DataGridTextColumn Binding="{Binding Index}" Width="60">
+                            <DataGridTextColumn.HeaderTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                        <TextBlock Text="&#xE8EF;" FontFamily="Segoe MDL2 Assets" FontSize="12" Margin="0,0,4,0" Foreground="#FF757575" />
+                                        <TextBlock Text="№" />
+                                    </StackPanel>
+                                </DataTemplate>
+                            </DataGridTextColumn.HeaderTemplate>
                             <DataGridTextColumn.HeaderStyle>
                                 <Style TargetType="DataGridColumnHeader">
                                     <Setter Property="ToolTip" Value="Номер станции в пределах хода" />
                                 </Style>
                             </DataGridTextColumn.HeaderStyle>
                         </DataGridTextColumn>
-                        <DataGridTextColumn Header="Точка" Binding="{Binding PointCode}" Width="100">
+                        <DataGridTextColumn Binding="{Binding PointCode}" Width="100">
+                            <DataGridTextColumn.HeaderTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                        <TextBlock Text="&#xE81D;" FontFamily="Segoe MDL2 Assets" FontSize="12" Margin="0,0,4,0" Foreground="#FF2196F3" />
+                                        <TextBlock Text="Точка" />
+                                    </StackPanel>
+                                </DataTemplate>
+                            </DataGridTextColumn.HeaderTemplate>
                             <DataGridTextColumn.HeaderStyle>
                                 <Style TargetType="DataGridColumnHeader">
                                     <Setter Property="ToolTip" Value="Код точки (для виртуальных станций - задняя точка, для обычных - передняя)" />
                                 </Style>
                             </DataGridTextColumn.HeaderStyle>
                         </DataGridTextColumn>
-                        <DataGridTextColumn Header="Станция" Binding="{Binding Station}" Width="180">
+                        <DataGridTextColumn Binding="{Binding Station}" Width="180">
+                            <DataGridTextColumn.HeaderTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                        <TextBlock Text="&#xE81E;" FontFamily="Segoe MDL2 Assets" FontSize="12" Margin="0,0,4,0" Foreground="#FF4CAF50" />
+                                        <TextBlock Text="Станция" />
+                                    </StackPanel>
+                                </DataTemplate>
+                            </DataGridTextColumn.HeaderTemplate>
                             <DataGridTextColumn.HeaderStyle>
                                 <Style TargetType="DataGridColumnHeader">
                                     <Setter Property="ToolTip" Value="Переход: задняя точка → передняя точка" />
                                 </Style>
                             </DataGridTextColumn.HeaderStyle>
                         </DataGridTextColumn>
-                        <DataGridTextColumn Header="Длина станции, м" Binding="{Binding StationLength_m, StringFormat=0.00}" Width="120">
+                        <DataGridTextColumn Binding="{Binding StationLength_m, StringFormat=0.00}" Width="120">
+                            <DataGridTextColumn.HeaderTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                        <TextBlock Text="&#xECC6;" FontFamily="Segoe MDL2 Assets" FontSize="12" Margin="0,0,4,0" Foreground="#FF00BCD4" />
+                                        <TextBlock Text="Длина ст., м" />
+                                    </StackPanel>
+                                </DataTemplate>
+                            </DataGridTextColumn.HeaderTemplate>
                             <DataGridTextColumn.HeaderStyle>
                                 <Style TargetType="DataGridColumnHeader">
                                     <Setter Property="ToolTip" Value="Сумма визирных лучей: HDback + HDfore" />
                                 </Style>
                             </DataGridTextColumn.HeaderStyle>
                         </DataGridTextColumn>
-                        <DataGridTextColumn Header="Δh, м" Binding="{Binding DeltaH, StringFormat=+0.0000;-0.0000;0.0000}" Width="100">
+                        <DataGridTextColumn Binding="{Binding DeltaH, StringFormat=+0.0000;-0.0000;0.0000}" Width="100">
+                            <DataGridTextColumn.HeaderTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                        <TextBlock Text="&#xEE4A;" FontFamily="Segoe MDL2 Assets" FontSize="12" Margin="0,0,4,0" Foreground="#FF03A9F4" />
+                                        <TextBlock Text="Δh, м" />
+                                    </StackPanel>
+                                </DataTemplate>
+                            </DataGridTextColumn.HeaderTemplate>
                             <DataGridTextColumn.HeaderStyle>
                                 <Style TargetType="DataGridColumnHeader">
                                     <Setter Property="ToolTip" Value="Превышение: Rb - Rf (расчитанное значение)" />
                                 </Style>
                             </DataGridTextColumn.HeaderStyle>
                         </DataGridTextColumn>
-                        <DataGridTextColumn Header="Поправка, м" Binding="{Binding Correction, StringFormat=+0.0000;-0.0000;0.0000}" Width="120">
+                        <DataGridTextColumn Binding="{Binding Correction, StringFormat=+0.0000;-0.0000;0.0000}" Width="120">
+                            <DataGridTextColumn.HeaderTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                        <TextBlock Text="&#xE74E;" FontFamily="Segoe MDL2 Assets" FontSize="12" Margin="0,0,4,0" Foreground="#FFFF9800" />
+                                        <TextBlock Text="Поправка, м" />
+                                    </StackPanel>
+                                </DataTemplate>
+                            </DataGridTextColumn.HeaderTemplate>
                             <DataGridTextColumn.HeaderStyle>
                                 <Style TargetType="DataGridColumnHeader">
                                     <Setter Property="ToolTip" Value="Поправка для распределения невязки" />
                                 </Style>
                             </DataGridTextColumn.HeaderStyle>
                         </DataGridTextColumn>
-                        <DataGridTextColumn Header="Δh испр., м" Binding="{Binding AdjustedDeltaH, StringFormat=+0.0000;-0.0000;0.0000}" Width="120">
+                        <DataGridTextColumn Binding="{Binding AdjustedDeltaH, StringFormat=+0.0000;-0.0000;0.0000}" Width="120">
+                            <DataGridTextColumn.HeaderTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                        <TextBlock Text="&#xE73E;" FontFamily="Segoe MDL2 Assets" FontSize="12" Margin="0,0,4,0" Foreground="#FF4CAF50" />
+                                        <TextBlock Text="Δh испр., м" />
+                                    </StackPanel>
+                                </DataTemplate>
+                            </DataGridTextColumn.HeaderTemplate>
                             <DataGridTextColumn.HeaderStyle>
                                 <Style TargetType="DataGridColumnHeader">
                                     <Setter Property="ToolTip" Value="Исправленное превышение (с учётом поправки)" />
                                 </Style>
                             </DataGridTextColumn.HeaderStyle>
                         </DataGridTextColumn>
-                        <DataGridTextColumn Header="Z0, м" Binding="{Binding HeightZ0Display}" Width="150">
+                        <DataGridTextColumn Binding="{Binding HeightZ0Display}" Width="150">
+                            <DataGridTextColumn.HeaderTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                        <TextBlock Text="&#xE8B7;" FontFamily="Segoe MDL2 Assets" FontSize="12" Margin="0,0,4,0" Foreground="#FF9E9E9E" />
+                                        <TextBlock Text="Z0, м" />
+                                    </StackPanel>
+                                </DataTemplate>
+                            </DataGridTextColumn.HeaderTemplate>
                             <DataGridTextColumn.HeaderStyle>
                                 <Style TargetType="DataGridColumnHeader">
                                     <Setter Property="ToolTip" Value="Высота точки без поправки за невязку (для виртуальных станций - задняя, для обычных - передняя)" />
                                 </Style>
                             </DataGridTextColumn.HeaderStyle>
                         </DataGridTextColumn>
-                        <DataGridTextColumn Header="Z, м" Binding="{Binding HeightDisplay}" Width="150">
+                        <DataGridTextColumn Binding="{Binding HeightDisplay}" Width="150">
+                            <DataGridTextColumn.HeaderTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                        <TextBlock Text="&#xE8B7;" FontFamily="Segoe MDL2 Assets" FontSize="12" Margin="0,0,4,0" Foreground="#FF1976D2" />
+                                        <TextBlock Text="Z, м" />
+                                    </StackPanel>
+                                </DataTemplate>
+                            </DataGridTextColumn.HeaderTemplate>
                             <DataGridTextColumn.HeaderStyle>
                                 <Style TargetType="DataGridColumnHeader">
                                     <Setter Property="ToolTip" Value="Высота точки (для виртуальных станций - задняя, для обычных - передняя)" />

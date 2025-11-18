@@ -20,9 +20,89 @@
                                FontSize="14"
                                FontWeight="SemiBold"
                                Margin="0,0,0,12" />
-                    <TextBlock Text="Пока нет настроек в этом разделе"
-                               Foreground="#FF808080"
-                               FontStyle="Italic" />
+
+                    <!-- Шрифт таблиц -->
+                    <GroupBox Header="Шрифт таблиц" Margin="0,0,0,16">
+                        <StackPanel Margin="8">
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                                <TextBlock Text="Семейство шрифта:"
+                                           VerticalAlignment="Center"
+                                           Width="180" />
+                                <ComboBox Width="200"
+                                          SelectedItem="{Binding TableFontFamily, Mode=TwoWay}">
+                                    <ComboBoxItem Content="Segoe UI" />
+                                    <ComboBoxItem Content="Calibri" />
+                                    <ComboBoxItem Content="Arial" />
+                                    <ComboBoxItem Content="Times New Roman" />
+                                    <ComboBoxItem Content="Consolas" />
+                                    <ComboBoxItem Content="Courier New" />
+                                </ComboBox>
+                            </StackPanel>
+
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,0">
+                                <TextBlock Text="Размер шрифта:"
+                                           VerticalAlignment="Center"
+                                           Width="180" />
+                                <Slider Width="200"
+                                        Minimum="10"
+                                        Maximum="20"
+                                        Value="{Binding TableFontSize, Mode=TwoWay}"
+                                        TickFrequency="1"
+                                        IsSnapToTickEnabled="True"
+                                        TickPlacement="BottomRight" />
+                                <TextBlock Text="{Binding TableFontSize, StringFormat={}{0} pt}"
+                                           Margin="8,0,0,0"
+                                           VerticalAlignment="Center"
+                                           Width="50" />
+                            </StackPanel>
+                        </StackPanel>
+                    </GroupBox>
+
+                    <!-- Сетка таблиц -->
+                    <GroupBox Header="Сетка таблиц" Margin="0,0,0,16">
+                        <StackPanel Margin="8">
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                                <TextBlock Text="Толщина линий сетки:"
+                                           VerticalAlignment="Center"
+                                           Width="180" />
+                                <Slider Width="200"
+                                        Minimum="0.5"
+                                        Maximum="3"
+                                        Value="{Binding GridLineThickness, Mode=TwoWay}"
+                                        TickFrequency="0.5"
+                                        IsSnapToTickEnabled="True"
+                                        TickPlacement="BottomRight" />
+                                <TextBlock Text="{Binding GridLineThickness, StringFormat={}{0:F1} px}"
+                                           Margin="8,0,0,0"
+                                           VerticalAlignment="Center"
+                                           Width="50" />
+                            </StackPanel>
+
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="Цвет линий сетки:"
+                                           VerticalAlignment="Center"
+                                           Width="180" />
+                                <ComboBox Width="200"
+                                          SelectedIndex="{Binding GridLineColorIndex, Mode=TwoWay}">
+                                    <ComboBoxItem Content="Светло-серый (по умолчанию)" />
+                                    <ComboBoxItem Content="Серый" />
+                                    <ComboBoxItem Content="Темно-серый" />
+                                    <ComboBoxItem Content="Голубоватый" />
+                                </ComboBox>
+                            </StackPanel>
+                        </StackPanel>
+                    </GroupBox>
+
+                    <!-- Внешний вид -->
+                    <GroupBox Header="Внешний вид" Margin="0,0,0,0">
+                        <StackPanel Margin="8">
+                            <CheckBox Content="Чередующиеся цвета строк"
+                                      IsChecked="{Binding AlternatingRowColors, Mode=TwoWay}"
+                                      Margin="0,0,0,8" />
+                            <CheckBox Content="Показывать иконки в заголовках колонок"
+                                      IsChecked="{Binding ShowColumnHeaderIcons, Mode=TwoWay}" />
+                        </StackPanel>
+                    </GroupBox>
                 </StackPanel>
             </Border>
 
