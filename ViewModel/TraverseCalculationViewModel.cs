@@ -21,6 +21,8 @@ namespace Nivtropy.ViewModels
         private readonly ObservableCollection<PointItem> _availablePoints = new();
         private readonly ObservableCollection<BenchmarkItem> _benchmarks = new();
 
+        private bool _isUpdating = false; // Флаг для подавления обновлений
+
         // Методы нивелирования для двойного хода
         // Допуск: 4 мм × √n, где n - число станций
         private readonly LevelingMethodOption[] _methods =
@@ -61,12 +63,28 @@ namespace Nivtropy.ViewModels
         {
             _dataViewModel = dataViewModel;
             _settingsViewModel = settingsViewModel;
-            ((INotifyCollectionChanged)_dataViewModel.Records).CollectionChanged += (_, __) => UpdateRows();
+            ((INotifyCollectionChanged)_dataViewModel.Records).CollectionChanged += OnRecordsCollectionChanged;
             ((INotifyCollectionChanged)_dataViewModel.Runs).CollectionChanged += (_, __) => OnPropertyChanged(nameof(Runs));
             _dataViewModel.PropertyChanged += DataViewModelOnPropertyChanged;
 
+            // Подписываемся на события батчевых обновлений
+            _dataViewModel.BeginBatchUpdate += (_, __) => _isUpdating = true;
+            _dataViewModel.EndBatchUpdate += (_, __) =>
+            {
+                _isUpdating = false;
+                UpdateRows(); // Обновляем один раз после завершения батча
+            };
+
             _selectedMethod = _methods.FirstOrDefault();
             _selectedClass = _classes.FirstOrDefault();
+            UpdateRows();
+        }
+
+        private void OnRecordsCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+        {
+            if (_isUpdating)
+                return;
+
             UpdateRows();
         }
 

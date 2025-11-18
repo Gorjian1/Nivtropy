@@ -23,15 +23,33 @@ namespace Nivtropy.ViewModels
         private string _closureStatus = "Нет данных";
         private double _totalDistance;
 
+        private bool _isUpdating = false; // Флаг для подавления обновлений
+
         public TraverseDesignViewModel(DataViewModel dataViewModel)
         {
             _dataViewModel = dataViewModel;
-            ((INotifyCollectionChanged)_dataViewModel.Records).CollectionChanged += (_, __) => UpdateRows();
+            ((INotifyCollectionChanged)_dataViewModel.Records).CollectionChanged += OnRecordsCollectionChanged;
             ((INotifyCollectionChanged)_dataViewModel.Runs).CollectionChanged += (_, __) => OnPropertyChanged(nameof(Runs));
             _dataViewModel.PropertyChanged += DataViewModelOnPropertyChanged;
 
+            // Подписываемся на события батчевых обновлений
+            _dataViewModel.BeginBatchUpdate += (_, __) => _isUpdating = true;
+            _dataViewModel.EndBatchUpdate += (_, __) =>
+            {
+                _isUpdating = false;
+                UpdateRows(); // Обновляем один раз после завершения батча
+            };
+
             TargetClosure = 0;
             StartHeight = 0;
+            UpdateRows();
+        }
+
+        private void OnRecordsCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+        {
+            if (_isUpdating)
+                return;
+
             UpdateRows();
         }
 

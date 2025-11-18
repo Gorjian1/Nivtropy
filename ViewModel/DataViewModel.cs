@@ -20,6 +20,10 @@ namespace Nivtropy.ViewModels
         // Словарь известных высот точек: ключ - код точки, значение - высота
         private readonly Dictionary<string, double> _knownHeights = new(StringComparer.OrdinalIgnoreCase);
 
+        // События для оптимизации массовых обновлений
+        public event EventHandler? BeginBatchUpdate;
+        public event EventHandler? EndBatchUpdate;
+
         private string? _sourcePath;
         public string? SourcePath
         {
@@ -59,18 +63,30 @@ namespace Nivtropy.ViewModels
         public void LoadFromFile(string path)
         {
             SourcePath = path;
-            Records.Clear();
-            _knownHeights.Clear();
 
-            var parser = new DatParser();
-            var parsed = parser.Parse(path).ToList();
+            // Уведомляем о начале массового обновления
+            BeginBatchUpdate?.Invoke(this, EventArgs.Empty);
 
-            // Фильтрация теперь выполняется в парсере
-            AnnotateRuns(parsed);
-
-            foreach (var rec in parsed)
+            try
             {
-                Records.Add(rec);
+                Records.Clear();
+                _knownHeights.Clear();
+
+                var parser = new DatParser();
+                var parsed = parser.Parse(path).ToList();
+
+                // Фильтрация теперь выполняется в парсере
+                AnnotateRuns(parsed);
+
+                foreach (var rec in parsed)
+                {
+                    Records.Add(rec);
+                }
+            }
+            finally
+            {
+                // Уведомляем о завершении массового обновления
+                EndBatchUpdate?.Invoke(this, EventArgs.Empty);
             }
         }
 
