@@ -47,23 +47,56 @@
 
                     <!-- Панель управления реперами -->
                     <ToolBar>
-                        <Label Content="Реперы:"/>
-                        <ComboBox Width="180"
-                                  ItemsSource="{Binding CalculationViewModel.AvailablePoints}"
-                                  SelectedItem="{Binding CalculationViewModel.SelectedPoint, Mode=TwoWay}"
-                                  DisplayMemberPath="DisplayName"
-                                  ToolTip="Выберите точку для установки известной высоты"/>
-                        <Label Content="Высота:"/>
-                        <TextBox Width="80"
-                                 Text="{Binding CalculationViewModel.NewBenchmarkHeight, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                 ToolTip="Введите известную высоту репера"/>
-                        <Button Content="Добавить"
-                                Command="{Binding CalculationViewModel.AddBenchmarkCommand}"
-                                ToolTip="Добавить репер с указанной высотой"/>
+                        <!-- Ввод новой высоты - компактная плашка -->
+                        <Border BorderBrush="#FFB0B0B0" BorderThickness="1" CornerRadius="3" Padding="6,2" Background="White">
+                            <StackPanel Orientation="Horizontal">
+                                <Label Content="Реперы:" Padding="0" VerticalAlignment="Center"/>
+                                <ComboBox Width="126" Margin="6,0,0,0"
+                                          ItemsSource="{Binding CalculationViewModel.AvailablePoints}"
+                                          SelectedItem="{Binding CalculationViewModel.SelectedPoint, Mode=TwoWay}"
+                                          DisplayMemberPath="DisplayName"
+                                          ToolTip="Выберите точку для установки известной высоты"
+                                          VerticalAlignment="Center"/>
+                                <Label Content="H:" Padding="0" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                                <TextBox x:Name="BenchmarkHeightTextBox"
+                                         Width="70" Margin="4,0,0,0"
+                                         Text="{Binding CalculationViewModel.NewBenchmarkHeight, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                         ToolTip="Введите известную высоту репера (Enter для добавления)"
+                                         KeyDown="BenchmarkHeightTextBox_KeyDown"
+                                         VerticalAlignment="Center"
+                                         VerticalContentAlignment="Center"/>
+                                <Button Content="&#xE710;"
+                                        FontFamily="Segoe MDL2 Assets"
+                                        FontSize="14"
+                                        Width="24" Height="24"
+                                        Margin="4,0,0,0"
+                                        Command="{Binding CalculationViewModel.AddBenchmarkCommand}"
+                                        ToolTip="Добавить репер"
+                                        VerticalAlignment="Center"
+                                        Padding="0"
+                                        Background="Transparent"
+                                        BorderThickness="0">
+                                    <Button.Style>
+                                        <Style TargetType="Button">
+                                            <Setter Property="Foreground" Value="#FF4CAF50"/>
+                                            <Style.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter Property="Foreground" Value="#FF388E3C"/>
+                                                </Trigger>
+                                                <Trigger Property="IsEnabled" Value="False">
+                                                    <Setter Property="Foreground" Value="#FFCCCCCC"/>
+                                                </Trigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Button.Style>
+                                </Button>
+                            </StackPanel>
+                        </Border>
+
                         <Separator/>
                         <Label Content="Установлено:"/>
                         <ComboBox x:Name="BenchmarksComboBox"
-                                  Width="220"
+                                  Width="154"
                                   ItemsSource="{Binding CalculationViewModel.Benchmarks}"
                                   DisplayMemberPath="DisplayName"
                                   ToolTip="Список установленных реперов"/>
