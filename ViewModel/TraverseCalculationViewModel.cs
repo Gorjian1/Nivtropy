@@ -381,113 +381,90 @@ namespace Nivtropy.ViewModels
                 using var workbook = new XLWorkbook();
                 var worksheet = workbook.Worksheets.Add("Нивелирование");
 
-                // Заголовок
                 int row = 1;
-                worksheet.Cell(row, 1).Value = "Расчёт нивелирного хода";
-                worksheet.Cell(row, 1).Style.Font.Bold = true;
-                worksheet.Cell(row, 1).Style.Font.FontSize = 14;
-                row += 2;
 
-                // Общая статистика
-                worksheet.Cell(row, 1).Value = "Метод:";
-                worksheet.Cell(row, 2).Value = SelectedMethod?.Display ?? "";
-                row++;
-                worksheet.Cell(row, 1).Value = "Класс:";
-                worksheet.Cell(row, 2).Value = SelectedClass?.Display ?? "";
-                row++;
-                worksheet.Cell(row, 1).Value = "Станций:";
-                worksheet.Cell(row, 2).Value = StationsCount;
-                row++;
-                worksheet.Cell(row, 1).Value = "ΣΔh:";
-                worksheet.Cell(row, 2).Value = Closure;
-                worksheet.Cell(row, 2).Style.NumberFormat.Format = "+0.0000;-0.0000;0.0000";
-                row++;
-                worksheet.Cell(row, 1).Value = "Допуск невязки:";
-                worksheet.Cell(row, 2).Value = AllowableClosure;
-                worksheet.Cell(row, 2).Style.NumberFormat.Format = "0.0000";
-                row++;
-                worksheet.Cell(row, 1).Value = "Вердикт:";
-                worksheet.Cell(row, 2).Value = ClosureVerdict;
-                row += 2;
-
-                // Группировка по ходам
+                // Группировка по ходам для подсчета статистики
                 var groupedRows = _rows.GroupBy(r => r.LineName).ToList();
+
+                // Подсчет общей статистики
+                double totalLengthBack = 0;
+                double totalLengthFore = 0;
+                double totalLength = 0;
+                double accumulationDifference = 0; // Накопление разности плеч
 
                 foreach (var group in groupedRows)
                 {
-                    // Заголовок хода
-                    var firstRow = group.First();
-                    var lineSummary = firstRow.LineSummary;
-
-                    worksheet.Cell(row, 1).Value = $"{group.Key}";
-                    worksheet.Cell(row, 1).Style.Font.Bold = true;
-                    worksheet.Cell(row, 1).Style.Fill.BackgroundColor = XLColor.LightBlue;
-                    worksheet.Range(row, 1, row, 11).Merge();
-                    row++;
-
-                    // Статистика хода
+                    var lineSummary = group.First().LineSummary;
                     if (lineSummary != null)
                     {
-                        worksheet.Cell(row, 1).Value = $"Станций: {group.Count()}";
-                        worksheet.Cell(row, 3).Value = $"ΣΔh: {group.Where(r => r.DeltaH.HasValue).Sum(r => r.DeltaH!.Value):+0.0000;-0.0000;0.0000}";
-                        worksheet.Cell(row, 5).Value = $"Длина назад: {lineSummary.TotalDistanceBack:0.00} м";
-                        worksheet.Cell(row, 7).Value = $"Длина вперёд: {lineSummary.TotalDistanceFore:0.00} м";
-                        worksheet.Cell(row, 9).Value = $"Общая длина: {lineSummary.TotalAverageLength:0.00} м";
-                        row++;
+                        totalLengthBack += lineSummary.TotalDistanceBack;
+                        totalLengthFore += lineSummary.TotalDistanceFore;
+                        totalLength += lineSummary.TotalAverageLength;
+                        accumulationDifference += Math.Abs(lineSummary.TotalDistanceBack - lineSummary.TotalDistanceFore);
                     }
-
-                    // Заголовки столбцов таблицы
-                    int col = 1;
-                    worksheet.Cell(row, col++).Value = "№";
-                    worksheet.Cell(row, col++).Value = "Точка";
-                    worksheet.Cell(row, col++).Value = "Станция";
-                    worksheet.Cell(row, col++).Value = "Rb, м";
-                    worksheet.Cell(row, col++).Value = "Rf, м";
-                    worksheet.Cell(row, col++).Value = "Δh, м";
-                    worksheet.Cell(row, col++).Value = "Поправка, мм";
-                    worksheet.Cell(row, col++).Value = "Δh испр., м";
-                    worksheet.Cell(row, col++).Value = "Z0, м";
-                    worksheet.Cell(row, col++).Value = "Z, м";
-                    worksheet.Cell(row, col++).Value = "Длина ст., м";
-
-                    worksheet.Range(row, 1, row, col - 1).Style.Font.Bold = true;
-                    worksheet.Range(row, 1, row, col - 1).Style.Fill.BackgroundColor = XLColor.LightGray;
-                    row++;
-
-                    // Данные станций
-                    foreach (var dataRow in group)
-                    {
-                        col = 1;
-                        worksheet.Cell(row, col++).Value = dataRow.Index;
-                        worksheet.Cell(row, col++).Value = dataRow.PointCode;
-                        worksheet.Cell(row, col++).Value = dataRow.Station;
-                        worksheet.Cell(row, col++).Value = dataRow.Rb_m;
-                        worksheet.Cell(row, col++).Value = dataRow.Rf_m;
-                        worksheet.Cell(row, col++).Value = dataRow.DeltaH;
-                        worksheet.Cell(row, col++).Value = dataRow.Correction.HasValue ? dataRow.Correction.Value * 1000 : (double?)null; // в мм
-                        worksheet.Cell(row, col++).Value = dataRow.AdjustedDeltaH;
-                        worksheet.Cell(row, col++).Value = dataRow.IsVirtualStation ? dataRow.BackHeightZ0 : dataRow.ForeHeightZ0;
-                        worksheet.Cell(row, col++).Value = dataRow.IsVirtualStation ? dataRow.BackHeight : dataRow.ForeHeight;
-                        worksheet.Cell(row, col++).Value = dataRow.StationLength_m;
-
-                        // Форматирование чисел
-                        worksheet.Cell(row, 4).Style.NumberFormat.Format = "0.0000";
-                        worksheet.Cell(row, 5).Style.NumberFormat.Format = "0.0000";
-                        worksheet.Cell(row, 6).Style.NumberFormat.Format = "+0.0000;-0.0000;0.0000";
-                        worksheet.Cell(row, 7).Style.NumberFormat.Format = "0.0";
-                        worksheet.Cell(row, 8).Style.NumberFormat.Format = "+0.0000;-0.0000;0.0000";
-                        worksheet.Cell(row, 9).Style.NumberFormat.Format = "0.0000";
-                        worksheet.Cell(row, 10).Style.NumberFormat.Format = "0.0000";
-                        worksheet.Cell(row, 11).Style.NumberFormat.Format = "0.00";
-
-                        row++;
-                    }
-
-                    row++; // Пустая строка между ходами
                 }
 
-                // Автоподбор ширины столбцов
-                worksheet.Columns().AdjustToContents();
+                // Строка со сводной информацией (без форматирования для легкой конвертации в CSV)
+                int col = 1;
+                worksheet.Cell(row, col++).Value = "Метод";
+                worksheet.Cell(row, col++).Value = SelectedMethod?.Display ?? "";
+                worksheet.Cell(row, col++).Value = "Класс";
+                worksheet.Cell(row, col++).Value = SelectedClass?.Display ?? "";
+                worksheet.Cell(row, col++).Value = "Количество ходов";
+                worksheet.Cell(row, col++).Value = groupedRows.Count;
+                worksheet.Cell(row, col++).Value = "Станций";
+                worksheet.Cell(row, col++).Value = StationsCount;
+                worksheet.Cell(row, col++).Value = "Общая длина, м";
+                worksheet.Cell(row, col++).Value = totalLength;
+                worksheet.Cell(row, col++).Value = "Длина назад, м";
+                worksheet.Cell(row, col++).Value = totalLengthBack;
+                worksheet.Cell(row, col++).Value = "Длина вперед, м";
+                worksheet.Cell(row, col++).Value = totalLengthFore;
+                worksheet.Cell(row, col++).Value = "Накопление разности плеч, м";
+                worksheet.Cell(row, col++).Value = accumulationDifference;
+                worksheet.Cell(row, col++).Value = "ΣΔh, м";
+                worksheet.Cell(row, col++).Value = Closure;
+                worksheet.Cell(row, col++).Value = "Допуск невязки, м";
+                worksheet.Cell(row, col++).Value = AllowableClosure;
+                worksheet.Cell(row, col++).Value = "Вердикт";
+                worksheet.Cell(row, col++).Value = ClosureVerdict;
+
+                row += 2;
+
+                // Заголовки столбцов таблицы (без форматирования)
+                col = 1;
+                worksheet.Cell(row, col++).Value = "Номер";
+                worksheet.Cell(row, col++).Value = "Ход";
+                worksheet.Cell(row, col++).Value = "Точка";
+                worksheet.Cell(row, col++).Value = "Станция";
+                worksheet.Cell(row, col++).Value = "Отсчет назад, м";
+                worksheet.Cell(row, col++).Value = "Отсчет вперед, м";
+                worksheet.Cell(row, col++).Value = "Превышение, м";
+                worksheet.Cell(row, col++).Value = "Поправка, мм";
+                worksheet.Cell(row, col++).Value = "Превышение испр., м";
+                worksheet.Cell(row, col++).Value = "Высота непров., м";
+                worksheet.Cell(row, col++).Value = "Высота, м";
+                worksheet.Cell(row, col++).Value = "Длина станции, м";
+                row++;
+
+                // Данные всех станций (без форматирования)
+                foreach (var dataRow in _rows)
+                {
+                    col = 1;
+                    worksheet.Cell(row, col++).Value = dataRow.Index;
+                    worksheet.Cell(row, col++).Value = dataRow.LineName;
+                    worksheet.Cell(row, col++).Value = dataRow.PointCode;
+                    worksheet.Cell(row, col++).Value = dataRow.Station;
+                    worksheet.Cell(row, col++).Value = dataRow.Rb_m;
+                    worksheet.Cell(row, col++).Value = dataRow.Rf_m;
+                    worksheet.Cell(row, col++).Value = dataRow.DeltaH;
+                    worksheet.Cell(row, col++).Value = dataRow.Correction.HasValue ? dataRow.Correction.Value * 1000 : (double?)null;
+                    worksheet.Cell(row, col++).Value = dataRow.AdjustedDeltaH;
+                    worksheet.Cell(row, col++).Value = dataRow.IsVirtualStation ? dataRow.BackHeightZ0 : dataRow.ForeHeightZ0;
+                    worksheet.Cell(row, col++).Value = dataRow.IsVirtualStation ? dataRow.BackHeight : dataRow.ForeHeight;
+                    worksheet.Cell(row, col++).Value = dataRow.StationLength_m;
+                    row++;
+                }
 
                 workbook.SaveAs(saveFileDialog.FileName);
 
