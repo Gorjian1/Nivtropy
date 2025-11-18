@@ -47,81 +47,87 @@
 
                     <!-- Панель управления реперами -->
                     <ToolBar>
-                        <Grid x:Name="BenchmarksToolbarGrid">
-                            <!-- Компактная плашка для ввода -->
-                            <Border BorderBrush="#FFB0B0B0" BorderThickness="1" CornerRadius="3" Padding="6,2" Background="White">
-                                <StackPanel Orientation="Horizontal">
-                                    <!-- Кнопка для показа списка -->
-                                    <Button x:Name="ToggleBenchmarksButton"
-                                            Content="&#xE70D;"
-                                            FontFamily="Segoe MDL2 Assets"
-                                            FontSize="12"
-                                            Width="20" Height="24"
-                                            Margin="0,0,4,0"
-                                            Click="ToggleBenchmarksButton_Click"
-                                            ToolTip="Показать/скрыть список реперов"
-                                            VerticalAlignment="Center"
-                                            Padding="0"
-                                            Background="Transparent"
-                                            BorderThickness="0"
-                                            Foreground="#FF606060"/>
+                        <!-- Компактная плашка для ввода -->
+                        <Border BorderBrush="#FFB0B0B0" BorderThickness="1" CornerRadius="3" Padding="6,2" Background="White">
+                            <StackPanel Orientation="Horizontal">
+                                <!-- Кнопка для показа списка -->
+                                <Button x:Name="ToggleBenchmarksButton"
+                                        Content="&#xE70D;"
+                                        FontFamily="Segoe MDL2 Assets"
+                                        FontSize="12"
+                                        Width="20" Height="24"
+                                        Margin="0,0,4,0"
+                                        Click="ToggleBenchmarksButton_Click"
+                                        ToolTip="Показать/скрыть список реперов"
+                                        VerticalAlignment="Center"
+                                        Padding="0"
+                                        Background="Transparent"
+                                        BorderThickness="0"
+                                        Foreground="#FF606060"/>
 
-                                    <Label Content="Реперы:" Padding="0" VerticalAlignment="Center"/>
-                                    <ComboBox Width="126" Margin="6,0,0,0"
-                                              ItemsSource="{Binding CalculationViewModel.AvailablePoints}"
-                                              SelectedItem="{Binding CalculationViewModel.SelectedPoint, Mode=TwoWay}"
-                                              DisplayMemberPath="DisplayName"
-                                              ToolTip="Выберите точку для установки известной высоты"
-                                              VerticalAlignment="Center"/>
-                                    <Label Content="H:" Padding="0" Margin="8,0,0,0" VerticalAlignment="Center"/>
-                                    <TextBox x:Name="BenchmarkHeightTextBox"
-                                             Width="70" Margin="4,0,0,0"
-                                             Text="{Binding CalculationViewModel.NewBenchmarkHeight, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                             ToolTip="Введите известную высоту репера (Enter для добавления)"
-                                             KeyDown="BenchmarkHeightTextBox_KeyDown"
-                                             VerticalAlignment="Center"
-                                             VerticalContentAlignment="Center"/>
-                                    <Button Content="&#xE710;"
-                                            FontFamily="Segoe MDL2 Assets"
-                                            FontSize="14"
-                                            Width="24" Height="24"
-                                            Margin="4,0,0,0"
-                                            Command="{Binding CalculationViewModel.AddBenchmarkCommand}"
-                                            ToolTip="Добавить репер"
-                                            VerticalAlignment="Center"
-                                            Padding="0"
-                                            Background="Transparent"
-                                            BorderThickness="0">
-                                        <Button.Style>
-                                            <Style TargetType="Button">
-                                                <Setter Property="Foreground" Value="#FF4CAF50"/>
-                                                <Style.Triggers>
-                                                    <Trigger Property="IsMouseOver" Value="True">
-                                                        <Setter Property="Foreground" Value="#FF388E3C"/>
-                                                    </Trigger>
-                                                    <Trigger Property="IsEnabled" Value="False">
-                                                        <Setter Property="Foreground" Value="#FFCCCCCC"/>
-                                                    </Trigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </Button.Style>
-                                    </Button>
-                                </StackPanel>
-                            </Border>
+                                <Label Content="Реперы:" Padding="0" VerticalAlignment="Center"/>
+                                <ComboBox Width="126" Margin="6,0,0,0"
+                                          ItemsSource="{Binding CalculationViewModel.AvailablePoints}"
+                                          SelectedItem="{Binding CalculationViewModel.SelectedPoint, Mode=TwoWay}"
+                                          DisplayMemberPath="DisplayName"
+                                          ToolTip="Выберите точку для установки известной высоты"
+                                          VerticalAlignment="Center"/>
+                                <Label Content="H:" Padding="0" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                                <TextBox x:Name="BenchmarkHeightTextBox"
+                                         Width="70" Margin="4,0,0,0"
+                                         Text="{Binding CalculationViewModel.NewBenchmarkHeight, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                         ToolTip="Введите известную высоту репера (Enter для добавления)"
+                                         KeyDown="BenchmarkHeightTextBox_KeyDown"
+                                         VerticalAlignment="Center"
+                                         VerticalContentAlignment="Center"/>
+                                <Button Content="&#xE710;"
+                                        FontFamily="Segoe MDL2 Assets"
+                                        FontSize="14"
+                                        Width="24" Height="24"
+                                        Margin="4,0,0,0"
+                                        Command="{Binding CalculationViewModel.AddBenchmarkCommand}"
+                                        ToolTip="Добавить репер"
+                                        VerticalAlignment="Center"
+                                        Padding="0"
+                                        Background="Transparent"
+                                        BorderThickness="0">
+                                    <Button.Style>
+                                        <Style TargetType="Button">
+                                            <Setter Property="Foreground" Value="#FF4CAF50"/>
+                                            <Style.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter Property="Foreground" Value="#FF388E3C"/>
+                                                </Trigger>
+                                                <Trigger Property="IsEnabled" Value="False">
+                                                    <Setter Property="Foreground" Value="#FFCCCCCC"/>
+                                                </Trigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Button.Style>
+                                </Button>
+                            </StackPanel>
+                        </Border>
 
-                            <!-- Выпадающий список реперов -->
-                            <Border x:Name="BenchmarksListPopup"
-                                    Visibility="Collapsed"
-                                    Background="White"
+                        <Separator/>
+                        <Button Content="Экспорт в Excel"
+                                Command="{Binding CalculationViewModel.ExportCommand}"
+                                ToolTip="Экспортировать данные в Excel"/>
+
+                        <!-- Popup для выпадающего списка реперов (не влияет на layout) -->
+                        <Popup x:Name="BenchmarksListPopup"
+                               PlacementTarget="{Binding ElementName=ToggleBenchmarksButton}"
+                               Placement="Bottom"
+                               StaysOpen="False"
+                               AllowsTransparency="True">
+                            <Border Background="White"
                                     BorderBrush="#FFB0B0B0"
                                     BorderThickness="1"
                                     CornerRadius="3"
-                                    Margin="0,32,0,0"
                                     MaxHeight="200"
-                                    MinWidth="300"
-                                    VerticalAlignment="Top"
-                                    HorizontalAlignment="Left"
-                                    Panel.ZIndex="1000">
+                                    MinWidth="300">
+                                <Border.Effect>
+                                    <DropShadowEffect Color="Black" Opacity="0.3" BlurRadius="10" ShadowDepth="2"/>
+                                </Border.Effect>
                                 <Grid>
                                     <!-- Список реперов -->
                                     <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
@@ -201,12 +207,7 @@
                                     </TextBlock>
                                 </Grid>
                             </Border>
-                        </Grid>
-
-                        <Separator/>
-                        <Button Content="Экспорт в Excel"
-                                Command="{Binding CalculationViewModel.ExportCommand}"
-                                ToolTip="Экспортировать данные в Excel"/>
+                        </Popup>
                     </ToolBar>
                 </ToolBarTray>
             </TabItem>

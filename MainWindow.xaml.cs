@@ -35,14 +35,7 @@ namespace Nivtropy
         /// </summary>
         private void ToggleBenchmarksButton_Click(object sender, RoutedEventArgs e)
         {
-            if (BenchmarksListPopup.Visibility == Visibility.Visible)
-            {
-                BenchmarksListPopup.Visibility = Visibility.Collapsed;
-            }
-            else
-            {
-                BenchmarksListPopup.Visibility = Visibility.Visible;
-            }
+            BenchmarksListPopup.IsOpen = !BenchmarksListPopup.IsOpen;
         }
 
         /// <summary>
