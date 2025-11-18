@@ -8,8 +8,7 @@
         Height="650"
         Width="900"
         WindowStartupLocation="CenterScreen"
-        ResizeMode="CanResize"
-        Icon="/Nivtropy.ico">
+        ResizeMode="CanResize">
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="*" />

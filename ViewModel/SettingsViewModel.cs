@@ -162,20 +162,37 @@ namespace Nivtropy.ViewModels
                     var settings = JsonSerializer.Deserialize<SettingsViewModel>(json);
                     if (settings != null)
                     {
-                        TableFontFamily = settings.TableFontFamily;
-                        TableFontSize = settings.TableFontSize;
-                        GridLineThickness = settings.GridLineThickness;
-                        GridLineColorIndex = settings.GridLineColorIndex;
-                        AlternatingRowColors = settings.AlternatingRowColors;
-                        ShowColumnHeaderIcons = settings.ShowColumnHeaderIcons;
-                        CheckMinimumRayLength = settings.CheckMinimumRayLength;
-                        MinimumRayLength = settings.MinimumRayLength;
-                        CheckMaximumRayLength = settings.CheckMaximumRayLength;
-                        MaximumRayLength = settings.MaximumRayLength;
-                        CheckMinimumStationLength = settings.CheckMinimumStationLength;
-                        MinimumStationLength = settings.MinimumStationLength;
-                        HeightDecimalPlaces = settings.HeightDecimalPlaces;
-                        DeltaHDecimalPlaces = settings.DeltaHDecimalPlaces;
+                        // Напрямую устанавливаем поля, чтобы не вызывать Save()
+                        _tableFontFamily = settings.TableFontFamily;
+                        _tableFontSize = settings.TableFontSize;
+                        _gridLineThickness = settings.GridLineThickness;
+                        _gridLineColorIndex = settings.GridLineColorIndex;
+                        _alternatingRowColors = settings.AlternatingRowColors;
+                        _showColumnHeaderIcons = settings.ShowColumnHeaderIcons;
+                        _checkMinimumRayLength = settings.CheckMinimumRayLength;
+                        _minimumRayLength = settings.MinimumRayLength;
+                        _checkMaximumRayLength = settings.CheckMaximumRayLength;
+                        _maximumRayLength = settings.MaximumRayLength;
+                        _checkMinimumStationLength = settings.CheckMinimumStationLength;
+                        _minimumStationLength = settings.MinimumStationLength;
+                        _heightDecimalPlaces = settings.HeightDecimalPlaces;
+                        _deltaHDecimalPlaces = settings.DeltaHDecimalPlaces;
+
+                        // Уведомляем об изменении всех свойств
+                        OnPropertyChanged(nameof(TableFontFamily));
+                        OnPropertyChanged(nameof(TableFontSize));
+                        OnPropertyChanged(nameof(GridLineThickness));
+                        OnPropertyChanged(nameof(GridLineColorIndex));
+                        OnPropertyChanged(nameof(AlternatingRowColors));
+                        OnPropertyChanged(nameof(ShowColumnHeaderIcons));
+                        OnPropertyChanged(nameof(CheckMinimumRayLength));
+                        OnPropertyChanged(nameof(MinimumRayLength));
+                        OnPropertyChanged(nameof(CheckMaximumRayLength));
+                        OnPropertyChanged(nameof(MaximumRayLength));
+                        OnPropertyChanged(nameof(CheckMinimumStationLength));
+                        OnPropertyChanged(nameof(MinimumStationLength));
+                        OnPropertyChanged(nameof(HeightDecimalPlaces));
+                        OnPropertyChanged(nameof(DeltaHDecimalPlaces));
                     }
                 }
             }
