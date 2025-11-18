@@ -98,6 +98,12 @@
                     </ToolBar>
                 </ToolBarTray>
             </TabItem>
+
+            <TabItem Header="Настройки">
+                <ToolBarTray>
+                    <!-- Пока пустая панель инструментов для настроек -->
+                </ToolBarTray>
+            </TabItem>
         </TabControl>
 
         <!-- Основная область -->

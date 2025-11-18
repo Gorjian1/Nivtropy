@@ -104,7 +104,44 @@
                       Margin="0"
                       RowHeaderWidth="0"
                       EnableRowVirtualization="True"
-                      SelectionUnit="FullRow">
+                      SelectionUnit="FullRow"
+                      AlternatingRowBackground="#FFF9F9F9"
+                      GridLinesVisibility="Horizontal"
+                      HorizontalGridLinesBrush="#FFE0E0E0">
+                    <!-- Стили для улучшения внешнего вида -->
+                    <DataGrid.CellStyle>
+                        <Style TargetType="DataGridCell">
+                            <Setter Property="TextBlock.TextAlignment" Value="Center" />
+                            <Setter Property="Padding" Value="4,8,4,8" />
+                            <Setter Property="BorderThickness" Value="0" />
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="DataGridCell">
+                                        <Border Padding="{TemplateBinding Padding}"
+                                                Background="{TemplateBinding Background}">
+                                            <ContentPresenter VerticalAlignment="Center" />
+                                        </Border>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </DataGrid.CellStyle>
+                    <DataGrid.ColumnHeaderStyle>
+                        <Style TargetType="DataGridColumnHeader">
+                            <Setter Property="Background" Value="#FFF0F0F0" />
+                            <Setter Property="Foreground" Value="#FF333333" />
+                            <Setter Property="FontWeight" Value="SemiBold" />
+                            <Setter Property="Padding" Value="8,10,8,10" />
+                            <Setter Property="HorizontalContentAlignment" Value="Center" />
+                            <Setter Property="BorderThickness" Value="0,0,0,2" />
+                            <Setter Property="BorderBrush" Value="#FFD0D0D0" />
+                        </Style>
+                    </DataGrid.ColumnHeaderStyle>
+                    <DataGrid.RowStyle>
+                        <Style TargetType="DataGridRow">
+                            <Setter Property="MinHeight" Value="32" />
+                        </Style>
+                    </DataGrid.RowStyle>
                     <DataGrid.GroupStyle>
                         <GroupStyle>
                             <GroupStyle.ContainerStyle>

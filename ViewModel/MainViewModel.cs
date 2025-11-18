@@ -14,6 +14,7 @@ namespace Nivtropy.ViewModels
         private readonly DataViewControl _dataViewControl;
         private readonly TraverseCalculationView _calculationView;
         private readonly TraverseDesignView _designView;
+        private readonly SettingsView _settingsView;
 
         private object? _currentView;
         private int _selectedRibbonIndex;
@@ -23,10 +24,12 @@ namespace Nivtropy.ViewModels
             DataViewModel = new DataViewModel();
             CalculationViewModel = new TraverseCalculationViewModel(DataViewModel);
             DesignViewModel = new TraverseDesignViewModel(DataViewModel);
+            SettingsViewModel = new SettingsViewModel();
 
             _dataViewControl = new DataViewControl { DataContext = DataViewModel };
             _calculationView = new TraverseCalculationView { DataContext = CalculationViewModel };
             _designView = new TraverseDesignView { DataContext = DesignViewModel };
+            _settingsView = new SettingsView { DataContext = SettingsViewModel };
 
             _selectedRibbonIndex = 0;
             CurrentView = _dataViewControl;
@@ -39,6 +42,7 @@ namespace Nivtropy.ViewModels
         public DataViewModel DataViewModel { get; }
         public TraverseCalculationViewModel CalculationViewModel { get; }
         public TraverseDesignViewModel DesignViewModel { get; }
+        public SettingsViewModel SettingsViewModel { get; }
 
         public object? CurrentView
         {
@@ -77,6 +81,7 @@ namespace Nivtropy.ViewModels
                 0 => _dataViewControl,
                 1 => _calculationView,
                 2 => _designView,
+                3 => _settingsView,
                 _ => _dataViewControl
             };
         }
