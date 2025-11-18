@@ -25,11 +25,11 @@ namespace Nivtropy.ViewModels
             SettingsViewModel = new SettingsViewModel();
             SettingsViewModel.Load();
             CalculationViewModel = new TraverseCalculationViewModel(DataViewModel, SettingsViewModel);
-            DesignViewModel = new TraverseDesignViewModel(DataViewModel);
+            DataGeneratorViewModel = new DataGeneratorViewModel();
 
             _dataViewControl = new DataViewControl { DataContext = DataViewModel };
             _calculationView = new TraverseCalculationView { DataContext = CalculationViewModel };
-            _designView = new TraverseDesignView { DataContext = DesignViewModel };
+            _designView = new TraverseDesignView { DataContext = DataGeneratorViewModel };
             _settingsView = new SettingsView { DataContext = SettingsViewModel };
 
             _selectedRibbonIndex = 0;
@@ -42,7 +42,7 @@ namespace Nivtropy.ViewModels
 
         public DataViewModel DataViewModel { get; }
         public TraverseCalculationViewModel CalculationViewModel { get; }
-        public TraverseDesignViewModel DesignViewModel { get; }
+        public DataGeneratorViewModel DataGeneratorViewModel { get; }
         public SettingsViewModel SettingsViewModel { get; }
 
         public object? CurrentView

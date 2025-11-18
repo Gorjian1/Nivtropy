@@ -218,19 +218,8 @@
             <TabItem Header="Проектирование">
                 <ToolBarTray>
                     <ToolBar>
-                        <Label Content="Ход:"/>
-                        <ComboBox Width="200"
-                                  ItemsSource="{Binding DataViewModel.Runs}"
-                                  SelectedItem="{Binding DesignViewModel.SelectedRun, Mode=TwoWay}"
-                                  DisplayMemberPath="Header"/>
-                        <Separator/>
-                        <Label Content="Целевая ΣΔh:"/>
-                        <TextBox Width="100"
-                                 Text="{Binding DesignViewModel.TargetClosure, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, StringFormat=F4}"/>
-                        <Separator/>
-                        <Label Content="Начальная отметка:"/>
-                        <TextBox Width="100"
-                                 Text="{Binding DesignViewModel.StartHeight, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, StringFormat=F3}"/>
+                        <Button Content="Открыть файл с данными"
+                                Command="{Binding DataGeneratorViewModel.OpenFileCommand}"/>
                     </ToolBar>
                 </ToolBarTray>
             </TabItem>

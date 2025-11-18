@@ -4,96 +4,198 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d"
-             d:DesignHeight="450"
-             d:DesignWidth="800">
+             d:DesignHeight="600"
+             d:DesignWidth="1200">
     <Grid>
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="*" />
-        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="7*" />
+            <ColumnDefinition Width="3*" MinWidth="300" />
+        </Grid.ColumnDefinitions>
 
-        <StackPanel Grid.Row="0" Margin="8">
-            <TextBlock Text="Проектирование исходных данных"
-                       FontSize="16"
-                       FontWeight="SemiBold" />
-            <TextBlock Margin="0,4,0,0"
-                       Text="Распределение невязки и расчёт проектных высот." />
-        </StackPanel>
+        <!-- Левая панель: Таблица с данными -->
+        <Border Grid.Column="0" Margin="8" BorderBrush="#FFB0B0B0" BorderThickness="1">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
 
-        <Grid Grid.Row="1" Margin="8">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto" />
-                <RowDefinition Height="Auto" />
-            </Grid.RowDefinitions>
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="*" />
-            </Grid.ColumnDefinitions>
+                <!-- Заголовок -->
+                <Border Grid.Row="0" Background="#FFF0F0F0" BorderBrush="#FFE0E0E0" BorderThickness="0,0,0,1" Padding="8">
+                    <StackPanel>
+                        <TextBlock Text="Сгенерированные данные измерений" FontSize="14" FontWeight="SemiBold" />
+                        <TextBlock Text="Синтетические данные для экспорта в формате нивелира" FontSize="11" Foreground="#FF606060" Margin="0,2,0,0" />
+                    </StackPanel>
+                </Border>
 
-            <!-- Первая строка -->
-            <StackPanel Grid.Row="0" Grid.Column="0">
-                <TextBlock Text="Общая длина хода, м" FontWeight="SemiBold" />
-                <TextBlock Text="{Binding TotalDistance, StringFormat=0.000}" />
-            </StackPanel>
+                <!-- Таблица -->
+                <DataGrid Grid.Row="1"
+                          ItemsSource="{Binding Measurements}"
+                          AutoGenerateColumns="False"
+                          CanUserAddRows="False"
+                          IsReadOnly="True"
+                          HeadersVisibility="Column"
+                          RowHeaderWidth="0"
+                          GridLinesVisibility="All"
+                          VerticalGridLinesBrush="#FFE0E0E0"
+                          HorizontalGridLinesBrush="#FFE0E0E0">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="№" Binding="{Binding Index}" Width="50" />
+                        <DataGridTextColumn Header="Точка" Binding="{Binding PointCode}" Width="*" MinWidth="80" />
+                        <DataGridTextColumn Header="Station" Binding="{Binding StationCode}" Width="*" MinWidth="100" />
+                        <DataGridTextColumn Header="Rb, м" Binding="{Binding Rb_m, StringFormat=F4}" Width="100" />
+                        <DataGridTextColumn Header="Rf, м" Binding="{Binding Rf_m, StringFormat=F4}" Width="100" />
+                        <DataGridTextColumn Header="HD назад, м" Binding="{Binding HD_Back_m, StringFormat=F2}" Width="110" />
+                        <DataGridTextColumn Header="HD вперёд, м" Binding="{Binding HD_Fore_m, StringFormat=F2}" Width="110" />
+                        <DataGridTextColumn Header="Высота, м" Binding="{Binding Height_m, StringFormat=F4}" Width="100" />
+                    </DataGrid.Columns>
+                </DataGrid>
+            </Grid>
+        </Border>
 
-            <StackPanel Grid.Row="0" Grid.Column="1">
-                <TextBlock Text="Фактическая ΣΔh" FontWeight="SemiBold" />
-                <TextBlock Text="{Binding ActualClosure, StringFormat=+0.0000;-0.0000;0.0000}" />
-            </StackPanel>
+        <!-- Правая панель: Настройки и управление -->
+        <Border Grid.Column="1" Margin="8" BorderBrush="#FFB0B0B0" BorderThickness="1">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel Margin="12">
+                    <!-- Кнопки управления -->
+                    <Grid Margin="0,0,0,16">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="8" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
 
-            <StackPanel Grid.Row="0" Grid.Column="2">
-                <TextBlock Text="Допустимая невязка" FontWeight="SemiBold" />
-                <TextBlock Text="{Binding AllowableClosure, StringFormat=±0.0000}" />
-            </StackPanel>
+                        <Button Grid.Column="0"
+                                Content="Сгенерировать"
+                                Height="36"
+                                Command="{Binding GenerateCommand}"
+                                Background="#FF0078D4"
+                                Foreground="White"
+                                BorderThickness="0"
+                                FontWeight="SemiBold">
+                            <Button.Style>
+                                <Style TargetType="Button">
+                                    <Setter Property="Template">
+                                        <Setter.Value>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border Background="{TemplateBinding Background}"
+                                                        CornerRadius="3"
+                                                        Padding="8">
+                                                    <ContentPresenter HorizontalAlignment="Center"
+                                                                    VerticalAlignment="Center" />
+                                                </Border>
+                                            </ControlTemplate>
+                                        </Setter.Value>
+                                    </Setter>
+                                    <Style.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter Property="Background" Value="#FF106EBE" />
+                                        </Trigger>
+                                        <Trigger Property="IsEnabled" Value="False">
+                                            <Setter Property="Background" Value="#FFB0B0B0" />
+                                            <Setter Property="Foreground" Value="#FF808080" />
+                                        </Trigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Button.Style>
+                        </Button>
 
-            <StackPanel Grid.Row="0" Grid.Column="3">
-                <TextBlock Text="Статус проверки" FontWeight="SemiBold" />
-                <TextBlock Text="{Binding ClosureStatus}" FontWeight="Bold" />
-            </StackPanel>
+                        <Button Grid.Column="2"
+                                Content="Экспортировать"
+                                Height="36"
+                                Command="{Binding ExportCommand}"
+                                Background="#FF28A745"
+                                Foreground="White"
+                                BorderThickness="0"
+                                FontWeight="SemiBold">
+                            <Button.Style>
+                                <Style TargetType="Button">
+                                    <Setter Property="Template">
+                                        <Setter.Value>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border Background="{TemplateBinding Background}"
+                                                        CornerRadius="3"
+                                                        Padding="8">
+                                                    <ContentPresenter HorizontalAlignment="Center"
+                                                                    VerticalAlignment="Center" />
+                                                </Border>
+                                            </ControlTemplate>
+                                        </Setter.Value>
+                                    </Setter>
+                                    <Style.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter Property="Background" Value="#FF218838" />
+                                        </Trigger>
+                                        <Trigger Property="IsEnabled" Value="False">
+                                            <Setter Property="Background" Value="#FFB0B0B0" />
+                                            <Setter Property="Foreground" Value="#FF808080" />
+                                        </Trigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Button.Style>
+                        </Button>
+                    </Grid>
 
-            <!-- Вторая строка -->
-            <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,16,0,0">
-                <TextBlock Text="Начальная отметка" FontWeight="SemiBold" />
-                <TextBlock Text="{Binding StartHeight, StringFormat=0.000}" />
-            </StackPanel>
+                    <!-- Формат экспорта -->
+                    <GroupBox Header="Формат экспорта" Margin="0,0,0,16">
+                        <StackPanel Margin="8">
+                            <RadioButton Content="Нивелир (*.txt)"
+                                        IsChecked="{Binding FormatNivelir}"
+                                        GroupName="ExportFormat" />
+                        </StackPanel>
+                    </GroupBox>
 
-            <StackPanel Grid.Row="1" Grid.Column="1" Margin="0,16,0,0">
-                <TextBlock Text="Целевая ΣΔh" FontWeight="SemiBold" />
-                <TextBlock Text="{Binding TargetClosure, StringFormat=+0.0000;-0.0000;0.0000}" />
-            </StackPanel>
+                    <!-- Настройки генерации -->
+                    <GroupBox Header="Настройки генерации" Margin="0,0,0,16">
+                        <StackPanel Margin="8">
+                            <TextBlock Text="СКО для измерений, мм:" Margin="0,0,0,4" />
+                            <TextBox Text="{Binding StdDevMeasurement, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                    ToolTip="Стандартное отклонение для обычных измерений"
+                                    Margin="0,0,0,12" />
 
-            <StackPanel Grid.Row="1" Grid.Column="2" Margin="0,16,0,0">
-                <TextBlock Text="Проектная ΣΔh" FontWeight="SemiBold" />
-                <TextBlock Text="{Binding DesignedClosure, StringFormat=+0.0000;-0.0000;0.0000}" />
-            </StackPanel>
+                            <TextBlock Text="СКО для грубых ошибок, мм:" Margin="0,0,0,4" />
+                            <TextBox Text="{Binding StdDevGrossError, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                    ToolTip="Стандартное отклонение для грубых ошибок"
+                                    Margin="0,0,0,12" />
 
-            <StackPanel Grid.Row="1" Grid.Column="3" Margin="0,16,0,0">
-                <TextBlock Text="Средняя коррекция" FontWeight="SemiBold" />
-                <TextBlock Text="{Binding CorrectionPerStation, StringFormat=+0.0000;-0.0000;0.0000}" />
-            </StackPanel>
-        </Grid>
+                            <TextBlock Text="Частота грубых ошибок (каждая N-ная):" Margin="0,0,0,4" />
+                            <TextBox Text="{Binding GrossErrorFrequency, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                    ToolTip="Каждая N-ная станция будет иметь грубую ошибку (0 = отключить)"
+                                    Margin="0,0,0,0" />
+                        </StackPanel>
+                    </GroupBox>
 
-        <Border Grid.Row="2" Margin="8" BorderBrush="#FFB0B0B0" BorderThickness="1">
-            <DataGrid ItemsSource="{Binding Rows}"
-                      AutoGenerateColumns="False"
-                      CanUserAddRows="False"
-                      IsReadOnly="True"
-                      HeadersVisibility="Column"
-                      Margin="0"
-                      RowHeaderWidth="0">
-                <DataGrid.Columns>
-                    <DataGridTextColumn Header="№" Binding="{Binding Index}" Width="50" />
-                    <DataGridTextColumn Header="Станция" Binding="{Binding Station}" Width="150" />
-                    <DataGridTextColumn Header="Длина, м" Binding="{Binding Distance_m, StringFormat=0.000}" Width="100" />
-                    <DataGridTextColumn Header="Δh исх., м" Binding="{Binding OriginalDeltaH, StringFormat=+0.0000;-0.0000;0.0000}" Width="120" />
-                    <DataGridTextColumn Header="Попр., м" Binding="{Binding Correction, StringFormat=+0.0000;-0.0000;0.0000}" Width="110" />
-                    <DataGridTextColumn Header="Δh уравн., м" Binding="{Binding AdjustedDeltaH, StringFormat=+0.0000;-0.0000;0.0000}" Width="130" />
-                    <DataGridTextColumn Header="Проектн. отметка, м" Binding="{Binding DesignedHeight, StringFormat=0.000}" Width="160" />
-                </DataGrid.Columns>
-            </DataGrid>
+                    <!-- Источник данных -->
+                    <GroupBox Header="Источник данных" Margin="0,0,0,16">
+                        <StackPanel Margin="8">
+                            <TextBlock Text="Файл с результатами расчётов:" Margin="0,0,0,4" FontWeight="SemiBold" />
+                            <TextBlock Text="{Binding SourceFilePath, TargetNullValue=Не выбран}"
+                                      TextWrapping="Wrap"
+                                      Foreground="#FF606060"
+                                      Margin="0,0,0,8" />
+                            <Button Content="Открыть файл..."
+                                   Command="{Binding OpenFileCommand}"
+                                   HorizontalAlignment="Stretch"
+                                   Height="30" />
+                        </StackPanel>
+                    </GroupBox>
+
+                    <!-- Место для будущего рисунка -->
+                    <GroupBox Header="Вид сверху (в разработке)" Margin="0,0,0,0">
+                        <Border Height="200"
+                               Background="#FFF9F9F9"
+                               BorderBrush="#FFE0E0E0"
+                               BorderThickness="1"
+                               Margin="8">
+                            <TextBlock Text="Визуализация будет добавлена позже"
+                                      VerticalAlignment="Center"
+                                      HorizontalAlignment="Center"
+                                      Foreground="#FF808080"
+                                      FontStyle="Italic" />
+                        </Border>
+                    </GroupBox>
+                </StackPanel>
+            </ScrollViewer>
         </Border>
     </Grid>
 </UserControl>
