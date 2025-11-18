@@ -415,17 +415,17 @@ namespace Nivtropy.ViewModels
                 worksheet.Cell(row, col++).Value = "Станций";
                 worksheet.Cell(row, col++).Value = StationsCount;
                 worksheet.Cell(row, col++).Value = "Общая длина, м";
-                worksheet.Cell(row, col++).Value = totalLength;
+                worksheet.Cell(row, col++).Value = (decimal)totalLength;
                 worksheet.Cell(row, col++).Value = "Длина назад, м";
-                worksheet.Cell(row, col++).Value = totalLengthBack;
+                worksheet.Cell(row, col++).Value = (decimal)totalLengthBack;
                 worksheet.Cell(row, col++).Value = "Длина вперед, м";
-                worksheet.Cell(row, col++).Value = totalLengthFore;
+                worksheet.Cell(row, col++).Value = (decimal)totalLengthFore;
                 worksheet.Cell(row, col++).Value = "Накопление разности плеч, м";
-                worksheet.Cell(row, col++).Value = accumulationDifference;
+                worksheet.Cell(row, col++).Value = (decimal)accumulationDifference;
                 worksheet.Cell(row, col++).Value = "ΣΔh, м";
-                worksheet.Cell(row, col++).Value = Closure;
+                worksheet.Cell(row, col++).Value = (decimal)Closure;
                 worksheet.Cell(row, col++).Value = "Допуск невязки, м";
-                worksheet.Cell(row, col++).Value = AllowableClosure;
+                worksheet.Cell(row, col++).Value = (decimal)AllowableClosure;
                 worksheet.Cell(row, col++).Value = "Вердикт";
                 worksheet.Cell(row, col++).Value = ClosureVerdict;
 
@@ -455,14 +455,16 @@ namespace Nivtropy.ViewModels
                     worksheet.Cell(row, col++).Value = dataRow.LineName;
                     worksheet.Cell(row, col++).Value = dataRow.PointCode;
                     worksheet.Cell(row, col++).Value = dataRow.Station;
-                    worksheet.Cell(row, col++).Value = dataRow.Rb_m;
-                    worksheet.Cell(row, col++).Value = dataRow.Rf_m;
-                    worksheet.Cell(row, col++).Value = dataRow.DeltaH;
-                    worksheet.Cell(row, col++).Value = dataRow.Correction.HasValue ? dataRow.Correction.Value * 1000 : (double?)null;
-                    worksheet.Cell(row, col++).Value = dataRow.AdjustedDeltaH;
-                    worksheet.Cell(row, col++).Value = dataRow.IsVirtualStation ? dataRow.BackHeightZ0 : dataRow.ForeHeightZ0;
-                    worksheet.Cell(row, col++).Value = dataRow.IsVirtualStation ? dataRow.BackHeight : dataRow.ForeHeight;
-                    worksheet.Cell(row, col++).Value = dataRow.StationLength_m;
+                    worksheet.Cell(row, col++).Value = dataRow.Rb_m.HasValue ? (decimal)dataRow.Rb_m.Value : (decimal?)null;
+                    worksheet.Cell(row, col++).Value = dataRow.Rf_m.HasValue ? (decimal)dataRow.Rf_m.Value : (decimal?)null;
+                    worksheet.Cell(row, col++).Value = dataRow.DeltaH.HasValue ? (decimal)dataRow.DeltaH.Value : (decimal?)null;
+                    worksheet.Cell(row, col++).Value = dataRow.Correction.HasValue ? (decimal)(dataRow.Correction.Value * 1000) : (decimal?)null;
+                    worksheet.Cell(row, col++).Value = dataRow.AdjustedDeltaH.HasValue ? (decimal)dataRow.AdjustedDeltaH.Value : (decimal?)null;
+                    var heightZ0 = dataRow.IsVirtualStation ? dataRow.BackHeightZ0 : dataRow.ForeHeightZ0;
+                    worksheet.Cell(row, col++).Value = heightZ0.HasValue ? (decimal)heightZ0.Value : (decimal?)null;
+                    var height = dataRow.IsVirtualStation ? dataRow.BackHeight : dataRow.ForeHeight;
+                    worksheet.Cell(row, col++).Value = height.HasValue ? (decimal)height.Value : (decimal?)null;
+                    worksheet.Cell(row, col++).Value = dataRow.StationLength_m.HasValue ? (decimal)dataRow.StationLength_m.Value : (decimal?)null;
                     row++;
                 }
 
