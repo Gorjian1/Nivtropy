@@ -168,61 +168,61 @@
                             <GroupStyle.HeaderTemplate>
                                 <DataTemplate>
                                     <Border Background="#E3F2FD" BorderBrush="#90CAF9" BorderThickness="1" Padding="8" CornerRadius="4">
-                                        <Grid>
-                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                                <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
-                                                <TextBlock Text=" • Станций: " Margin="12,0,0,0" Foreground="#FF606060" />
-                                                <TextBlock Text="{Binding ItemCount}" FontWeight="SemiBold" />
-                                                <TextBlock Text=" • ΣΔh: " Margin="12,0,0,0" Foreground="#FF606060" />
-                                                <TextBlock Text="{Binding Converter={StaticResource GroupClosureConverter}, StringFormat=+0.0000;-0.0000;0.0000}"
-                                                           FontWeight="SemiBold"
-                                                           Foreground="#FF1976D2" />
-                                                <TextBlock Text=" м" Foreground="#FF606060" />
-                                                <TextBlock Text=" • Длина: " Margin="12,0,0,0" Foreground="#FF606060" />
-                                                <TextBlock Text="{Binding Items[0].LineSummary.TotalAverageLength, StringFormat=0.00}" FontWeight="Bold" Foreground="#FF1976D2" />
-                                                <TextBlock Text=" м" Foreground="#FF606060" />
-                                                <TextBlock Text=" • Σ|разность плеч|: " Foreground="#FF606060" Margin="12,0,0,0" />
-                                                <TextBlock Text="{Binding Items[0].LineSummary.ArmDifferenceAccumulation, StringFormat=0.0000}"
-                                                           FontWeight="Bold">
-                                                    <TextBlock.Foreground>
-                                                        <Binding Path="Items[0].LineSummary.IsArmDifferenceAccumulationExceeded"
-                                                                 Converter="{StaticResource ArmDifferenceExceededToBrushConverter}" />
-                                                    </TextBlock.Foreground>
-                                                </TextBlock>
-                                                <TextBlock Text=" м" Foreground="#FF606060" />
-                                            </StackPanel>
-                                            <Button Content="Дополнительно ▼"
-                                                    HorizontalAlignment="Right"
-                                                    Padding="12,4"
+                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                            <!-- Кнопка-кружок с восклицательным знаком -->
+                                            <Button x:Name="TraverseInfoButton"
+                                                    Width="24" Height="24"
+                                                    Margin="0,0,8,0"
+                                                    Padding="0"
                                                     Background="#FF1976D2"
-                                                    Foreground="White"
                                                     BorderThickness="0"
                                                     Cursor="Hand"
-                                                    FontSize="12"
+                                                    ToolTip="Показать детали хода"
                                                     Tag="{Binding Name}"
                                                     Click="ShowTraverseDetails_Click">
-                                                <Button.Style>
-                                                    <Style TargetType="Button">
-                                                        <Setter Property="Template">
-                                                            <Setter.Value>
-                                                                <ControlTemplate TargetType="Button">
-                                                                    <Border Background="{TemplateBinding Background}"
-                                                                            CornerRadius="4"
-                                                                            Padding="{TemplateBinding Padding}">
-                                                                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                                                    </Border>
-                                                                    <ControlTemplate.Triggers>
-                                                                        <Trigger Property="IsMouseOver" Value="True">
-                                                                            <Setter Property="Background" Value="#FF1565C0" />
-                                                                        </Trigger>
-                                                                    </ControlTemplate.Triggers>
-                                                                </ControlTemplate>
-                                                            </Setter.Value>
-                                                        </Setter>
-                                                    </Style>
-                                                </Button.Style>
+                                                <Button.Template>
+                                                    <ControlTemplate TargetType="Button">
+                                                        <Border Background="{TemplateBinding Background}"
+                                                                CornerRadius="12"
+                                                                Width="24"
+                                                                Height="24">
+                                                            <TextBlock Text="&#xE783;"
+                                                                       FontFamily="Segoe MDL2 Assets"
+                                                                       FontSize="14"
+                                                                       Foreground="White"
+                                                                       HorizontalAlignment="Center"
+                                                                       VerticalAlignment="Center"/>
+                                                        </Border>
+                                                        <ControlTemplate.Triggers>
+                                                            <Trigger Property="IsMouseOver" Value="True">
+                                                                <Setter Property="Background" Value="#FF1565C0" />
+                                                            </Trigger>
+                                                        </ControlTemplate.Triggers>
+                                                    </ControlTemplate>
+                                                </Button.Template>
                                             </Button>
-                                        </Grid>
+
+                                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
+                                            <TextBlock Text=" • Станций: " Margin="12,0,0,0" Foreground="#FF606060" />
+                                            <TextBlock Text="{Binding ItemCount}" FontWeight="SemiBold" />
+                                            <TextBlock Text=" • ΣΔh: " Margin="12,0,0,0" Foreground="#FF606060" />
+                                            <TextBlock Text="{Binding Converter={StaticResource GroupClosureConverter}, StringFormat=+0.0000;-0.0000;0.0000}"
+                                                       FontWeight="SemiBold"
+                                                       Foreground="#FF1976D2" />
+                                            <TextBlock Text=" м" Foreground="#FF606060" />
+                                            <TextBlock Text=" • Длина: " Margin="12,0,0,0" Foreground="#FF606060" />
+                                            <TextBlock Text="{Binding Items[0].LineSummary.TotalAverageLength, StringFormat=0.00}" FontWeight="Bold" Foreground="#FF1976D2" />
+                                            <TextBlock Text=" м" Foreground="#FF606060" />
+                                            <TextBlock Text=" • Σ|разность плеч|: " Foreground="#FF606060" Margin="12,0,0,0" />
+                                            <TextBlock Text="{Binding Items[0].LineSummary.ArmDifferenceAccumulation, StringFormat=0.0000}"
+                                                       FontWeight="Bold">
+                                                <TextBlock.Foreground>
+                                                    <Binding Path="Items[0].LineSummary.IsArmDifferenceAccumulationExceeded"
+                                                             Converter="{StaticResource ArmDifferenceExceededToBrushConverter}" />
+                                                </TextBlock.Foreground>
+                                            </TextBlock>
+                                            <TextBlock Text=" м" Foreground="#FF606060" />
+                                        </StackPanel>
                                     </Border>
                                 </DataTemplate>
                             </GroupStyle.HeaderTemplate>
@@ -374,30 +374,31 @@
         </Border>
         </Grid>
 
-        <!-- Overlay popup для деталей хода -->
-        <Border x:Name="TraverseDetailsPopup"
-                Visibility="Collapsed"
-                Background="#CC000000"
-                MouseLeftButtonDown="TraverseDetailsPopup_MouseLeftButtonDown">
+        <!-- Popup для деталей хода (позиционируется относительно кнопки) -->
+        <Popup x:Name="TraverseDetailsPopup"
+               Placement="Right"
+               StaysOpen="False"
+               AllowsTransparency="True"
+               PopupAnimation="Fade">
             <Border Background="White"
                     BorderBrush="#FF1976D2"
                     BorderThickness="2"
-                    CornerRadius="8"
-                    MaxWidth="800"
-                    MaxHeight="600"
-                    Margin="50"
-                    HorizontalAlignment="Center"
-                    VerticalAlignment="Center"
-                    MouseLeftButtonDown="PopupContent_MouseLeftButtonDown">
-                <Grid Margin="20">
+                    CornerRadius="4"
+                    Width="500"
+                    Height="400"
+                    Padding="16">
+                <Border.Effect>
+                    <DropShadowEffect Color="Black" Opacity="0.3" BlurRadius="15" ShadowDepth="3"/>
+                </Border.Effect>
+                <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
-                        <RowDefinition Height="*" />
                         <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
 
                     <!-- Заголовок -->
-                    <Grid Grid.Row="0" Margin="0,0,0,16">
+                    <Grid Grid.Row="0" Margin="0,0,0,12">
                         <TextBlock x:Name="PopupTitle"
                                    Text="Детали хода"
                                    FontSize="16"
@@ -405,48 +406,68 @@
                                    VerticalAlignment="Center" />
                         <Button Content="✕"
                                 HorizontalAlignment="Right"
-                                Width="30"
-                                Height="30"
-                                FontSize="18"
+                                Width="24"
+                                Height="24"
+                                FontSize="16"
                                 Click="ClosePopup_Click"
                                 Cursor="Hand"
                                 Background="Transparent"
                                 BorderThickness="0"
-                                Foreground="#FF666666" />
+                                Foreground="#FF999999">
+                            <Button.Style>
+                                <Style TargetType="Button">
+                                    <Style.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter Property="Foreground" Value="#FF666666"/>
+                                        </Trigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Button.Style>
+                        </Button>
                     </Grid>
 
-                    <!-- Контент: Профиль хода -->
+                    <!-- Статистика хода -->
                     <Border Grid.Row="1"
+                            Background="#FFF5F5F5"
                             BorderBrush="#FFE0E0E0"
                             BorderThickness="1"
-                            Background="#FFFAFAFA"
-                            Padding="16">
-                        <Grid>
-                            <TextBlock Text="Профиль хода"
-                                       FontSize="14"
-                                       FontWeight="SemiBold"
-                                       Margin="0,0,0,12"
-                                       VerticalAlignment="Top" />
-                            <Canvas x:Name="ProfileCanvas"
-                                    Margin="0,40,0,40"
-                                    Background="White" />
-                            <TextBlock Text="График будет здесь"
-                                       HorizontalAlignment="Center"
-                                       VerticalAlignment="Center"
-                                       Foreground="#FF999999"
-                                       FontStyle="Italic" />
-                        </Grid>
+                            CornerRadius="3"
+                            Padding="8"
+                            Margin="0,0,0,12">
+                        <StackPanel>
+                            <TextBlock x:Name="PopupStations" Text="Станций: -" FontSize="12" Margin="0,0,0,4"/>
+                            <TextBlock x:Name="PopupClosure" Text="ΣΔh: -" FontSize="12" Margin="0,0,0,4"/>
+                            <TextBlock x:Name="PopupLength" Text="Длина: -" FontSize="12"/>
+                        </StackPanel>
                     </Border>
 
-                    <!-- Подсказка -->
-                    <TextBlock Grid.Row="2"
-                               Text="Нажмите за пределами окна или на ✕ чтобы закрыть"
-                               Margin="0,12,0,0"
-                               HorizontalAlignment="Center"
-                               Foreground="#FF999999"
-                               FontSize="12" />
+                    <!-- Профиль хода -->
+                    <Border Grid.Row="2"
+                            BorderBrush="#FFE0E0E0"
+                            BorderThickness="1"
+                            Background="White"
+                            CornerRadius="3"
+                            Padding="12">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+
+                            <TextBlock Text="Профиль высот"
+                                       FontSize="13"
+                                       FontWeight="SemiBold"
+                                       Margin="0,0,0,8"/>
+
+                            <!-- Canvas для рисования профиля -->
+                            <Canvas x:Name="ProfileCanvas"
+                                    Grid.Row="1"
+                                    Background="#FFFAFAFA"
+                                    ClipToBounds="True"/>
+                        </Grid>
+                    </Border>
                 </Grid>
             </Border>
-        </Border>
+        </Popup>
     </Grid>
 </UserControl>
