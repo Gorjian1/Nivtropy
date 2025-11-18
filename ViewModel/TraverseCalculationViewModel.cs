@@ -135,16 +135,27 @@ namespace Nivtropy.ViewModels
                 if (SetField(ref _closure, value))
                 {
                     OnPropertyChanged(nameof(ClosureAbsolute));
+                    OnPropertyChanged(nameof(IsClosureWithinTolerance));
                 }
             }
         }
 
         public double? ClosureAbsolute => Closure.HasValue ? Math.Abs(Closure.Value) : null;
 
+        public bool IsClosureWithinTolerance =>
+            ClosureAbsolute.HasValue && AllowableClosure.HasValue &&
+            ClosureAbsolute.Value <= AllowableClosure.Value;
+
         public double? AllowableClosure
         {
             get => _allowableClosure;
-            private set => SetField(ref _allowableClosure, value);
+            private set
+            {
+                if (SetField(ref _allowableClosure, value))
+                {
+                    OnPropertyChanged(nameof(IsClosureWithinTolerance));
+                }
+            }
         }
 
         public double? MethodTolerance
