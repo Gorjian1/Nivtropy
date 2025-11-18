@@ -397,10 +397,15 @@ namespace Nivtropy.ViewModels
                     var lineSummary = group.First().LineSummary;
                     if (lineSummary != null)
                     {
-                        totalLengthBack += lineSummary.TotalDistanceBack;
-                        totalLengthFore += lineSummary.TotalDistanceFore;
-                        totalLength += lineSummary.TotalAverageLength;
-                        accumulationDifference += Math.Abs(lineSummary.TotalDistanceBack - lineSummary.TotalDistanceFore);
+                        totalLengthBack += lineSummary.TotalDistanceBack ?? 0;
+                        totalLengthFore += lineSummary.TotalDistanceFore ?? 0;
+                        totalLength += lineSummary.TotalAverageLength ?? 0;
+
+                        // Накопление разности плеч только если оба значения есть
+                        if (lineSummary.TotalDistanceBack.HasValue && lineSummary.TotalDistanceFore.HasValue)
+                        {
+                            accumulationDifference += Math.Abs(lineSummary.TotalDistanceBack.Value - lineSummary.TotalDistanceFore.Value);
+                        }
                     }
                 }
 
