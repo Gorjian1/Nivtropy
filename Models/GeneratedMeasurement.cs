@@ -8,6 +8,8 @@ namespace Nivtropy.Models
         public int Index { get; set; }
         public string PointCode { get; set; } = string.Empty;
         public string StationCode { get; set; } = string.Empty;
+        public string? BackPointCode { get; set; }  // Код задней точки для Rb
+        public string? ForePointCode { get; set; }  // Код передней точки для Rf
         public double? Rb_m { get; set; }  // Отсчет назад
         public double? Rf_m { get; set; }  // Отсчет вперед
         public double? HD_Back_m { get; set; }  // Расстояние назад

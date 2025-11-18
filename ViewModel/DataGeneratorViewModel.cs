@@ -123,6 +123,21 @@ namespace Nivtropy.ViewModels
                         ? worksheet.Cell(row, headers["Станция"]).GetValue<string>()
                         : "";
 
+                    // Парсим станцию для извлечения BackCode и ForeCode
+                    string? backCode = null;
+                    string? foreCode = null;
+                    if (!string.IsNullOrWhiteSpace(station) && station.Contains("→"))
+                    {
+                        var parts = station.Split(new[] { "→" }, StringSplitOptions.None);
+                        if (parts.Length == 2)
+                        {
+                            backCode = parts[0].Trim();
+                            foreCode = parts[1].Trim();
+                            if (backCode == "?") backCode = null;
+                            if (foreCode == "?") foreCode = null;
+                        }
+                    }
+
                     var rbCell = headers.ContainsKey("Отсчет назад, м")
                         ? worksheet.Cell(row, headers["Отсчет назад, м"])
                         : null;
@@ -158,6 +173,8 @@ namespace Nivtropy.ViewModels
                         Index = index++,
                         PointCode = pointCode,
                         StationCode = station,
+                        BackPointCode = backCode,
+                        ForePointCode = foreCode,
                         Rb_m = rb,
                         Rf_m = rf,
                         HD_Back_m = hdBack,
@@ -228,38 +245,40 @@ namespace Nivtropy.ViewModels
             sb.AppendLine($"For M5|Adr     {lineNumber++}|TO  Start-Line         BF  0214|                      |                      |                      | ");
 
             // Группируем по станциям
-            string? currentStation = null;
-            double? currentHeight = null;
+            string? previousForePoint = null;
+            double? previousForeHeight = null;
 
             foreach (var m in _measurements)
             {
-                if (m.StationCode != currentStation)
+                // Выводим высоту предыдущей точки если она есть
+                if (previousForeHeight.HasValue && !string.IsNullOrEmpty(previousForePoint))
                 {
-                    // Новая станция - выводим высоту точки
-                    if (currentHeight.HasValue && !string.IsNullOrEmpty(currentStation))
-                    {
-                        sb.AppendLine($"For M5|Adr {lineNumber++,6}|KD1 {currentStation,10}               0214|                      |                      |Z {currentHeight:F4} m   | ");
-                    }
-
-                    currentStation = m.StationCode;
-                    currentHeight = m.Height_m;
+                    sb.AppendLine($"For M5|Adr {lineNumber++,6}|KD1 {previousForePoint,10}               0214|                      |                      |Z {previousForeHeight:F4} m   | ");
                 }
 
-                // Выводим отсчеты
-                if (m.IsBackSight && m.Rb_m.HasValue)
+                // Выводим отсчеты (и Rb и Rf, если оба есть)
+                if (m.Rb_m.HasValue && !string.IsNullOrEmpty(m.BackPointCode))
                 {
-                    sb.AppendLine($"For M5|Adr {lineNumber++,6}|KD1 {m.PointCode,10}              10214|Rb {m.Rb_m:F4} m   |HD {m.HD_Back_m:F2} m   |                      | ");
+                    sb.AppendLine($"For M5|Adr {lineNumber++,6}|KD1 {m.BackPointCode,10}              10214|Rb {m.Rb_m:F4} m   |HD {m.HD_Back_m:F2} m   |                      | ");
                 }
-                else if (!m.IsBackSight && m.Rf_m.HasValue)
+
+                if (m.Rf_m.HasValue && !string.IsNullOrEmpty(m.ForePointCode))
                 {
-                    sb.AppendLine($"For M5|Adr {lineNumber++,6}|KD1 {m.PointCode,10}              10214|Rf {m.Rf_m:F4} m   |HD {m.HD_Fore_m:F2} m   |                      | ");
+                    sb.AppendLine($"For M5|Adr {lineNumber++,6}|KD1 {m.ForePointCode,10}              10214|Rf {m.Rf_m:F4} m   |HD {m.HD_Fore_m:F2} m   |                      | ");
+                }
+
+                // Сохраняем переднюю точку для следующей итерации
+                if (m.Rf_m.HasValue)
+                {
+                    previousForePoint = m.ForePointCode;
+                    previousForeHeight = m.Height_m;
                 }
             }
 
-            // Завершающие строки
-            if (currentHeight.HasValue && !string.IsNullOrEmpty(currentStation))
+            // Завершающие строки - выводим последнюю точку
+            if (previousForeHeight.HasValue && !string.IsNullOrEmpty(previousForePoint))
             {
-                sb.AppendLine($"For M5|Adr {lineNumber++,6}|KD1 {currentStation,10}               0214|                      |                      |Z {currentHeight:F4} m   | ");
+                sb.AppendLine($"For M5|Adr {lineNumber++,6}|KD1 {previousForePoint,10}               0214|                      |                      |Z {previousForeHeight:F4} m   | ");
             }
             sb.AppendLine($"For M5|Adr {lineNumber++,6}|TO  End-Line               0214|                      |                      |                      | ");
 
