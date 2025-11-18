@@ -6,30 +6,17 @@
              mc:Ignorable="d"
              d:DesignHeight="600"
              d:DesignWidth="1200">
-    <Grid>
+    <Grid Margin="12">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="7*" />
             <ColumnDefinition Width="3*" MinWidth="300" />
         </Grid.ColumnDefinitions>
 
         <!-- Левая панель: Таблица с данными -->
-        <Border Grid.Column="0" Margin="8" BorderBrush="#FFB0B0B0" BorderThickness="1">
+        <GroupBox Grid.Column="0" Header="Сгенерированные данные измерений" Margin="0,0,8,0">
             <Grid>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="*" />
-                </Grid.RowDefinitions>
-
-                <!-- Заголовок -->
-                <Border Grid.Row="0" Background="#FFF0F0F0" BorderBrush="#FFE0E0E0" BorderThickness="0,0,0,1" Padding="8">
-                    <StackPanel>
-                        <TextBlock Text="Сгенерированные данные измерений" FontSize="14" FontWeight="SemiBold" />
-                        <TextBlock Text="Синтетические данные для экспорта в формате нивелира" FontSize="11" Foreground="#FF606060" Margin="0,2,0,0" />
-                    </StackPanel>
-                </Border>
-
                 <!-- Таблица -->
-                <DataGrid Grid.Row="1"
+                <DataGrid
                           ItemsSource="{Binding Measurements}"
                           AutoGenerateColumns="False"
                           CanUserAddRows="False"
@@ -51,90 +38,23 @@
                     </DataGrid.Columns>
                 </DataGrid>
             </Grid>
-        </Border>
+        </GroupBox>
 
         <!-- Правая панель: Настройки и управление -->
-        <Border Grid.Column="1" Margin="8" BorderBrush="#FFB0B0B0" BorderThickness="1">
-            <ScrollViewer VerticalScrollBarVisibility="Auto">
-                <StackPanel Margin="12">
+        <ScrollViewer Grid.Column="1" Margin="8,0,0,0" VerticalScrollBarVisibility="Auto">
+            <StackPanel>
                     <!-- Кнопки управления -->
-                    <Grid Margin="0,0,0,16">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="8" />
-                            <ColumnDefinition Width="*" />
-                        </Grid.ColumnDefinitions>
-
-                        <Button Grid.Column="0"
-                                Content="Сгенерировать"
-                                Height="36"
-                                Command="{Binding GenerateCommand}"
-                                Background="#FF0078D4"
-                                Foreground="White"
-                                BorderThickness="0"
-                                FontWeight="SemiBold">
-                            <Button.Style>
-                                <Style TargetType="Button">
-                                    <Setter Property="Template">
-                                        <Setter.Value>
-                                            <ControlTemplate TargetType="Button">
-                                                <Border Background="{TemplateBinding Background}"
-                                                        CornerRadius="3"
-                                                        Padding="8">
-                                                    <ContentPresenter HorizontalAlignment="Center"
-                                                                    VerticalAlignment="Center" />
-                                                </Border>
-                                            </ControlTemplate>
-                                        </Setter.Value>
-                                    </Setter>
-                                    <Style.Triggers>
-                                        <Trigger Property="IsMouseOver" Value="True">
-                                            <Setter Property="Background" Value="#FF106EBE" />
-                                        </Trigger>
-                                        <Trigger Property="IsEnabled" Value="False">
-                                            <Setter Property="Background" Value="#FFB0B0B0" />
-                                            <Setter Property="Foreground" Value="#FF808080" />
-                                        </Trigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </Button.Style>
-                        </Button>
-
-                        <Button Grid.Column="2"
-                                Content="Экспортировать"
-                                Height="36"
-                                Command="{Binding ExportCommand}"
-                                Background="#FF28A745"
-                                Foreground="White"
-                                BorderThickness="0"
-                                FontWeight="SemiBold">
-                            <Button.Style>
-                                <Style TargetType="Button">
-                                    <Setter Property="Template">
-                                        <Setter.Value>
-                                            <ControlTemplate TargetType="Button">
-                                                <Border Background="{TemplateBinding Background}"
-                                                        CornerRadius="3"
-                                                        Padding="8">
-                                                    <ContentPresenter HorizontalAlignment="Center"
-                                                                    VerticalAlignment="Center" />
-                                                </Border>
-                                            </ControlTemplate>
-                                        </Setter.Value>
-                                    </Setter>
-                                    <Style.Triggers>
-                                        <Trigger Property="IsMouseOver" Value="True">
-                                            <Setter Property="Background" Value="#FF218838" />
-                                        </Trigger>
-                                        <Trigger Property="IsEnabled" Value="False">
-                                            <Setter Property="Background" Value="#FFB0B0B0" />
-                                            <Setter Property="Foreground" Value="#FF808080" />
-                                        </Trigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </Button.Style>
-                        </Button>
-                    </Grid>
+                    <GroupBox Header="Управление" Margin="0,0,0,16">
+                        <StackPanel Margin="8">
+                            <Button Content="Сгенерировать"
+                                    Command="{Binding GenerateCommand}"
+                                    Height="32"
+                                    Margin="0,0,0,8" />
+                            <Button Content="Экспортировать"
+                                    Command="{Binding ExportCommand}"
+                                    Height="32" />
+                        </StackPanel>
+                    </GroupBox>
 
                     <!-- Формат экспорта -->
                     <GroupBox Header="Формат экспорта" Margin="0,0,0,16">
@@ -148,20 +68,28 @@
                     <!-- Настройки генерации -->
                     <GroupBox Header="Настройки генерации" Margin="0,0,0,16">
                         <StackPanel Margin="8">
-                            <TextBlock Text="СКО для измерений, мм:" Margin="0,0,0,4" />
-                            <TextBox Text="{Binding StdDevMeasurement, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                    ToolTip="Стандартное отклонение для обычных измерений"
-                                    Margin="0,0,0,12" />
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                <TextBlock Text="СКО для измерений:" VerticalAlignment="Center" Width="150" />
+                                <TextBox Text="{Binding StdDevMeasurement, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                        ToolTip="Стандартное отклонение для обычных измерений"
+                                        Width="60" />
+                                <TextBlock Text="мм" Margin="4,0,0,0" VerticalAlignment="Center" />
+                            </StackPanel>
 
-                            <TextBlock Text="СКО для грубых ошибок, мм:" Margin="0,0,0,4" />
-                            <TextBox Text="{Binding StdDevGrossError, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                    ToolTip="Стандартное отклонение для грубых ошибок"
-                                    Margin="0,0,0,12" />
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                <TextBlock Text="СКО для грубых ошибок:" VerticalAlignment="Center" Width="150" />
+                                <TextBox Text="{Binding StdDevGrossError, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                        ToolTip="Стандартное отклонение для грубых ошибок"
+                                        Width="60" />
+                                <TextBlock Text="мм" Margin="4,0,0,0" VerticalAlignment="Center" />
+                            </StackPanel>
 
-                            <TextBlock Text="Частота грубых ошибок (каждая N-ная):" Margin="0,0,0,4" />
-                            <TextBox Text="{Binding GrossErrorFrequency, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                    ToolTip="Каждая N-ная станция будет иметь грубую ошибку (0 = отключить)"
-                                    Margin="0,0,0,0" />
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="Частота грубых ошибок:" VerticalAlignment="Center" Width="150" />
+                                <TextBox Text="{Binding GrossErrorFrequency, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                        ToolTip="Каждая N-ная станция будет иметь грубую ошибку (0 = отключить)"
+                                        Width="60" />
+                            </StackPanel>
                         </StackPanel>
                     </GroupBox>
 
@@ -196,6 +124,5 @@
                     </GroupBox>
                 </StackPanel>
             </ScrollViewer>
-        </Border>
     </Grid>
 </UserControl>
