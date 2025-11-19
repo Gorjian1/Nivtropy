@@ -108,19 +108,57 @@
                         </StackPanel>
                     </GroupBox>
 
-                    <!-- Место для будущего рисунка -->
-                    <GroupBox Header="Вид сверху (в разработке)" Margin="0,0,0,0">
-                        <Border Height="200"
-                               Background="#FFF9F9F9"
-                               BorderBrush="#FFE0E0E0"
-                               BorderThickness="1"
-                               Margin="8">
-                            <TextBlock Text="Визуализация будет добавлена позже"
-                                      VerticalAlignment="Center"
-                                      HorizontalAlignment="Center"
-                                      Foreground="#FF808080"
-                                      FontStyle="Italic" />
-                        </Border>
+                    <!-- Профиль хода -->
+                    <GroupBox Header="Профиль хода" Margin="0,0,0,0">
+                        <Grid Margin="8">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" MinHeight="250" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+
+                            <!-- Заголовок с кнопками выбора хода -->
+                            <Grid Grid.Row="0" Margin="0,0,0,8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+
+                                <Button Grid.Column="0" Content="◀" Width="30" Height="30"
+                                        Command="{Binding PreviousTraverseCommand}"
+                                        ToolTip="Предыдущий ход" />
+
+                                <TextBlock Grid.Column="1"
+                                          Text="{Binding CurrentTraverseName}"
+                                          HorizontalAlignment="Center"
+                                          VerticalAlignment="Center"
+                                          FontWeight="Bold"
+                                          FontSize="14" />
+
+                                <Button Grid.Column="2" Content="▶" Width="30" Height="30"
+                                        Command="{Binding NextTraverseCommand}"
+                                        ToolTip="Следующий ход" />
+                            </Grid>
+
+                            <!-- Canvas для рисования профиля -->
+                            <Border Grid.Row="1"
+                                   Background="White"
+                                   BorderBrush="#FFE0E0E0"
+                                   BorderThickness="1">
+                                <Canvas x:Name="ProfileCanvas" />
+                            </Border>
+
+                            <!-- Макс/Мин значения -->
+                            <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,8,0,0"
+                                       HorizontalAlignment="Center">
+                                <TextBlock Text="Макс: " FontWeight="Bold" />
+                                <TextBlock Text="{Binding MaxHeight, StringFormat=F3}" Margin="0,0,15,0" />
+                                <TextBlock Text="Мин: " FontWeight="Bold" />
+                                <TextBlock Text="{Binding MinHeight, StringFormat=F3}" />
+                                <TextBlock Text=" м" Margin="2,0,0,0" />
+                            </StackPanel>
+                        </Grid>
                     </GroupBox>
                 </StackPanel>
             </ScrollViewer>

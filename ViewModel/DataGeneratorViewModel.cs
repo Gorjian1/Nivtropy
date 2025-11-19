@@ -25,6 +25,10 @@ namespace Nivtropy.ViewModels
         private int _grossErrorFrequency = 0; // Частота грубых ошибок (каждая N-ная станция) - 0 = отключено
         private string _sourceFilePath = string.Empty;
         private Random _random = new Random();
+        private int _currentTraverseIndex = 0;
+        private string _currentTraverseName = "";
+        private double _maxHeight = 0;
+        private double _minHeight = 0;
 
         public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -67,6 +71,26 @@ namespace Nivtropy.ViewModels
         public ICommand OpenFileCommand => new RelayCommand(_ => OpenFile());
         public ICommand GenerateCommand => new RelayCommand(_ => Generate(), _ => !string.IsNullOrEmpty(SourceFilePath));
         public ICommand ExportCommand => new RelayCommand(_ => Export(), _ => Measurements.Count > 0);
+        public ICommand PreviousTraverseCommand => new RelayCommand(_ => PreviousTraverse(), _ => CanNavigateTraverses());
+        public ICommand NextTraverseCommand => new RelayCommand(_ => NextTraverse(), _ => CanNavigateTraverses());
+
+        public string CurrentTraverseName
+        {
+            get => _currentTraverseName;
+            private set => SetField(ref _currentTraverseName, value);
+        }
+
+        public double MaxHeight
+        {
+            get => _maxHeight;
+            private set => SetField(ref _maxHeight, value);
+        }
+
+        public double MinHeight
+        {
+            get => _minHeight;
+            private set => SetField(ref _minHeight, value);
+        }
 
         private void OpenFile()
         {
@@ -254,6 +278,10 @@ namespace Nivtropy.ViewModels
             }
 
             MessageBox.Show($"Сгенерировано {_measurements.Count} измерений из {traverses.Count} ходов", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
+
+            // Обновляем профиль для первого хода
+            _currentTraverseIndex = 0;
+            UpdateCurrentTraverse();
         }
 
         /// <summary>
@@ -567,6 +595,72 @@ namespace Nivtropy.ViewModels
             field = value;
             OnPropertyChanged(propertyName);
             return true;
+        }
+
+        private bool CanNavigateTraverses()
+        {
+            return _measurements.GroupBy(m => m.LineName).Count() > 0;
+        }
+
+        private void PreviousTraverse()
+        {
+            var traverses = _measurements.GroupBy(m => m.LineName).ToList();
+            if (traverses.Count == 0) return;
+
+            _currentTraverseIndex = (_currentTraverseIndex - 1 + traverses.Count) % traverses.Count;
+            UpdateCurrentTraverse();
+        }
+
+        private void NextTraverse()
+        {
+            var traverses = _measurements.GroupBy(m => m.LineName).ToList();
+            if (traverses.Count == 0) return;
+
+            _currentTraverseIndex = (_currentTraverseIndex + 1) % traverses.Count;
+            UpdateCurrentTraverse();
+        }
+
+        private void UpdateCurrentTraverse()
+        {
+            var traverses = _measurements.GroupBy(m => m.LineName).ToList();
+            if (traverses.Count == 0 || _currentTraverseIndex >= traverses.Count)
+            {
+                CurrentTraverseName = "Нет данных";
+                MaxHeight = 0;
+                MinHeight = 0;
+                return;
+            }
+
+            var currentTraverse = traverses[_currentTraverseIndex];
+            CurrentTraverseName = currentTraverse.Key;
+
+            // Вычисляем макс/мин высоты
+            var heights = currentTraverse.Where(m => m.Height_m.HasValue).Select(m => m.Height_m!.Value).ToList();
+            if (heights.Count > 0)
+            {
+                MaxHeight = heights.Max();
+                MinHeight = heights.Min();
+            }
+            else
+            {
+                MaxHeight = 0;
+                MinHeight = 0;
+            }
+
+            // Событие для перерисовки профиля
+            OnPropertyChanged("ProfileDataChanged");
+        }
+
+        /// <summary>
+        /// Получает измерения текущего хода для отрисовки профиля
+        /// </summary>
+        public System.Collections.Generic.List<GeneratedMeasurement> GetCurrentTraverseMeasurements()
+        {
+            var traverses = _measurements.GroupBy(m => m.LineName).ToList();
+            if (traverses.Count == 0 || _currentTraverseIndex >= traverses.Count)
+                return new System.Collections.Generic.List<GeneratedMeasurement>();
+
+            return traverses[_currentTraverseIndex].ToList();
         }
     }
 }
