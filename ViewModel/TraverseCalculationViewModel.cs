@@ -283,7 +283,7 @@ namespace Nivtropy.ViewModels
 
         public ICommand AddBenchmarkCommand => new RelayCommand(_ => AddBenchmark(), _ => CanAddBenchmark);
         public ICommand RemoveBenchmarkCommand => new RelayCommand(param => RemoveBenchmark(param as BenchmarkItem));
-        public ICommand ExportCommand => new RelayCommand(_ => ExportToExcel(), _ => Rows.Count > 0);
+        public ICommand ExportCommand => new RelayCommand(_ => ExportToCsv(), _ => Rows.Count > 0);
 
         public bool CanSetHeight => !string.IsNullOrWhiteSpace(_selectedPointCode);
         public bool CanClearHeight => !string.IsNullOrWhiteSpace(_selectedPointCode) && _dataViewModel.HasKnownHeight(_selectedPointCode);
@@ -362,15 +362,15 @@ namespace Nivtropy.ViewModels
         }
 
         /// <summary>
-        /// Экспортирует данные в Excel
+        /// Экспортирует данные в CSV с 4-частной структурой для каждого хода
         /// </summary>
-        private void ExportToExcel()
+        private void ExportToCsv()
         {
             var saveFileDialog = new SaveFileDialog
             {
-                Filter = "Excel файлы (*.xlsx)|*.xlsx",
-                DefaultExt = "xlsx",
-                FileName = $"Нивелирование_{DateTime.Now:yyyy-MM-dd_HH-mm-ss}.xlsx"
+                Filter = "CSV файлы (*.csv)|*.csv",
+                DefaultExt = "csv",
+                FileName = $"Нивелирование_{DateTime.Now:yyyy-MM-dd_HH-mm-ss}.csv"
             };
 
             if (saveFileDialog.ShowDialog() != true)
@@ -378,102 +378,62 @@ namespace Nivtropy.ViewModels
 
             try
             {
-                using var workbook = new XLWorkbook();
-                var worksheet = workbook.Worksheets.Add("Нивелирование");
+                var csv = new System.Text.StringBuilder();
 
-                int row = 1;
-
-                // Группировка по ходам для подсчета статистики
+                // Группировка по ходам
                 var groupedRows = _rows.GroupBy(r => r.LineName).ToList();
-
-                // Подсчет общей статистики
-                double totalLengthBack = 0;
-                double totalLengthFore = 0;
-                double totalLength = 0;
-                double accumulationDifference = 0; // Накопление разности плеч
 
                 foreach (var group in groupedRows)
                 {
-                    var lineSummary = group.First().LineSummary;
+                    var lineName = group.Key;
+                    var rows = group.ToList();
+                    var lineSummary = rows.FirstOrDefault()?.LineSummary;
+
+                    // 1. Start-line - начало хода
+                    csv.AppendLine($"===== НАЧАЛО ХОДА: {lineName} =====");
+
+                    // 2. Info line - информация о ходе
                     if (lineSummary != null)
                     {
-                        totalLengthBack += lineSummary.TotalDistanceBack ?? 0;
-                        totalLengthFore += lineSummary.TotalDistanceFore ?? 0;
-                        totalLength += lineSummary.TotalAverageLength ?? 0;
+                        var lengthBack = lineSummary.TotalDistanceBack ?? 0;
+                        var lengthFore = lineSummary.TotalDistanceFore ?? 0;
+                        var totalLength = lineSummary.TotalAverageLength ?? 0;
+                        var armAccumulation = lineSummary.ArmDifferenceAccumulation ?? 0;
+                        var stationCount = lineSummary.RecordCount;
 
-                        // Накопление разности плеч только если оба значения есть
-                        if (lineSummary.TotalDistanceBack.HasValue && lineSummary.TotalDistanceFore.HasValue)
-                        {
-                            accumulationDifference += Math.Abs(lineSummary.TotalDistanceBack.Value - lineSummary.TotalDistanceFore.Value);
-                        }
+                        csv.AppendLine($"Станций: {stationCount}; Длина назад: {lengthBack:F2} м; Длина вперёд: {lengthFore:F2} м; Общая длина: {totalLength:F2} м; Накопление плеч: {armAccumulation:F3} м");
                     }
+
+                    // 3. Header row + data table
+                    csv.AppendLine("Номер;Ход;Точка;Станция;Отсчет назад (м);Отсчет вперед (м);Превышение (м);Поправка (мм);Превышение испр. (м);Высота непров. (м);Высота (м);Длина станции (м)");
+
+                    foreach (var dataRow in rows)
+                    {
+                        var heightZ0 = dataRow.IsVirtualStation ? dataRow.BackHeightZ0 : dataRow.ForeHeightZ0;
+                        var height = dataRow.IsVirtualStation ? dataRow.BackHeight : dataRow.ForeHeight;
+
+                        csv.AppendLine(string.Join(";",
+                            dataRow.Index,
+                            dataRow.LineName,
+                            dataRow.PointCode,
+                            dataRow.Station,
+                            dataRow.Rb_m?.ToString("F4") ?? "",
+                            dataRow.Rf_m?.ToString("F4") ?? "",
+                            dataRow.DeltaH?.ToString("F4") ?? "",
+                            dataRow.Correction.HasValue ? (dataRow.Correction.Value * 1000).ToString("F2") : "",
+                            dataRow.AdjustedDeltaH?.ToString("F4") ?? "",
+                            heightZ0?.ToString("F4") ?? "",
+                            height?.ToString("F4") ?? "",
+                            dataRow.StationLength_m?.ToString("F2") ?? ""
+                        ));
+                    }
+
+                    // 4. End-line - конец хода
+                    csv.AppendLine($"===== КОНЕЦ ХОДА: {lineName} =====");
+                    csv.AppendLine(); // Пустая строка между ходами
                 }
 
-                // Строка со сводной информацией (без форматирования для легкой конвертации в CSV)
-                int col = 1;
-                worksheet.Cell(row, col++).Value = "Метод";
-                worksheet.Cell(row, col++).Value = SelectedMethod?.Display ?? "";
-                worksheet.Cell(row, col++).Value = "Класс";
-                worksheet.Cell(row, col++).Value = SelectedClass?.Display ?? "";
-                worksheet.Cell(row, col++).Value = "Количество ходов";
-                worksheet.Cell(row, col++).Value = groupedRows.Count;
-                worksheet.Cell(row, col++).Value = "Станций";
-                worksheet.Cell(row, col++).Value = StationsCount;
-                worksheet.Cell(row, col++).Value = "Общая длина, м";
-                worksheet.Cell(row, col++).Value = (decimal)totalLength;
-                worksheet.Cell(row, col++).Value = "Длина назад, м";
-                worksheet.Cell(row, col++).Value = (decimal)totalLengthBack;
-                worksheet.Cell(row, col++).Value = "Длина вперед, м";
-                worksheet.Cell(row, col++).Value = (decimal)totalLengthFore;
-                worksheet.Cell(row, col++).Value = "Накопление разности плеч, м";
-                worksheet.Cell(row, col++).Value = (decimal)accumulationDifference;
-                worksheet.Cell(row, col++).Value = "ΣΔh, м";
-                worksheet.Cell(row, col++).Value = Closure.HasValue ? (decimal)Closure.Value : (decimal?)null;
-                worksheet.Cell(row, col++).Value = "Допуск невязки, м";
-                worksheet.Cell(row, col++).Value = AllowableClosure.HasValue ? (decimal)AllowableClosure.Value : (decimal?)null;
-                worksheet.Cell(row, col++).Value = "Вердикт";
-                worksheet.Cell(row, col++).Value = ClosureVerdict;
-
-                row += 2;
-
-                // Заголовки столбцов таблицы (без форматирования)
-                col = 1;
-                worksheet.Cell(row, col++).Value = "Номер";
-                worksheet.Cell(row, col++).Value = "Ход";
-                worksheet.Cell(row, col++).Value = "Точка";
-                worksheet.Cell(row, col++).Value = "Станция";
-                worksheet.Cell(row, col++).Value = "Отсчет назад, м";
-                worksheet.Cell(row, col++).Value = "Отсчет вперед, м";
-                worksheet.Cell(row, col++).Value = "Превышение, м";
-                worksheet.Cell(row, col++).Value = "Поправка, мм";
-                worksheet.Cell(row, col++).Value = "Превышение испр., м";
-                worksheet.Cell(row, col++).Value = "Высота непров., м";
-                worksheet.Cell(row, col++).Value = "Высота, м";
-                worksheet.Cell(row, col++).Value = "Длина станции, м";
-                row++;
-
-                // Данные всех станций (без форматирования)
-                foreach (var dataRow in _rows)
-                {
-                    col = 1;
-                    worksheet.Cell(row, col++).Value = dataRow.Index;
-                    worksheet.Cell(row, col++).Value = dataRow.LineName;
-                    worksheet.Cell(row, col++).Value = dataRow.PointCode;
-                    worksheet.Cell(row, col++).Value = dataRow.Station;
-                    worksheet.Cell(row, col++).Value = dataRow.Rb_m.HasValue ? (decimal)dataRow.Rb_m.Value : (decimal?)null;
-                    worksheet.Cell(row, col++).Value = dataRow.Rf_m.HasValue ? (decimal)dataRow.Rf_m.Value : (decimal?)null;
-                    worksheet.Cell(row, col++).Value = dataRow.DeltaH.HasValue ? (decimal)dataRow.DeltaH.Value : (decimal?)null;
-                    worksheet.Cell(row, col++).Value = dataRow.Correction.HasValue ? (decimal)(dataRow.Correction.Value * 1000) : (decimal?)null;
-                    worksheet.Cell(row, col++).Value = dataRow.AdjustedDeltaH.HasValue ? (decimal)dataRow.AdjustedDeltaH.Value : (decimal?)null;
-                    var heightZ0 = dataRow.IsVirtualStation ? dataRow.BackHeightZ0 : dataRow.ForeHeightZ0;
-                    worksheet.Cell(row, col++).Value = heightZ0.HasValue ? (decimal)heightZ0.Value : (decimal?)null;
-                    var height = dataRow.IsVirtualStation ? dataRow.BackHeight : dataRow.ForeHeight;
-                    worksheet.Cell(row, col++).Value = height.HasValue ? (decimal)height.Value : (decimal?)null;
-                    worksheet.Cell(row, col++).Value = dataRow.StationLength_m.HasValue ? (decimal)dataRow.StationLength_m.Value : (decimal?)null;
-                    row++;
-                }
-
-                workbook.SaveAs(saveFileDialog.FileName);
+                System.IO.File.WriteAllText(saveFileDialog.FileName, csv.ToString(), System.Text.Encoding.UTF8);
 
                 System.Windows.MessageBox.Show($"Данные успешно экспортированы в:\n{saveFileDialog.FileName}",
                     "Экспорт завершён",

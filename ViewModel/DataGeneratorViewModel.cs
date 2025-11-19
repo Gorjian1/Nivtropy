@@ -94,106 +94,237 @@ namespace Nivtropy.ViewModels
                     return;
                 }
 
-                // Читаем Excel файл
-                using var workbook = new XLWorkbook(SourceFilePath);
-                var worksheet = workbook.Worksheets.First();
-
-                // Пропускаем первые 2 строки (сводка и пустая строка)
-                int dataStartRow = 3;
-
-                // Находим заголовки в строке 3
-                var headers = new System.Collections.Generic.Dictionary<string, int>();
-                for (int col = 1; col <= worksheet.LastColumnUsed().ColumnNumber(); col++)
+                // Определяем тип файла по расширению
+                var ext = Path.GetExtension(SourceFilePath).ToLowerInvariant();
+                if (ext == ".csv")
                 {
-                    var headerValue = worksheet.Cell(dataStartRow, col).GetValue<string>();
-                    if (!string.IsNullOrWhiteSpace(headerValue))
-                    {
-                        headers[headerValue] = col;
-                    }
+                    GenerateFromCsv();
                 }
-
-                // Начинаем читать данные с 4 строки
-                int index = 1;
-                for (int row = dataStartRow + 1; row <= worksheet.LastRowUsed().RowNumber(); row++)
+                else if (ext == ".xlsx")
                 {
-                    var lineName = headers.ContainsKey("Ход")
-                        ? worksheet.Cell(row, headers["Ход"]).GetValue<string>()
-                        : "Ход 01";
-                    var pointCode = headers.ContainsKey("Точка")
-                        ? worksheet.Cell(row, headers["Точка"]).GetValue<string>()
-                        : "";
-                    var station = headers.ContainsKey("Станция")
-                        ? worksheet.Cell(row, headers["Станция"]).GetValue<string>()
-                        : "";
-
-                    // Парсим станцию для извлечения BackCode и ForeCode
-                    string? backCode = null;
-                    string? foreCode = null;
-                    if (!string.IsNullOrWhiteSpace(station) && station.Contains("→"))
-                    {
-                        var parts = station.Split(new[] { "→" }, StringSplitOptions.None);
-                        if (parts.Length == 2)
-                        {
-                            backCode = parts[0].Trim();
-                            foreCode = parts[1].Trim();
-                            if (backCode == "?") backCode = null;
-                            if (foreCode == "?") foreCode = null;
-                        }
-                    }
-
-                    var rbCell = headers.ContainsKey("Отсчет назад, м")
-                        ? worksheet.Cell(row, headers["Отсчет назад, м"])
-                        : null;
-                    var rfCell = headers.ContainsKey("Отсчет вперед, м")
-                        ? worksheet.Cell(row, headers["Отсчет вперед, м"])
-                        : null;
-                    var heightCell = headers.ContainsKey("Высота, м")
-                        ? worksheet.Cell(row, headers["Высота, м"])
-                        : null;
-
-                    double? rb = rbCell != null && !rbCell.IsEmpty() ? rbCell.GetValue<double?>() : null;
-                    double? rf = rfCell != null && !rfCell.IsEmpty() ? rfCell.GetValue<double?>() : null;
-                    double? height = heightCell != null && !heightCell.IsEmpty() ? heightCell.GetValue<double?>() : null;
-
-                    // Генерируем расстояния (5-15 метров)
-                    double? hdBack = rb.HasValue ? 5.0 + _random.NextDouble() * 10.0 : null;
-                    double? hdFore = rf.HasValue ? 5.0 + _random.NextDouble() * 10.0 : null;
-
-                    // Добавляем шум к измерениям
-                    if (rb.HasValue)
-                    {
-                        double noise = GenerateNoise(index);
-                        rb = rb.Value + noise / 1000.0; // Переводим мм в м
-                    }
-                    if (rf.HasValue)
-                    {
-                        double noise = GenerateNoise(index);
-                        rf = rf.Value + noise / 1000.0;
-                    }
-
-                    _measurements.Add(new GeneratedMeasurement
-                    {
-                        Index = index++,
-                        LineName = lineName,
-                        PointCode = pointCode,
-                        StationCode = station,
-                        BackPointCode = backCode,
-                        ForePointCode = foreCode,
-                        Rb_m = rb,
-                        Rf_m = rf,
-                        HD_Back_m = hdBack,
-                        HD_Fore_m = hdFore,
-                        Height_m = height,
-                        IsBackSight = rb.HasValue
-                    });
+                    GenerateFromExcel();
                 }
-
-                MessageBox.Show($"Сгенерировано {_measurements.Count} измерений", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
+                else
+                {
+                    MessageBox.Show("Неподдерживаемый формат файла. Используйте CSV или XLSX.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"Ошибка генерации: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
             }
+        }
+
+        private void GenerateFromCsv()
+        {
+            var lines = File.ReadAllLines(SourceFilePath, Encoding.UTF8);
+            int index = 1;
+            string currentLineName = "Ход 01";
+            bool inDataSection = false;
+
+            for (int i = 0; i < lines.Length; i++)
+            {
+                var line = lines[i].Trim();
+
+                // Пропускаем пустые строки
+                if (string.IsNullOrWhiteSpace(line))
+                {
+                    inDataSection = false;
+                    continue;
+                }
+
+                // Проверяем начало хода
+                if (line.StartsWith("===== НАЧАЛО ХОДА:"))
+                {
+                    currentLineName = line.Replace("===== НАЧАЛО ХОДА:", "").Replace("=====", "").Trim();
+                    inDataSection = false;
+                    continue;
+                }
+
+                // Проверяем конец хода
+                if (line.StartsWith("===== КОНЕЦ ХОДА:"))
+                {
+                    inDataSection = false;
+                    continue;
+                }
+
+                // Пропускаем информационную строку
+                if (line.StartsWith("Станций:"))
+                {
+                    continue;
+                }
+
+                // Проверяем заголовок таблицы
+                if (line.StartsWith("Номер;"))
+                {
+                    inDataSection = true;
+                    continue;
+                }
+
+                // Читаем строки данных
+                if (inDataSection)
+                {
+                    var parts = line.Split(';');
+                    if (parts.Length >= 12)
+                    {
+                        var lineName = parts[1];
+                        var pointCode = parts[2];
+                        var station = parts[3];
+
+                        // Парсим станцию для извлечения BackCode и ForeCode
+                        string? backCode = null;
+                        string? foreCode = null;
+                        if (!string.IsNullOrWhiteSpace(station) && station.Contains("→"))
+                        {
+                            var stationParts = station.Split(new[] { "→" }, StringSplitOptions.None);
+                            if (stationParts.Length == 2)
+                            {
+                                backCode = stationParts[0].Trim();
+                                foreCode = stationParts[1].Trim();
+                                if (backCode == "?") backCode = null;
+                                if (foreCode == "?") foreCode = null;
+                            }
+                        }
+
+                        double? rb = !string.IsNullOrWhiteSpace(parts[4]) ? double.Parse(parts[4], System.Globalization.CultureInfo.InvariantCulture) : null;
+                        double? rf = !string.IsNullOrWhiteSpace(parts[5]) ? double.Parse(parts[5], System.Globalization.CultureInfo.InvariantCulture) : null;
+                        double? height = !string.IsNullOrWhiteSpace(parts[10]) ? double.Parse(parts[10], System.Globalization.CultureInfo.InvariantCulture) : null;
+
+                        // Генерируем расстояния (5-15 метров)
+                        double? hdBack = rb.HasValue ? 5.0 + _random.NextDouble() * 10.0 : null;
+                        double? hdFore = rf.HasValue ? 5.0 + _random.NextDouble() * 10.0 : null;
+
+                        // Добавляем шум к измерениям
+                        if (rb.HasValue)
+                        {
+                            double noise = GenerateNoise(index);
+                            rb = rb.Value + noise / 1000.0;
+                        }
+                        if (rf.HasValue)
+                        {
+                            double noise = GenerateNoise(index);
+                            rf = rf.Value + noise / 1000.0;
+                        }
+
+                        _measurements.Add(new GeneratedMeasurement
+                        {
+                            Index = index++,
+                            LineName = lineName,
+                            PointCode = pointCode,
+                            StationCode = station,
+                            BackPointCode = backCode,
+                            ForePointCode = foreCode,
+                            Rb_m = rb,
+                            Rf_m = rf,
+                            HD_Back_m = hdBack,
+                            HD_Fore_m = hdFore,
+                            Height_m = height,
+                            IsBackSight = rb.HasValue
+                        });
+                    }
+                }
+            }
+
+            MessageBox.Show($"Сгенерировано {_measurements.Count} измерений", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+
+        private void GenerateFromExcel()
+        {
+            // Читаем Excel файл
+            using var workbook = new XLWorkbook(SourceFilePath);
+            var worksheet = workbook.Worksheets.First();
+
+            // Пропускаем первые 2 строки (сводка и пустая строка)
+            int dataStartRow = 3;
+
+            // Находим заголовки в строке 3
+            var headers = new System.Collections.Generic.Dictionary<string, int>();
+            for (int col = 1; col <= worksheet.LastColumnUsed().ColumnNumber(); col++)
+            {
+                var headerValue = worksheet.Cell(dataStartRow, col).GetValue<string>();
+                if (!string.IsNullOrWhiteSpace(headerValue))
+                {
+                    headers[headerValue] = col;
+                }
+            }
+
+            // Начинаем читать данные с 4 строки
+            int index = 1;
+            for (int row = dataStartRow + 1; row <= worksheet.LastRowUsed().RowNumber(); row++)
+            {
+                var lineName = headers.ContainsKey("Ход")
+                    ? worksheet.Cell(row, headers["Ход"]).GetValue<string>()
+                    : "Ход 01";
+                var pointCode = headers.ContainsKey("Точка")
+                    ? worksheet.Cell(row, headers["Точка"]).GetValue<string>()
+                    : "";
+                var station = headers.ContainsKey("Станция")
+                    ? worksheet.Cell(row, headers["Станция"]).GetValue<string>()
+                    : "";
+
+                // Парсим станцию для извлечения BackCode и ForeCode
+                string? backCode = null;
+                string? foreCode = null;
+                if (!string.IsNullOrWhiteSpace(station) && station.Contains("→"))
+                {
+                    var parts = station.Split(new[] { "→" }, StringSplitOptions.None);
+                    if (parts.Length == 2)
+                    {
+                        backCode = parts[0].Trim();
+                        foreCode = parts[1].Trim();
+                        if (backCode == "?") backCode = null;
+                        if (foreCode == "?") foreCode = null;
+                    }
+                }
+
+                var rbCell = headers.ContainsKey("Отсчет назад, м")
+                    ? worksheet.Cell(row, headers["Отсчет назад, м"])
+                    : null;
+                var rfCell = headers.ContainsKey("Отсчет вперед, м")
+                    ? worksheet.Cell(row, headers["Отсчет вперед, м"])
+                    : null;
+                var heightCell = headers.ContainsKey("Высота, м")
+                    ? worksheet.Cell(row, headers["Высота, м"])
+                    : null;
+
+                double? rb = rbCell != null && !rbCell.IsEmpty() ? rbCell.GetValue<double?>() : null;
+                double? rf = rfCell != null && !rfCell.IsEmpty() ? rfCell.GetValue<double?>() : null;
+                double? height = heightCell != null && !heightCell.IsEmpty() ? heightCell.GetValue<double?>() : null;
+
+                // Генерируем расстояния (5-15 метров)
+                double? hdBack = rb.HasValue ? 5.0 + _random.NextDouble() * 10.0 : null;
+                double? hdFore = rf.HasValue ? 5.0 + _random.NextDouble() * 10.0 : null;
+
+                // Добавляем шум к измерениям
+                if (rb.HasValue)
+                {
+                    double noise = GenerateNoise(index);
+                    rb = rb.Value + noise / 1000.0; // Переводим мм в м
+                }
+                if (rf.HasValue)
+                {
+                    double noise = GenerateNoise(index);
+                    rf = rf.Value + noise / 1000.0;
+                }
+
+                _measurements.Add(new GeneratedMeasurement
+                {
+                    Index = index++,
+                    LineName = lineName,
+                    PointCode = pointCode,
+                    StationCode = station,
+                    BackPointCode = backCode,
+                    ForePointCode = foreCode,
+                    Rb_m = rb,
+                    Rf_m = rf,
+                    HD_Back_m = hdBack,
+                    HD_Fore_m = hdFore,
+                    Height_m = height,
+                    IsBackSight = rb.HasValue
+                });
+            }
+
+            MessageBox.Show($"Сгенерировано {_measurements.Count} измерений", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
         private double GenerateNoise(int index)
