@@ -392,7 +392,7 @@ namespace Nivtropy.ViewModels
                     // 1. Start-line - начало хода
                     csv.AppendLine($"===== НАЧАЛО ХОДА: {lineName} =====");
 
-                    // 2. Info line - информация о ходе
+                    // 2. Info line - информация о ходе (заголовки и данные в отдельных строках)
                     if (lineSummary != null)
                     {
                         var lengthBack = lineSummary.TotalDistanceBack ?? 0;
@@ -401,7 +401,10 @@ namespace Nivtropy.ViewModels
                         var armAccumulation = lineSummary.ArmDifferenceAccumulation ?? 0;
                         var stationCount = lineSummary.RecordCount;
 
-                        csv.AppendLine($"Станций: {stationCount}; Длина назад: {lengthBack:F2} м; Длина вперёд: {lengthFore:F2} м; Общая длина: {totalLength:F2} м; Накопление плеч: {armAccumulation:F3} м");
+                        // Заголовки
+                        csv.AppendLine("Станций;Длина назад (м);Длина вперёд (м);Общая длина (м);Накопление плеч (м)");
+                        // Данные
+                        csv.AppendLine($"{stationCount};{lengthBack:F2};{lengthFore:F2};{totalLength:F2};{armAccumulation:F3}");
                     }
 
                     // 3. Header row + data table

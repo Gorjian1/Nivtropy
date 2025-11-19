@@ -155,13 +155,19 @@ namespace Nivtropy.ViewModels
                     continue;
                 }
 
-                // Парсим информационную строку о ходе
-                if (line.StartsWith("Станций:"))
+                // Парсим информационную строку о ходе (заголовки)
+                if (line.StartsWith("Станций;"))
                 {
-                    currentTraverseInfo = ParseTraverseInfo(line, currentLineName);
-                    if (!traverses.ContainsKey(currentLineName))
+                    // Следующая строка содержит данные
+                    if (i + 1 < lines.Length)
                     {
-                        traverses[currentLineName] = (currentTraverseInfo, new System.Collections.Generic.List<GeneratedMeasurement>());
+                        var dataLine = lines[i + 1].Trim();
+                        currentTraverseInfo = ParseTraverseInfo(dataLine, currentLineName);
+                        if (!traverses.ContainsKey(currentLineName))
+                        {
+                            traverses[currentLineName] = (currentTraverseInfo, new System.Collections.Generic.List<GeneratedMeasurement>());
+                        }
+                        i++; // Пропускаем следующую строку, так как уже обработали
                     }
                     continue;
                 }
@@ -250,47 +256,39 @@ namespace Nivtropy.ViewModels
 
         /// <summary>
         /// Парсит информационную строку о ходе
-        /// Формат: "Станций: {count}; Длина назад: {back} м; Длина вперёд: {fore} м; Общая длина: {total} м; Накопление плеч: {accum} м"
+        /// Формат: "{stationCount};{lengthBack};{lengthFore};{totalLength};{armAccumulation}"
+        /// Порядок: Станций, Длина назад (м), Длина вперёд (м), Общая длина (м), Накопление плеч (м)
         /// </summary>
         private TraverseInfo ParseTraverseInfo(string line, string lineName)
         {
             var info = new TraverseInfo { LineName = lineName };
 
             var parts = line.Split(';');
-            foreach (var part in parts)
-            {
-                var trimmed = part.Trim();
 
-                if (trimmed.StartsWith("Станций:"))
-                {
-                    var value = trimmed.Replace("Станций:", "").Trim();
-                    if (int.TryParse(value, out var stationCount))
-                        info.StationCount = stationCount;
-                }
-                else if (trimmed.StartsWith("Длина назад:"))
-                {
-                    var value = trimmed.Replace("Длина назад:", "").Replace("м", "").Trim();
-                    if (double.TryParse(value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var length))
-                        info.TotalLengthBack_m = length;
-                }
-                else if (trimmed.StartsWith("Длина вперёд:"))
-                {
-                    var value = trimmed.Replace("Длина вперёд:", "").Replace("м", "").Trim();
-                    if (double.TryParse(value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var length))
-                        info.TotalLengthFore_m = length;
-                }
-                else if (trimmed.StartsWith("Общая длина:"))
-                {
-                    var value = trimmed.Replace("Общая длина:", "").Replace("м", "").Trim();
-                    if (double.TryParse(value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var length))
-                        info.TotalLength_m = length;
-                }
-                else if (trimmed.StartsWith("Накопление плеч:"))
-                {
-                    var value = trimmed.Replace("Накопление плеч:", "").Replace("м", "").Trim();
-                    if (double.TryParse(value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var accum))
-                        info.ArmAccumulation_m = accum;
-                }
+            // Парсим по позициям
+            if (parts.Length >= 1 && int.TryParse(parts[0].Trim(), out var stationCount))
+            {
+                info.StationCount = stationCount;
+            }
+
+            if (parts.Length >= 2 && double.TryParse(parts[1].Trim(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var lengthBack))
+            {
+                info.TotalLengthBack_m = lengthBack;
+            }
+
+            if (parts.Length >= 3 && double.TryParse(parts[2].Trim(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var lengthFore))
+            {
+                info.TotalLengthFore_m = lengthFore;
+            }
+
+            if (parts.Length >= 4 && double.TryParse(parts[3].Trim(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var totalLength))
+            {
+                info.TotalLength_m = totalLength;
+            }
+
+            if (parts.Length >= 5 && double.TryParse(parts[4].Trim(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var armAccumulation))
+            {
+                info.ArmAccumulation_m = armAccumulation;
             }
 
             return info;
