@@ -201,7 +201,8 @@ namespace Nivtropy.ViewModels
                         double? rb = !string.IsNullOrWhiteSpace(parts[4]) ? double.Parse(parts[4], System.Globalization.CultureInfo.InvariantCulture) : null;
                         double? rf = !string.IsNullOrWhiteSpace(parts[5]) ? double.Parse(parts[5], System.Globalization.CultureInfo.InvariantCulture) : null;
                         double? deltaH = !string.IsNullOrWhiteSpace(parts[6]) ? double.Parse(parts[6], System.Globalization.CultureInfo.InvariantCulture) : null;
-                        double? height = !string.IsNullOrWhiteSpace(parts[10]) ? double.Parse(parts[10], System.Globalization.CultureInfo.InvariantCulture) : null;
+                        // Используем Z0 (высота без поправки на невязку) из parts[9]
+                        double? height = !string.IsNullOrWhiteSpace(parts[9]) ? double.Parse(parts[9], System.Globalization.CultureInfo.InvariantCulture) : null;
 
                         var measurement = new GeneratedMeasurement
                         {
@@ -303,42 +304,33 @@ namespace Nivtropy.ViewModels
             if (measurements.Count == 0)
                 return;
 
-            var stationsWithData = measurements.Where(m => m.Rb_m.HasValue || m.Rf_m.HasValue).ToList();
-            if (stationsWithData.Count == 0)
+            // Подсчитываем количество отсчетов назад и вперед
+            var backMeasurements = measurements.Where(m => m.Rb_m.HasValue).ToList();
+            var foreMeasurements = measurements.Where(m => m.Rf_m.HasValue).ToList();
+
+            if (backMeasurements.Count == 0 && foreMeasurements.Count == 0)
                 return;
 
             // Генерируем базовые расстояния (5-15 метров)
-            var baseDistancesBack = new System.Collections.Generic.List<double>();
-            var baseDistancesFore = new System.Collections.Generic.List<double>();
+            var baseDistancesBack = backMeasurements.Select(_ => 5.0 + _random.NextDouble() * 10.0).ToList();
+            var baseDistancesFore = foreMeasurements.Select(_ => 5.0 + _random.NextDouble() * 10.0).ToList();
 
-            double sumBack = 0;
-            double sumFore = 0;
-
-            foreach (var m in stationsWithData)
-            {
-                double distBack = m.Rb_m.HasValue ? 5.0 + _random.NextDouble() * 10.0 : 0;
-                double distFore = m.Rf_m.HasValue ? 5.0 + _random.NextDouble() * 10.0 : 0;
-
-                baseDistancesBack.Add(distBack);
-                baseDistancesFore.Add(distFore);
-
-                sumBack += distBack;
-                sumFore += distFore;
-            }
+            double sumBack = baseDistancesBack.Sum();
+            double sumFore = baseDistancesFore.Sum();
 
             // Масштабируем расстояния, чтобы сумма соответствовала целевым значениям
             double scaleBack = sumBack > 0 ? info.TotalLengthBack_m / sumBack : 1.0;
             double scaleFore = sumFore > 0 ? info.TotalLengthFore_m / sumFore : 1.0;
 
-            for (int i = 0; i < stationsWithData.Count; i++)
+            // Применяем масштабированные расстояния
+            for (int i = 0; i < backMeasurements.Count; i++)
             {
-                var m = stationsWithData[i];
+                backMeasurements[i].HD_Back_m = baseDistancesBack[i] * scaleBack;
+            }
 
-                if (m.Rb_m.HasValue)
-                    m.HD_Back_m = baseDistancesBack[i] * scaleBack;
-
-                if (m.Rf_m.HasValue)
-                    m.HD_Fore_m = baseDistancesFore[i] * scaleFore;
+            for (int i = 0; i < foreMeasurements.Count; i++)
+            {
+                foreMeasurements[i].HD_Fore_m = baseDistancesFore[i] * scaleFore;
             }
         }
 
@@ -417,9 +409,9 @@ namespace Nivtropy.ViewModels
         {
             var saveFileDialog = new SaveFileDialog
             {
-                Filter = "Файлы Нивелир (*.txt)|*.txt|Все файлы (*.*)|*.*",
-                DefaultExt = "txt",
-                FileName = $"generated_{DateTime.Now:yyyy-MM-dd_HH-mm-ss}.txt"
+                Filter = "Файлы DAT (*.dat)|*.dat|Все файлы (*.*)|*.*",
+                DefaultExt = "dat",
+                FileName = $"generated_{DateTime.Now:yyyy-MM-dd_HH-mm-ss}.dat"
             };
 
             if (saveFileDialog.ShowDialog() != true)
@@ -429,81 +421,67 @@ namespace Nivtropy.ViewModels
             int lineNumber = 1;
 
             // Заголовок файла
-            sb.AppendLine($"For M5|Adr     {lineNumber++}|TO  {Path.GetFileName(saveFileDialog.FileName)}               |                      |                      |                      | ");
-            sb.AppendLine($"For M5|Adr     {lineNumber++}|TO  Start-Line         BF  0214|                      |                      |                      | ");
+            var fileName = Path.GetFileName(saveFileDialog.FileName).PadRight(27);
+            sb.AppendLine($"For M5|Adr     {lineNumber++}|TO  {fileName}|                      |                      |                      | ");
 
             // Группируем измерения по ходам
             var traverseGroups = _measurements.GroupBy(m => m.LineName).ToList();
+            int traverseIndex = 0;
 
             foreach (var traverse in traverseGroups)
             {
                 var traverseMeasurements = traverse.ToList();
+                var lineCode = (214 + traverseIndex).ToString("0000");
 
-                // Вычисляем статистику хода
-                double totalLength = 0;
-                double totalArmDifference = 0;
-                int stationCount = 0;
+                // Start-Line для хода
+                sb.AppendLine($"For M5|Adr     {lineNumber++}|TO  Start-Line         BF  {lineCode}|                      |                      |                      | ");
 
-                foreach (var m in traverseMeasurements)
-                {
-                    if (m.HD_Back_m.HasValue && m.HD_Fore_m.HasValue)
-                    {
-                        totalLength += m.HD_Back_m.Value + m.HD_Fore_m.Value;
-                        totalArmDifference += Math.Abs(m.HD_Back_m.Value - m.HD_Fore_m.Value);
-                        stationCount++;
-                    }
-                }
-
-                // Разделитель и заголовок хода
-                sb.AppendLine($"For M5|Adr {lineNumber++,6}|-- ========================================== | ");
-                sb.AppendLine($"For M5|Adr {lineNumber++,6}|-- {traverse.Key,-40} | ");
-                sb.AppendLine($"For M5|Adr {lineNumber++,6}|-- Станций: {stationCount,-6}  Длина хода: {totalLength,8:F2} м | ");
-                sb.AppendLine($"For M5|Adr {lineNumber++,6}|-- Σ|разность плеч|: {totalArmDifference,8:F4} м          | ");
-                sb.AppendLine($"For M5|Adr {lineNumber++,6}|-- ========================================== | ");
-
-                // Данные хода
-                string? previousForePoint = null;
-                double? previousForeHeight = null;
+                // Обрабатываем каждое измерение
+                string? currentBackPoint = null;
+                double? currentBackHeight = null;
 
                 foreach (var m in traverseMeasurements)
                 {
-                    // Выводим высоту предыдущей точки если она есть
-                    if (previousForeHeight.HasValue && !string.IsNullOrEmpty(previousForePoint))
-                    {
-                        sb.AppendLine($"For M5|Adr {lineNumber++,6}|KD1 {previousForePoint,10}               0214|                      |                      |Z {previousForeHeight:F4} m   | ");
-                    }
-
-                    // Выводим отсчеты (и Rb и Rf, если оба есть)
+                    // Обрабатываем заднюю точку
                     if (m.Rb_m.HasValue && !string.IsNullOrEmpty(m.BackPointCode))
                     {
-                        sb.AppendLine($"For M5|Adr {lineNumber++,6}|KD1 {m.BackPointCode,10}              10214|Rb {m.Rb_m:F4} m   |HD {m.HD_Back_m:F2} m   |                      | ");
+                        // Если это новая точка (не та же что и предыдущая передняя)
+                        if (currentBackPoint != m.BackPointCode)
+                        {
+                            currentBackPoint = m.BackPointCode;
+                            currentBackHeight = m.Height_m;
+
+                            // Выводим высоту задней точки
+                            var pointPadded = m.BackPointCode.PadRight(10);
+                            sb.AppendLine($"For M5|Adr   {lineNumber++,3}|KD1 {pointPadded}       {lineCode}|                      |                      |Z      {currentBackHeight,10:F4} m   | ");
+                        }
+
+                        // Выводим отсчет назад
+                        var pointPadded2 = m.BackPointCode.PadRight(10);
+                        sb.AppendLine($"For M5|Adr   {lineNumber++,3}|KD1 {pointPadded2}      1{lineCode}|Rb       {m.Rb_m,8:F4} m   |HD         {m.HD_Back_m,6:F2} m   |                      | ");
                     }
 
+                    // Обрабатываем переднюю точку
                     if (m.Rf_m.HasValue && !string.IsNullOrEmpty(m.ForePointCode))
                     {
-                        sb.AppendLine($"For M5|Adr {lineNumber++,6}|KD1 {m.ForePointCode,10}              10214|Rf {m.Rf_m:F4} m   |HD {m.HD_Fore_m:F2} m   |                      | ");
-                    }
+                        // Выводим отсчет вперед
+                        var pointPadded3 = m.ForePointCode.PadRight(10);
+                        sb.AppendLine($"For M5|Adr   {lineNumber++,3}|KD1 {pointPadded3}      1{lineCode}|Rf       {m.Rf_m,8:F4} m   |HD         {m.HD_Fore_m,6:F2} m   |                      | ");
 
-                    // Сохраняем переднюю точку для следующей итерации
-                    if (m.Rf_m.HasValue)
-                    {
-                        previousForePoint = m.ForePointCode;
-                        previousForeHeight = m.Height_m;
+                        // Выводим высоту передней точки
+                        var height = m.Height_m ?? 0;
+                        sb.AppendLine($"For M5|Adr   {lineNumber++,3}|KD1 {pointPadded3}       {lineCode}|                      |                      |Z      {height,10:F4} m   | ");
+
+                        currentBackPoint = m.ForePointCode;
+                        currentBackHeight = height;
                     }
                 }
 
-                // Завершающие строки хода - выводим последнюю точку
-                if (previousForeHeight.HasValue && !string.IsNullOrEmpty(previousForePoint))
-                {
-                    sb.AppendLine($"For M5|Adr {lineNumber++,6}|KD1 {previousForePoint,10}               0214|                      |                      |Z {previousForeHeight:F4} m   | ");
-                }
+                // End-Line для хода
+                sb.AppendLine($"For M5|Adr   {lineNumber++,3}|TO  End-Line               {lineCode}|                      |                      |                      | ");
 
-                // Граница хода
-                sb.AppendLine($"For M5|Adr {lineNumber++,6}|-- ------------------------------------------ | ");
-                sb.AppendLine();
+                traverseIndex++;
             }
-
-            sb.AppendLine($"For M5|Adr {lineNumber++,6}|TO  End-Line               0214|                      |                      |                      | ");
 
             File.WriteAllText(saveFileDialog.FileName, sb.ToString(), Encoding.UTF8);
 
