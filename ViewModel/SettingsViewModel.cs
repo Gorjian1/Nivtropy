@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
+using Nivtropy.Models;
 
 namespace Nivtropy.ViewModels
 {
@@ -16,7 +17,7 @@ namespace Nivtropy.ViewModels
         private string _tableFontFamily = "Segoe UI";
         private double _tableFontSize = 13;
         private int _gridLineColorIndex = 0; // 0=светло-серый, 1=серый, 2=темно-серый, 3=голубоватый
-        private bool _alternatingRowColors = true;
+        private RowColoringMode _rowColoringMode = RowColoringMode.Alternating;
         private bool _showColumnHeaderIcons = true;
 
         // Настройки расчётов
@@ -50,10 +51,10 @@ namespace Nivtropy.ViewModels
             set => SetField(ref _gridLineColorIndex, value);
         }
 
-        public bool AlternatingRowColors
+        public RowColoringMode RowColoringMode
         {
-            get => _alternatingRowColors;
-            set => SetField(ref _alternatingRowColors, value);
+            get => _rowColoringMode;
+            set => SetField(ref _rowColoringMode, value);
         }
 
         public bool ShowColumnHeaderIcons
@@ -200,7 +201,7 @@ namespace Nivtropy.ViewModels
                         _tableFontFamily = settings.TableFontFamily;
                         _tableFontSize = settings.TableFontSize;
                         _gridLineColorIndex = settings.GridLineColorIndex;
-                        _alternatingRowColors = settings.AlternatingRowColors;
+                        _rowColoringMode = settings.RowColoringMode;
                         _showColumnHeaderIcons = settings.ShowColumnHeaderIcons;
                         _checkMinimumRayLength = settings.CheckMinimumRayLength;
                         _minimumRayLength = settings.MinimumRayLength;
@@ -215,7 +216,7 @@ namespace Nivtropy.ViewModels
                         OnPropertyChanged(nameof(TableFontFamily));
                         OnPropertyChanged(nameof(TableFontSize));
                         OnPropertyChanged(nameof(GridLineColorIndex));
-                        OnPropertyChanged(nameof(AlternatingRowColors));
+                        OnPropertyChanged(nameof(RowColoringMode));
                         OnPropertyChanged(nameof(ShowColumnHeaderIcons));
                         OnPropertyChanged(nameof(CheckMinimumRayLength));
                         OnPropertyChanged(nameof(MinimumRayLength));

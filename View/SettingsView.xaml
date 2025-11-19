@@ -3,6 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:models="clr-namespace:Nivtropy.Models"
              mc:Ignorable="d"
              d:DesignHeight="450"
              d:DesignWidth="800">
@@ -21,72 +22,92 @@
                                FontWeight="SemiBold"
                                Margin="0,0,0,12" />
 
-                    <!-- Шрифт таблиц -->
-                    <GroupBox Header="Шрифт таблиц" Margin="0,0,0,16">
-                        <StackPanel Margin="8">
-                            <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
-                                <TextBlock Text="Семейство шрифта:"
-                                           VerticalAlignment="Center"
-                                           Width="180" />
-                                <ComboBox Width="200"
-                                          SelectedValue="{Binding TableFontFamily, Mode=TwoWay}"
-                                          SelectedValuePath="Content">
-                                    <ComboBoxItem Content="Segoe UI" />
-                                    <ComboBoxItem Content="Calibri" />
-                                    <ComboBoxItem Content="Arial" />
-                                    <ComboBoxItem Content="Times New Roman" />
-                                    <ComboBoxItem Content="Consolas" />
-                                    <ComboBoxItem Content="Courier New" />
-                                </ComboBox>
-                            </StackPanel>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="20" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
 
-                            <StackPanel Orientation="Horizontal" Margin="0,0,0,0">
-                                <TextBlock Text="Размер шрифта:"
-                                           VerticalAlignment="Center"
-                                           Width="180" />
-                                <Slider Width="200"
-                                        Minimum="10"
-                                        Maximum="20"
-                                        Value="{Binding TableFontSize, Mode=TwoWay}"
-                                        TickFrequency="1"
-                                        IsSnapToTickEnabled="True"
-                                        TickPlacement="BottomRight" />
-                                <TextBlock Text="{Binding TableFontSize, StringFormat={}{0} pt}"
-                                           Margin="8,0,0,0"
-                                           VerticalAlignment="Center"
-                                           Width="50" />
-                            </StackPanel>
-                        </StackPanel>
-                    </GroupBox>
+                        <!-- Левая колонка -->
+                        <StackPanel Grid.Column="0">
+                            <!-- Шрифт таблиц -->
+                            <GroupBox Header="Шрифт таблиц" Margin="0,0,0,16">
+                                <StackPanel Margin="8">
+                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                                        <TextBlock Text="Семейство:"
+                                                   VerticalAlignment="Center"
+                                                   Width="100" />
+                                        <ComboBox Width="180"
+                                                  SelectedValue="{Binding TableFontFamily, Mode=TwoWay}"
+                                                  SelectedValuePath="Content">
+                                            <ComboBoxItem Content="Segoe UI" />
+                                            <ComboBoxItem Content="Calibri" />
+                                            <ComboBoxItem Content="Arial" />
+                                            <ComboBoxItem Content="Times New Roman" />
+                                            <ComboBoxItem Content="Consolas" />
+                                            <ComboBoxItem Content="Courier New" />
+                                        </ComboBox>
+                                    </StackPanel>
 
-                    <!-- Сетка таблиц -->
-                    <GroupBox Header="Сетка таблиц" Margin="0,0,0,16">
-                        <StackPanel Margin="8">
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="Цвет линий сетки:"
-                                           VerticalAlignment="Center"
-                                           Width="180" />
-                                <ComboBox Width="200"
-                                          SelectedIndex="{Binding GridLineColorIndex, Mode=TwoWay}">
-                                    <ComboBoxItem Content="Светло-серый (по умолчанию)" />
-                                    <ComboBoxItem Content="Серый" />
-                                    <ComboBoxItem Content="Темно-серый" />
-                                    <ComboBoxItem Content="Голубоватый" />
-                                </ComboBox>
-                            </StackPanel>
-                        </StackPanel>
-                    </GroupBox>
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="Размер:"
+                                                   VerticalAlignment="Center"
+                                                   Width="100" />
+                                        <Slider Width="130"
+                                                Minimum="10"
+                                                Maximum="20"
+                                                Value="{Binding TableFontSize, Mode=TwoWay}"
+                                                TickFrequency="1"
+                                                IsSnapToTickEnabled="True"
+                                                TickPlacement="BottomRight" />
+                                        <TextBlock Text="{Binding TableFontSize, StringFormat={}{0} pt}"
+                                                   Margin="8,0,0,0"
+                                                   VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </StackPanel>
+                            </GroupBox>
 
-                    <!-- Внешний вид -->
-                    <GroupBox Header="Внешний вид" Margin="0,0,0,0">
-                        <StackPanel Margin="8">
-                            <CheckBox Content="Чередующиеся цвета строк"
-                                      IsChecked="{Binding AlternatingRowColors, Mode=TwoWay}"
-                                      Margin="0,0,0,8" />
-                            <CheckBox Content="Показывать иконки в заголовках колонок"
-                                      IsChecked="{Binding ShowColumnHeaderIcons, Mode=TwoWay}" />
+                            <!-- Сетка таблиц -->
+                            <GroupBox Header="Сетка таблиц" Margin="0,0,0,16">
+                                <StackPanel Margin="8">
+                                    <TextBlock Text="Цвет линий:"
+                                               Margin="0,0,0,4" />
+                                    <ComboBox SelectedIndex="{Binding GridLineColorIndex, Mode=TwoWay}">
+                                        <ComboBoxItem Content="Светло-серый (по умолчанию)" />
+                                        <ComboBoxItem Content="Серый" />
+                                        <ComboBoxItem Content="Темно-серый" />
+                                        <ComboBoxItem Content="Голубоватый" />
+                                    </ComboBox>
+                                </StackPanel>
+                            </GroupBox>
                         </StackPanel>
-                    </GroupBox>
+
+                        <!-- Правая колонка -->
+                        <StackPanel Grid.Column="2">
+                            <!-- Раскраска строк -->
+                            <GroupBox Header="Раскраска строк" Margin="0,0,0,16">
+                                <StackPanel Margin="8">
+                                    <RadioButton Content="Без раскраски"
+                                                 Margin="0,0,0,8"
+                                                 IsChecked="{Binding RowColoringMode, Converter={StaticResource EnumToBoolConverter}, ConverterParameter={x:Static models:RowColoringMode.None}}" />
+                                    <RadioButton Content="Чередующиеся цвета"
+                                                 Margin="0,0,0,8"
+                                                 IsChecked="{Binding RowColoringMode, Converter={StaticResource EnumToBoolConverter}, ConverterParameter={x:Static models:RowColoringMode.Alternating}}" />
+                                    <RadioButton Content="Градиент (темнее к концу хода)"
+                                                 IsChecked="{Binding RowColoringMode, Converter={StaticResource EnumToBoolConverter}, ConverterParameter={x:Static models:RowColoringMode.Gradient}}" />
+                                </StackPanel>
+                            </GroupBox>
+
+                            <!-- Внешний вид -->
+                            <GroupBox Header="Дополнительно" Margin="0,0,0,0">
+                                <StackPanel Margin="8">
+                                    <CheckBox Content="Показывать иконки в заголовках колонок"
+                                              IsChecked="{Binding ShowColumnHeaderIcons, Mode=TwoWay}" />
+                                </StackPanel>
+                            </GroupBox>
+                        </StackPanel>
+                    </Grid>
                 </StackPanel>
             </Border>
 
@@ -98,85 +119,98 @@
                                FontWeight="SemiBold"
                                Margin="0,0,0,12" />
 
-                    <!-- Контроль длин визирных лучей -->
-                    <GroupBox Header="Контроль длин визирных лучей" Margin="0,0,0,16">
-                        <StackPanel Margin="8">
-                            <CheckBox Content="Проверять минимальную длину визирного луча"
-                                      IsChecked="{Binding CheckMinimumRayLength, Mode=TwoWay}"
-                                      Margin="0,0,0,8" />
-                            <StackPanel Orientation="Horizontal" Margin="20,0,0,8"
-                                        IsEnabled="{Binding CheckMinimumRayLength}">
-                                <TextBlock Text="Минимальная длина луча:"
-                                           VerticalAlignment="Center"
-                                           Width="180" />
-                                <TextBox Width="80"
-                                         Text="{Binding MinimumRayLength, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                         ToolTip="Обычно ≥ 5 метров" />
-                                <TextBlock Text="м" Margin="4,0,0,0" VerticalAlignment="Center" />
-                            </StackPanel>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="20" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
 
-                            <CheckBox Content="Проверять максимальную длину визирного луча"
-                                      IsChecked="{Binding CheckMaximumRayLength, Mode=TwoWay}"
-                                      Margin="0,8,0,8" />
-                            <StackPanel Orientation="Horizontal" Margin="20,0,0,0"
-                                        IsEnabled="{Binding CheckMaximumRayLength}">
-                                <TextBlock Text="Максимальная длина луча:"
-                                           VerticalAlignment="Center"
-                                           Width="180" />
-                                <TextBox Width="80"
-                                         Text="{Binding MaximumRayLength, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                         ToolTip="I-II класс: 100м, III-IV класс: 150м" />
-                                <TextBlock Text="м" Margin="4,0,0,0" VerticalAlignment="Center" />
-                            </StackPanel>
-                        </StackPanel>
-                    </GroupBox>
+                        <!-- Левая колонка -->
+                        <StackPanel Grid.Column="0">
+                            <!-- Контроль длин визирных лучей -->
+                            <GroupBox Header="Контроль длин визирных лучей" Margin="0,0,0,16">
+                                <StackPanel Margin="8">
+                                    <CheckBox Content="Проверять минимальную длину"
+                                              IsChecked="{Binding CheckMinimumRayLength, Mode=TwoWay}"
+                                              Margin="0,0,0,8" />
+                                    <StackPanel Orientation="Horizontal" Margin="20,0,0,12"
+                                                IsEnabled="{Binding CheckMinimumRayLength}">
+                                        <TextBlock Text="Мин. длина:"
+                                                   VerticalAlignment="Center"
+                                                   Width="80" />
+                                        <TextBox Width="60"
+                                                 Text="{Binding MinimumRayLength, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                        <TextBlock Text="м" Margin="4,0,0,0" VerticalAlignment="Center" />
+                                    </StackPanel>
 
-                    <!-- Контроль длины станции -->
-                    <GroupBox Header="Контроль длины станции" Margin="0,0,0,16">
-                        <StackPanel Margin="8">
-                            <CheckBox Content="Проверять минимальную длину станции"
-                                      IsChecked="{Binding CheckMinimumStationLength, Mode=TwoWay}"
-                                      Margin="0,0,0,8" />
-                            <StackPanel Orientation="Horizontal" Margin="20,0,0,0"
-                                        IsEnabled="{Binding CheckMinimumStationLength}">
-                                <TextBlock Text="Минимальная длина станции:"
-                                           VerticalAlignment="Center"
-                                           Width="180" />
-                                <TextBox Width="80"
-                                         Text="{Binding MinimumStationLength, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                         ToolTip="Сумма визирных лучей, обычно ≥ 10м" />
-                                <TextBlock Text="м" Margin="4,0,0,0" VerticalAlignment="Center" />
-                            </StackPanel>
-                        </StackPanel>
-                    </GroupBox>
+                                    <CheckBox Content="Проверять максимальную длину"
+                                              IsChecked="{Binding CheckMaximumRayLength, Mode=TwoWay}"
+                                              Margin="0,0,0,8" />
+                                    <StackPanel Orientation="Horizontal" Margin="20,0,0,0"
+                                                IsEnabled="{Binding CheckMaximumRayLength}">
+                                        <TextBlock Text="Макс. длина:"
+                                                   VerticalAlignment="Center"
+                                                   Width="80" />
+                                        <TextBox Width="60"
+                                                 Text="{Binding MaximumRayLength, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                        <TextBlock Text="м" Margin="4,0,0,0" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </StackPanel>
+                            </GroupBox>
 
-                    <!-- Форматирование чисел -->
-                    <GroupBox Header="Отображение" Margin="0,0,0,16">
-                        <StackPanel Margin="8">
-                            <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                                <TextBlock Text="Количество знаков после запятой для высот:"
-                                           VerticalAlignment="Center"
-                                           Width="280" />
-                                <ComboBox Width="80"
-                                          SelectedIndex="{Binding HeightDecimalPlaces, Mode=TwoWay}">
-                                    <ComboBoxItem Content="3" />
-                                    <ComboBoxItem Content="4" />
-                                    <ComboBoxItem Content="5" />
-                                </ComboBox>
-                            </StackPanel>
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="Количество знаков после запятой для превышений:"
-                                           VerticalAlignment="Center"
-                                           Width="280" />
-                                <ComboBox Width="80"
-                                          SelectedIndex="{Binding DeltaHDecimalPlaces, Mode=TwoWay}">
-                                    <ComboBoxItem Content="3" />
-                                    <ComboBoxItem Content="4" />
-                                    <ComboBoxItem Content="5" />
-                                </ComboBox>
-                            </StackPanel>
+                            <!-- Контроль длины станции -->
+                            <GroupBox Header="Контроль длины станции" Margin="0,0,0,0">
+                                <StackPanel Margin="8">
+                                    <CheckBox Content="Проверять минимальную длину"
+                                              IsChecked="{Binding CheckMinimumStationLength, Mode=TwoWay}"
+                                              Margin="0,0,0,8" />
+                                    <StackPanel Orientation="Horizontal" Margin="20,0,0,0"
+                                                IsEnabled="{Binding CheckMinimumStationLength}">
+                                        <TextBlock Text="Мин. длина:"
+                                                   VerticalAlignment="Center"
+                                                   Width="80" />
+                                        <TextBox Width="60"
+                                                 Text="{Binding MinimumStationLength, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                        <TextBlock Text="м" Margin="4,0,0,0" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </StackPanel>
+                            </GroupBox>
                         </StackPanel>
-                    </GroupBox>
+
+                        <!-- Правая колонка -->
+                        <StackPanel Grid.Column="2">
+                            <!-- Форматирование чисел -->
+                            <GroupBox Header="Форматирование чисел" Margin="0,0,0,0">
+                                <StackPanel Margin="8">
+                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                                        <TextBlock Text="Знаков после запятой для высот:"
+                                                   VerticalAlignment="Center"
+                                                   TextWrapping="Wrap"
+                                                   Width="180" />
+                                        <ComboBox Width="60"
+                                                  SelectedIndex="{Binding HeightDecimalPlaces, Mode=TwoWay}">
+                                            <ComboBoxItem Content="3" />
+                                            <ComboBoxItem Content="4" />
+                                            <ComboBoxItem Content="5" />
+                                        </ComboBox>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="Знаков после запятой для превышений:"
+                                                   VerticalAlignment="Center"
+                                                   TextWrapping="Wrap"
+                                                   Width="180" />
+                                        <ComboBox Width="60"
+                                                  SelectedIndex="{Binding DeltaHDecimalPlaces, Mode=TwoWay}">
+                                            <ComboBoxItem Content="3" />
+                                            <ComboBoxItem Content="4" />
+                                            <ComboBoxItem Content="5" />
+                                        </ComboBox>
+                                    </StackPanel>
+                                </StackPanel>
+                            </GroupBox>
+                        </StackPanel>
+                    </Grid>
                 </StackPanel>
             </Border>
 
@@ -194,4 +228,8 @@
             </Border>
         </StackPanel>
     </ScrollViewer>
+
+    <UserControl.Resources>
+        <models:EnumToBoolConverter x:Key="EnumToBoolConverter" />
+    </UserControl.Resources>
 </UserControl>

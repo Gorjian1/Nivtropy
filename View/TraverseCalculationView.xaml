@@ -14,6 +14,7 @@
         <converters:GroupClosureConverter x:Key="GroupClosureConverter" />
         <converters:ArmDifferenceExceededToBrushConverter x:Key="ArmDifferenceExceededToBrushConverter" />
         <converters:GridLineColorConverter x:Key="GridLineColorConverter" />
+        <converters:RowBackgroundConverter x:Key="RowBackgroundConverter" />
         <CollectionViewSource x:Key="RowsGrouped" Source="{Binding Rows}">
             <CollectionViewSource.GroupDescriptions>
                 <PropertyGroupDescription PropertyName="LineName" />
@@ -117,11 +118,6 @@
                     <DataGrid.Style>
                         <Style TargetType="DataGrid">
                             <Setter Property="AlternatingRowBackground" Value="Transparent" />
-                            <Style.Triggers>
-                                <DataTrigger Binding="{Binding Settings.AlternatingRowColors}" Value="True">
-                                    <Setter Property="AlternatingRowBackground" Value="#FFF9F9F9" />
-                                </DataTrigger>
-                            </Style.Triggers>
                         </Style>
                     </DataGrid.Style>
                     <!-- Стили для улучшения внешнего вида -->
@@ -156,6 +152,15 @@
                     <DataGrid.RowStyle>
                         <Style TargetType="DataGridRow">
                             <Setter Property="MinHeight" Value="32" />
+                            <Setter Property="Background">
+                                <Setter.Value>
+                                    <MultiBinding Converter="{StaticResource RowBackgroundConverter}">
+                                        <Binding Path="DataContext.Settings.RowColoringMode" RelativeSource="{RelativeSource AncestorType=UserControl}" />
+                                        <Binding Path="Index" />
+                                        <Binding Path="LineSummary.RecordCount" />
+                                    </MultiBinding>
+                                </Setter.Value>
+                            </Setter>
                         </Style>
                     </DataGrid.RowStyle>
                     <DataGrid.GroupStyle>
