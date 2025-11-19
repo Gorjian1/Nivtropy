@@ -404,7 +404,9 @@ namespace Nivtropy.ViewModels
                         // Заголовки
                         csv.AppendLine("Станций;Длина назад (м);Длина вперёд (м);Общая длина (м);Накопление плеч (м)");
                         // Данные
-                        csv.AppendLine($"{stationCount};{lengthBack:F2};{lengthFore:F2};{totalLength:F2};{armAccumulation:F3}");
+                        csv.AppendLine(string.Format(System.Globalization.CultureInfo.InvariantCulture,
+                            "{0};{1:F2};{2:F2};{3:F2};{4:F3}",
+                            stationCount, lengthBack, lengthFore, totalLength, armAccumulation));
                     }
 
                     // 3. Header row + data table
@@ -420,14 +422,14 @@ namespace Nivtropy.ViewModels
                             dataRow.LineName,
                             dataRow.PointCode,
                             dataRow.Station,
-                            dataRow.Rb_m?.ToString("F4") ?? "",
-                            dataRow.Rf_m?.ToString("F4") ?? "",
-                            dataRow.DeltaH?.ToString("F4") ?? "",
-                            dataRow.Correction.HasValue ? (dataRow.Correction.Value * 1000).ToString("F2") : "",
-                            dataRow.AdjustedDeltaH?.ToString("F4") ?? "",
-                            heightZ0?.ToString("F4") ?? "",
-                            height?.ToString("F4") ?? "",
-                            dataRow.StationLength_m?.ToString("F2") ?? ""
+                            dataRow.Rb_m?.ToString("F4", System.Globalization.CultureInfo.InvariantCulture) ?? "",
+                            dataRow.Rf_m?.ToString("F4", System.Globalization.CultureInfo.InvariantCulture) ?? "",
+                            dataRow.DeltaH?.ToString("F4", System.Globalization.CultureInfo.InvariantCulture) ?? "",
+                            dataRow.Correction.HasValue ? (dataRow.Correction.Value * 1000).ToString("F2", System.Globalization.CultureInfo.InvariantCulture) : "",
+                            dataRow.AdjustedDeltaH?.ToString("F4", System.Globalization.CultureInfo.InvariantCulture) ?? "",
+                            heightZ0?.ToString("F4", System.Globalization.CultureInfo.InvariantCulture) ?? "",
+                            height?.ToString("F4", System.Globalization.CultureInfo.InvariantCulture) ?? "",
+                            dataRow.StationLength_m?.ToString("F2", System.Globalization.CultureInfo.InvariantCulture) ?? ""
                         ));
                     }
 
