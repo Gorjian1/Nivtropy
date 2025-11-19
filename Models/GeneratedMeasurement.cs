@@ -15,7 +15,8 @@ namespace Nivtropy.Models
         public double? Rf_m { get; set; }  // Отсчет вперед
         public double? HD_Back_m { get; set; }  // Расстояние назад
         public double? HD_Fore_m { get; set; }  // Расстояние вперед
-        public double? Height_m { get; set; }  // Высота точки
+        public double? DeltaH_m { get; set; }  // Превышение (из CSV)
+        public double? Height_m { get; set; }  // Высота точки (будет рассчитана)
         public bool IsBackSight { get; set; }  // Задний отсчет
     }
 

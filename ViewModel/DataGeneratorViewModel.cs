@@ -207,8 +207,6 @@ namespace Nivtropy.ViewModels
                         double? rb = !string.IsNullOrWhiteSpace(parts[4]) ? double.Parse(parts[4], System.Globalization.CultureInfo.InvariantCulture) : null;
                         double? rf = !string.IsNullOrWhiteSpace(parts[5]) ? double.Parse(parts[5], System.Globalization.CultureInfo.InvariantCulture) : null;
                         double? deltaH = !string.IsNullOrWhiteSpace(parts[6]) ? double.Parse(parts[6], System.Globalization.CultureInfo.InvariantCulture) : null;
-                        // Используем Z0 (высота без поправки на невязку) из parts[9]
-                        double? height = !string.IsNullOrWhiteSpace(parts[9]) ? double.Parse(parts[9], System.Globalization.CultureInfo.InvariantCulture) : null;
 
                         var measurement = new GeneratedMeasurement
                         {
@@ -218,11 +216,12 @@ namespace Nivtropy.ViewModels
                             StationCode = station,
                             BackPointCode = backCode,
                             ForePointCode = foreCode,
-                            Rb_m = rb,
-                            Rf_m = rf,
+                            Rb_m = rb,  // Используется только как флаг (HasValue)
+                            Rf_m = rf,  // Используется только как флаг (HasValue)
                             HD_Back_m = null, // Будет рассчитано позже
                             HD_Fore_m = null, // Будет рассчитано позже
-                            Height_m = height,
+                            DeltaH_m = deltaH, // Превышение из CSV
+                            Height_m = null,  // Будет рассчитано позже на основе превышений
                             IsBackSight = rb.HasValue
                         };
 
@@ -236,6 +235,9 @@ namespace Nivtropy.ViewModels
             {
                 var traverseInfo = kvp.Value.Info;
                 var measurements = kvp.Value.Measurements;
+
+                // Рассчитываем высоты на основе превышений
+                CalculateHeightsForTraverse(measurements);
 
                 // Генерируем правильные расстояния и отсчеты
                 GenerateDistancesForTraverse(measurements, traverseInfo);
@@ -252,6 +254,40 @@ namespace Nivtropy.ViewModels
             }
 
             MessageBox.Show($"Сгенерировано {_measurements.Count} измерений из {traverses.Count} ходов", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+
+        /// <summary>
+        /// Рассчитывает высоты точек на основе превышений
+        /// Стартовая высота: 100 м
+        /// </summary>
+        private void CalculateHeightsForTraverse(System.Collections.Generic.List<GeneratedMeasurement> measurements)
+        {
+            if (measurements.Count == 0)
+                return;
+
+            // Стартовая высота для первой точки
+            double currentHeight = 100.0;  // метры
+
+            foreach (var m in measurements)
+            {
+                // Для задней точки устанавливаем текущую высоту
+                if (m.Rb_m.HasValue)
+                {
+                    m.Height_m = currentHeight;
+                }
+
+                // Применяем превышение для передней точки
+                if (m.Rf_m.HasValue && m.DeltaH_m.HasValue)
+                {
+                    currentHeight += m.DeltaH_m.Value;
+                    m.Height_m = currentHeight;
+                }
+                else if (m.Rf_m.HasValue)
+                {
+                    // Если нет превышения, используем текущую высоту
+                    m.Height_m = currentHeight;
+                }
+            }
         }
 
         /// <summary>
