@@ -18,4 +18,17 @@ namespace Nivtropy.Models
         public double? Height_m { get; set; }  // Высота точки
         public bool IsBackSight { get; set; }  // Задний отсчет
     }
+
+    /// <summary>
+    /// Информация о нивелирном ходе из файла обработки
+    /// </summary>
+    public class TraverseInfo
+    {
+        public string LineName { get; set; } = string.Empty;
+        public int StationCount { get; set; }
+        public double TotalLengthBack_m { get; set; }
+        public double TotalLengthFore_m { get; set; }
+        public double TotalLength_m { get; set; }
+        public double ArmAccumulation_m { get; set; }
+    }
 }

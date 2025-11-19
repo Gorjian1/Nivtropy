@@ -118,9 +118,14 @@ namespace Nivtropy.ViewModels
         private void GenerateFromCsv()
         {
             var lines = File.ReadAllLines(SourceFilePath, Encoding.UTF8);
-            int index = 1;
+
+            // Сначала парсим все данные и группируем по ходам
+            var traverses = new System.Collections.Generic.Dictionary<string, (TraverseInfo Info, System.Collections.Generic.List<GeneratedMeasurement> Measurements)>();
+
             string currentLineName = "Ход 01";
+            TraverseInfo? currentTraverseInfo = null;
             bool inDataSection = false;
+            int globalIndex = 1;
 
             for (int i = 0; i < lines.Length; i++)
             {
@@ -138,6 +143,7 @@ namespace Nivtropy.ViewModels
                 {
                     currentLineName = line.Replace("===== НАЧАЛО ХОДА:", "").Replace("=====", "").Trim();
                     inDataSection = false;
+                    currentTraverseInfo = null;
                     continue;
                 }
 
@@ -145,12 +151,18 @@ namespace Nivtropy.ViewModels
                 if (line.StartsWith("===== КОНЕЦ ХОДА:"))
                 {
                     inDataSection = false;
+                    currentTraverseInfo = null;
                     continue;
                 }
 
-                // Пропускаем информационную строку
+                // Парсим информационную строку о ходе
                 if (line.StartsWith("Станций:"))
                 {
+                    currentTraverseInfo = ParseTraverseInfo(line, currentLineName);
+                    if (!traverses.ContainsKey(currentLineName))
+                    {
+                        traverses[currentLineName] = (currentTraverseInfo, new System.Collections.Generic.List<GeneratedMeasurement>());
+                    }
                     continue;
                 }
 
@@ -162,7 +174,7 @@ namespace Nivtropy.ViewModels
                 }
 
                 // Читаем строки данных
-                if (inDataSection)
+                if (inDataSection && currentTraverseInfo != null)
                 {
                     var parts = line.Split(';');
                     if (parts.Length >= 12)
@@ -188,27 +200,12 @@ namespace Nivtropy.ViewModels
 
                         double? rb = !string.IsNullOrWhiteSpace(parts[4]) ? double.Parse(parts[4], System.Globalization.CultureInfo.InvariantCulture) : null;
                         double? rf = !string.IsNullOrWhiteSpace(parts[5]) ? double.Parse(parts[5], System.Globalization.CultureInfo.InvariantCulture) : null;
+                        double? deltaH = !string.IsNullOrWhiteSpace(parts[6]) ? double.Parse(parts[6], System.Globalization.CultureInfo.InvariantCulture) : null;
                         double? height = !string.IsNullOrWhiteSpace(parts[10]) ? double.Parse(parts[10], System.Globalization.CultureInfo.InvariantCulture) : null;
 
-                        // Генерируем расстояния (5-15 метров)
-                        double? hdBack = rb.HasValue ? 5.0 + _random.NextDouble() * 10.0 : null;
-                        double? hdFore = rf.HasValue ? 5.0 + _random.NextDouble() * 10.0 : null;
-
-                        // Добавляем шум к измерениям
-                        if (rb.HasValue)
+                        var measurement = new GeneratedMeasurement
                         {
-                            double noise = GenerateNoise(index);
-                            rb = rb.Value + noise / 1000.0;
-                        }
-                        if (rf.HasValue)
-                        {
-                            double noise = GenerateNoise(index);
-                            rf = rf.Value + noise / 1000.0;
-                        }
-
-                        _measurements.Add(new GeneratedMeasurement
-                        {
-                            Index = index++,
+                            Index = globalIndex++,
                             LineName = lineName,
                             PointCode = pointCode,
                             StationCode = station,
@@ -216,115 +213,171 @@ namespace Nivtropy.ViewModels
                             ForePointCode = foreCode,
                             Rb_m = rb,
                             Rf_m = rf,
-                            HD_Back_m = hdBack,
-                            HD_Fore_m = hdFore,
+                            HD_Back_m = null, // Будет рассчитано позже
+                            HD_Fore_m = null, // Будет рассчитано позже
                             Height_m = height,
                             IsBackSight = rb.HasValue
-                        });
+                        };
+
+                        traverses[currentLineName].Measurements.Add(measurement);
                     }
                 }
             }
 
-            MessageBox.Show($"Сгенерировано {_measurements.Count} измерений", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
+            // Теперь обрабатываем каждый ход
+            foreach (var kvp in traverses)
+            {
+                var traverseInfo = kvp.Value.Info;
+                var measurements = kvp.Value.Measurements;
+
+                // Генерируем правильные расстояния и отсчеты
+                GenerateDistancesForTraverse(measurements, traverseInfo);
+                GenerateReadingsForTraverse(measurements, traverseInfo);
+            }
+
+            // Добавляем все измерения в коллекцию
+            foreach (var kvp in traverses)
+            {
+                foreach (var m in kvp.Value.Measurements)
+                {
+                    _measurements.Add(m);
+                }
+            }
+
+            MessageBox.Show($"Сгенерировано {_measurements.Count} измерений из {traverses.Count} ходов", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+
+        /// <summary>
+        /// Парсит информационную строку о ходе
+        /// Формат: "Станций: {count}; Длина назад: {back} м; Длина вперёд: {fore} м; Общая длина: {total} м; Накопление плеч: {accum} м"
+        /// </summary>
+        private TraverseInfo ParseTraverseInfo(string line, string lineName)
+        {
+            var info = new TraverseInfo { LineName = lineName };
+
+            var parts = line.Split(';');
+            foreach (var part in parts)
+            {
+                var trimmed = part.Trim();
+
+                if (trimmed.StartsWith("Станций:"))
+                {
+                    var value = trimmed.Replace("Станций:", "").Trim();
+                    if (int.TryParse(value, out var stationCount))
+                        info.StationCount = stationCount;
+                }
+                else if (trimmed.StartsWith("Длина назад:"))
+                {
+                    var value = trimmed.Replace("Длина назад:", "").Replace("м", "").Trim();
+                    if (double.TryParse(value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var length))
+                        info.TotalLengthBack_m = length;
+                }
+                else if (trimmed.StartsWith("Длина вперёд:"))
+                {
+                    var value = trimmed.Replace("Длина вперёд:", "").Replace("м", "").Trim();
+                    if (double.TryParse(value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var length))
+                        info.TotalLengthFore_m = length;
+                }
+                else if (trimmed.StartsWith("Общая длина:"))
+                {
+                    var value = trimmed.Replace("Общая длина:", "").Replace("м", "").Trim();
+                    if (double.TryParse(value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var length))
+                        info.TotalLength_m = length;
+                }
+                else if (trimmed.StartsWith("Накопление плеч:"))
+                {
+                    var value = trimmed.Replace("Накопление плеч:", "").Replace("м", "").Trim();
+                    if (double.TryParse(value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var accum))
+                        info.ArmAccumulation_m = accum;
+                }
+            }
+
+            return info;
+        }
+
+        /// <summary>
+        /// Генерирует расстояния для всех измерений в ходе так, чтобы сумма соответствовала данным из файла
+        /// </summary>
+        private void GenerateDistancesForTraverse(System.Collections.Generic.List<GeneratedMeasurement> measurements, TraverseInfo info)
+        {
+            if (measurements.Count == 0)
+                return;
+
+            var stationsWithData = measurements.Where(m => m.Rb_m.HasValue || m.Rf_m.HasValue).ToList();
+            if (stationsWithData.Count == 0)
+                return;
+
+            // Генерируем базовые расстояния (5-15 метров)
+            var baseDistancesBack = new System.Collections.Generic.List<double>();
+            var baseDistancesFore = new System.Collections.Generic.List<double>();
+
+            double sumBack = 0;
+            double sumFore = 0;
+
+            foreach (var m in stationsWithData)
+            {
+                double distBack = m.Rb_m.HasValue ? 5.0 + _random.NextDouble() * 10.0 : 0;
+                double distFore = m.Rf_m.HasValue ? 5.0 + _random.NextDouble() * 10.0 : 0;
+
+                baseDistancesBack.Add(distBack);
+                baseDistancesFore.Add(distFore);
+
+                sumBack += distBack;
+                sumFore += distFore;
+            }
+
+            // Масштабируем расстояния, чтобы сумма соответствовала целевым значениям
+            double scaleBack = sumBack > 0 ? info.TotalLengthBack_m / sumBack : 1.0;
+            double scaleFore = sumFore > 0 ? info.TotalLengthFore_m / sumFore : 1.0;
+
+            for (int i = 0; i < stationsWithData.Count; i++)
+            {
+                var m = stationsWithData[i];
+
+                if (m.Rb_m.HasValue)
+                    m.HD_Back_m = baseDistancesBack[i] * scaleBack;
+
+                if (m.Rf_m.HasValue)
+                    m.HD_Fore_m = baseDistancesFore[i] * scaleFore;
+            }
+        }
+
+        /// <summary>
+        /// Генерирует отсчеты с шумом, сохраняя исходные превышения
+        /// </summary>
+        private void GenerateReadingsForTraverse(System.Collections.Generic.List<GeneratedMeasurement> measurements, TraverseInfo info)
+        {
+            if (measurements.Count == 0)
+                return;
+
+            foreach (var m in measurements)
+            {
+                // Добавляем шум к измерениям
+                if (m.Rb_m.HasValue)
+                {
+                    double noise = GenerateNoise(m.Index);
+                    m.Rb_m = m.Rb_m.Value + noise / 1000.0; // Переводим мм в м
+                }
+
+                if (m.Rf_m.HasValue)
+                {
+                    double noise = GenerateNoise(m.Index);
+                    m.Rf_m = m.Rf_m.Value + noise / 1000.0; // Переводим мм в м
+                }
+            }
         }
 
         private void GenerateFromExcel()
         {
-            // Читаем Excel файл
-            using var workbook = new XLWorkbook(SourceFilePath);
-            var worksheet = workbook.Worksheets.First();
-
-            // Пропускаем первые 2 строки (сводка и пустая строка)
-            int dataStartRow = 3;
-
-            // Находим заголовки в строке 3
-            var headers = new System.Collections.Generic.Dictionary<string, int>();
-            for (int col = 1; col <= worksheet.LastColumnUsed().ColumnNumber(); col++)
-            {
-                var headerValue = worksheet.Cell(dataStartRow, col).GetValue<string>();
-                if (!string.IsNullOrWhiteSpace(headerValue))
-                {
-                    headers[headerValue] = col;
-                }
-            }
-
-            // Начинаем читать данные с 4 строки
-            int index = 1;
-            for (int row = dataStartRow + 1; row <= worksheet.LastRowUsed().RowNumber(); row++)
-            {
-                var lineName = headers.ContainsKey("Ход")
-                    ? worksheet.Cell(row, headers["Ход"]).GetValue<string>()
-                    : "Ход 01";
-                var pointCode = headers.ContainsKey("Точка")
-                    ? worksheet.Cell(row, headers["Точка"]).GetValue<string>()
-                    : "";
-                var station = headers.ContainsKey("Станция")
-                    ? worksheet.Cell(row, headers["Станция"]).GetValue<string>()
-                    : "";
-
-                // Парсим станцию для извлечения BackCode и ForeCode
-                string? backCode = null;
-                string? foreCode = null;
-                if (!string.IsNullOrWhiteSpace(station) && station.Contains("→"))
-                {
-                    var parts = station.Split(new[] { "→" }, StringSplitOptions.None);
-                    if (parts.Length == 2)
-                    {
-                        backCode = parts[0].Trim();
-                        foreCode = parts[1].Trim();
-                        if (backCode == "?") backCode = null;
-                        if (foreCode == "?") foreCode = null;
-                    }
-                }
-
-                var rbCell = headers.ContainsKey("Отсчет назад, м")
-                    ? worksheet.Cell(row, headers["Отсчет назад, м"])
-                    : null;
-                var rfCell = headers.ContainsKey("Отсчет вперед, м")
-                    ? worksheet.Cell(row, headers["Отсчет вперед, м"])
-                    : null;
-                var heightCell = headers.ContainsKey("Высота, м")
-                    ? worksheet.Cell(row, headers["Высота, м"])
-                    : null;
-
-                double? rb = rbCell != null && !rbCell.IsEmpty() ? rbCell.GetValue<double?>() : null;
-                double? rf = rfCell != null && !rfCell.IsEmpty() ? rfCell.GetValue<double?>() : null;
-                double? height = heightCell != null && !heightCell.IsEmpty() ? heightCell.GetValue<double?>() : null;
-
-                // Генерируем расстояния (5-15 метров)
-                double? hdBack = rb.HasValue ? 5.0 + _random.NextDouble() * 10.0 : null;
-                double? hdFore = rf.HasValue ? 5.0 + _random.NextDouble() * 10.0 : null;
-
-                // Добавляем шум к измерениям
-                if (rb.HasValue)
-                {
-                    double noise = GenerateNoise(index);
-                    rb = rb.Value + noise / 1000.0; // Переводим мм в м
-                }
-                if (rf.HasValue)
-                {
-                    double noise = GenerateNoise(index);
-                    rf = rf.Value + noise / 1000.0;
-                }
-
-                _measurements.Add(new GeneratedMeasurement
-                {
-                    Index = index++,
-                    LineName = lineName,
-                    PointCode = pointCode,
-                    StationCode = station,
-                    BackPointCode = backCode,
-                    ForePointCode = foreCode,
-                    Rb_m = rb,
-                    Rf_m = rf,
-                    HD_Back_m = hdBack,
-                    HD_Fore_m = hdFore,
-                    Height_m = height,
-                    IsBackSight = rb.HasValue
-                });
-            }
-
-            MessageBox.Show($"Сгенерировано {_measurements.Count} измерений", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
+            // Excel файлы не поддерживают информацию о ходе в структурированном виде
+            // Предлагаем пользователю сохранить Excel как CSV и использовать CSV формат
+            MessageBox.Show(
+                "Для работы с файлами Excel, пожалуйста, экспортируйте их в формат CSV.\n\n" +
+                "CSV формат сохраняет всю информацию о ходах (длины, накопление плеч, невязки),\n" +
+                "что необходимо для корректной генерации данных.",
+                "Используйте CSV формат",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
         }
 
         private double GenerateNoise(int index)
