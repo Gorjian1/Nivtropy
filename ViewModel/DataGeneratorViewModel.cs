@@ -20,15 +20,8 @@ namespace Nivtropy.ViewModels
     {
         private readonly ObservableCollection<GeneratedMeasurement> _measurements = new();
         private bool _formatNivelir = true;
-        private double _stdDevMeasurement = 0.3; // СКО для измерений (мм)
-        private double _stdDevGrossError = 2.0; // СКО для грубых ошибок (мм)
-        private int _grossErrorFrequency = 0; // Частота грубых ошибок (каждая N-ная станция) - 0 = отключено
-        private double _minDistance = 5.0; // Минимальное расстояние до рейки (м)
-        private double _maxDistance = 15.0; // Максимальное расстояние до рейки (м)
-        private double _instrumentHeightBase = 1.5; // Базовая высота установки прибора (м)
-        private double _instrumentHeightVariation = 0.15; // Вариация высоты прибора (±м)
-        private double _stationLengthSpread = 0.5; // Разброс длины станции - разница между HD_Back и HD_Fore (м)
-        private double _elevationOffset = 0.0; // Смещение превышения - отклонение от исходного deltaH (мм)
+        private double _stationLengthSpread = 5.0; // Разброс длины станции (%)
+        private double _elevationOffset = 0.0; // Смещение превышения (%)
         private string _sourceFilePath = string.Empty;
         private Random _random = new Random();
         private int _currentTraverseIndex = 0;
@@ -48,48 +41,6 @@ namespace Nivtropy.ViewModels
         {
             get => _formatNivelir;
             set => SetField(ref _formatNivelir, value);
-        }
-
-        public double StdDevMeasurement
-        {
-            get => _stdDevMeasurement;
-            set => SetField(ref _stdDevMeasurement, value);
-        }
-
-        public double StdDevGrossError
-        {
-            get => _stdDevGrossError;
-            set => SetField(ref _stdDevGrossError, value);
-        }
-
-        public int GrossErrorFrequency
-        {
-            get => _grossErrorFrequency;
-            set => SetField(ref _grossErrorFrequency, value);
-        }
-
-        public double MinDistance
-        {
-            get => _minDistance;
-            set => SetField(ref _minDistance, value);
-        }
-
-        public double MaxDistance
-        {
-            get => _maxDistance;
-            set => SetField(ref _maxDistance, value);
-        }
-
-        public double InstrumentHeightBase
-        {
-            get => _instrumentHeightBase;
-            set => SetField(ref _instrumentHeightBase, value);
-        }
-
-        public double InstrumentHeightVariation
-        {
-            get => _instrumentHeightVariation;
-            set => SetField(ref _instrumentHeightVariation, value);
         }
 
         public double StationLengthSpread
@@ -424,12 +375,12 @@ namespace Nivtropy.ViewModels
                 if (!hasBack && !hasFore)
                     continue;
 
-                // Генерируем базовое расстояние для станции
-                double distanceRange = MaxDistance - MinDistance;
-                double baseDistance = MinDistance + _random.NextDouble() * distanceRange;
+                // Генерируем базовое расстояние для станции (5-15 метров)
+                double baseDistance = 5.0 + _random.NextDouble() * 10.0;
 
-                // Добавляем разброс между назад и вперед
-                double spread = (_random.NextDouble() - 0.5) * StationLengthSpread;
+                // Добавляем разброс между назад и вперед (в процентах от базового расстояния)
+                double spreadAmount = baseDistance * (StationLengthSpread / 100.0);
+                double spread = (_random.NextDouble() - 0.5) * spreadAmount;
 
                 double distBack = hasBack ? baseDistance + spread : 0;
                 double distFore = hasFore ? baseDistance - spread : 0;
@@ -476,6 +427,7 @@ namespace Nivtropy.ViewModels
         /// <summary>
         /// Генерирует отсчеты на основе превышений из CSV
         /// Rb и Rf генерируются так, чтобы Rb - Rf = deltaH (с учетом настроек смещения)
+        /// ВАЖНО: Шум добавляется к превышению, а не к отсчетам, чтобы сохранить невязку
         /// </summary>
         private void GenerateReadingsForTraverse(System.Collections.Generic.List<GeneratedMeasurement> measurements, TraverseInfo info)
         {
@@ -490,11 +442,24 @@ namespace Nivtropy.ViewModels
 
             if (ElevationOffset > 0)
             {
-                // Генерируем случайные смещения для каждой станции
+                // Генерируем случайные смещения для каждой станции (в процентах от превышения)
                 for (int i = 0; i < stationGroups.Count; i++)
                 {
-                    double offset = (_random.NextDouble() - 0.5) * 2 * ElevationOffset / 1000.0; // мм → м
-                    elevationOffsets.Add(offset);
+                    elevationOffsets.Add(0); // временно
+                }
+
+                // Вычисляем смещения пропорционально превышениям
+                int idx = 0;
+                foreach (var stationGroup in stationGroups)
+                {
+                    var backMeasurement = stationGroup.FirstOrDefault(m => m.Rb_m.HasValue);
+                    if (backMeasurement?.DeltaH_m.HasValue == true)
+                    {
+                        double deltaH = backMeasurement.DeltaH_m.Value;
+                        double offset = deltaH * ((_random.NextDouble() - 0.5) * 2 * ElevationOffset / 100.0);
+                        elevationOffsets[idx] = offset;
+                    }
+                    idx++;
                 }
 
                 // Компенсируем сумму смещений, чтобы невязка не изменилась
@@ -531,20 +496,22 @@ namespace Nivtropy.ViewModels
                 }
 
                 // Генерируем Rb в разумных пределах (0.5 - 2.5 м на рейке)
-                // Добавляем вариацию на основе высоты установки прибора
-                double rbBase = InstrumentHeightBase + (_random.NextDouble() - 0.5) * (InstrumentHeightVariation * 2);
-                rbBase = Math.Max(0.5, Math.Min(2.5, rbBase)); // ограничиваем разумными пределами
+                double rbBase = 1.5 + (_random.NextDouble() - 0.5) * 0.3; // 1.5 ± 0.15 м
+                rbBase = Math.Max(0.5, Math.Min(2.5, rbBase));
 
-                // Добавляем шум измерения
-                double noiseBack = GenerateNoise(backMeasurement.Index);
-                backMeasurement.Rb_m = rbBase + noiseBack / 1000.0; // мм → м
+                // Устанавливаем Rb БЕЗ дополнительного шума
+                backMeasurement.Rb_m = rbBase;
 
-                // Rf = Rb - deltaH (чтобы Rb - Rf = deltaH)
-                double noiseFore = GenerateNoise(foreMeasurement.Index);
-                foreMeasurement.Rf_m = backMeasurement.Rb_m - deltaH + noiseFore / 1000.0; // мм → м
+                // Rf = Rb - deltaH (чтобы Rb - Rf точно равнялось deltaH)
+                foreMeasurement.Rf_m = backMeasurement.Rb_m - deltaH;
 
                 // Убеждаемся что Rf в разумных пределах
-                foreMeasurement.Rf_m = Math.Max(0.3, Math.Min(3.0, foreMeasurement.Rf_m.Value));
+                if (foreMeasurement.Rf_m < 0.3 || foreMeasurement.Rf_m > 3.0)
+                {
+                    // Если Rf выходит за пределы, корректируем Rb
+                    foreMeasurement.Rf_m = Math.Max(0.3, Math.Min(3.0, foreMeasurement.Rf_m.Value));
+                    backMeasurement.Rb_m = foreMeasurement.Rf_m.Value + deltaH;
+                }
 
                 stationIndex++;
             }

@@ -69,74 +69,19 @@
                     <GroupBox Header="Настройки генерации" Margin="0,0,0,16">
                         <StackPanel Margin="8">
                             <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                                <TextBlock Text="СКО для измерений:" VerticalAlignment="Center" Width="150" />
-                                <TextBox Text="{Binding StdDevMeasurement, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                        ToolTip="Стандартное отклонение для обычных измерений"
-                                        Width="60" />
-                                <TextBlock Text="мм" Margin="4,0,0,0" VerticalAlignment="Center" />
-                            </StackPanel>
-
-                            <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                                <TextBlock Text="СКО для грубых ошибок:" VerticalAlignment="Center" Width="150" />
-                                <TextBox Text="{Binding StdDevGrossError, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                        ToolTip="Стандартное отклонение для грубых ошибок"
-                                        Width="60" />
-                                <TextBlock Text="мм" Margin="4,0,0,0" VerticalAlignment="Center" />
-                            </StackPanel>
-
-                            <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                                <TextBlock Text="Частота грубых ошибок:" VerticalAlignment="Center" Width="150" />
-                                <TextBox Text="{Binding GrossErrorFrequency, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                        ToolTip="Каждая N-ная станция будет иметь грубую ошибку (0 = отключить)"
-                                        Width="60" />
-                            </StackPanel>
-
-                            <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                                <TextBlock Text="Мин. расстояние до рейки:" VerticalAlignment="Center" Width="150" />
-                                <TextBox Text="{Binding MinDistance, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                        ToolTip="Минимальное расстояние до рейки"
-                                        Width="60" />
-                                <TextBlock Text="м" Margin="4,0,0,0" VerticalAlignment="Center" />
-                            </StackPanel>
-
-                            <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                                <TextBlock Text="Макс. расстояние до рейки:" VerticalAlignment="Center" Width="150" />
-                                <TextBox Text="{Binding MaxDistance, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                        ToolTip="Максимальное расстояние до рейки"
-                                        Width="60" />
-                                <TextBlock Text="м" Margin="4,0,0,0" VerticalAlignment="Center" />
-                            </StackPanel>
-
-                            <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                                <TextBlock Text="Высота отсчета на рейке:" VerticalAlignment="Center" Width="150" />
-                                <TextBox Text="{Binding InstrumentHeightBase, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                        ToolTip="Базовая высота отсчета Rb на рейке (центр диапазона)"
-                                        Width="60" />
-                                <TextBlock Text="м" Margin="4,0,0,0" VerticalAlignment="Center" />
-                            </StackPanel>
-
-                            <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                                <TextBlock Text="Вариация отсчета:" VerticalAlignment="Center" Width="150" />
-                                <TextBox Text="{Binding InstrumentHeightVariation, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                        ToolTip="Случайная вариация отсчета Rb (±)"
-                                        Width="60" />
-                                <TextBlock Text="м" Margin="4,0,0,0" VerticalAlignment="Center" />
-                            </StackPanel>
-
-                            <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                                <TextBlock Text="Разброс длины станции:" VerticalAlignment="Center" Width="150" />
+                                <TextBlock Text="Разброс длины станции:" VerticalAlignment="Center" Width="180" />
                                 <TextBox Text="{Binding StationLengthSpread, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                        ToolTip="Максимальная разница между HD назад и HD вперед на одной станции"
+                                        ToolTip="Процент разброса между HD назад и HD вперед (0 = одинаковые расстояния)"
                                         Width="60" />
-                                <TextBlock Text="м" Margin="4,0,0,0" VerticalAlignment="Center" />
+                                <TextBlock Text="%" Margin="4,0,0,0" VerticalAlignment="Center" />
                             </StackPanel>
 
                             <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="Смещение превышения:" VerticalAlignment="Center" Width="150" />
+                                <TextBlock Text="Смещение превышения:" VerticalAlignment="Center" Width="180" />
                                 <TextBox Text="{Binding ElevationOffset, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                        ToolTip="Случайное отклонение превышений от CSV (0 = строго из CSV, >0 = варьируются с сохранением невязки)"
+                                        ToolTip="Процент отклонения превышений от CSV (0 = строго из CSV, >0 = варьируются с сохранением невязки)"
                                         Width="60" />
-                                <TextBlock Text="мм" Margin="4,0,0,0" VerticalAlignment="Center" />
+                                <TextBlock Text="%" Margin="4,0,0,0" VerticalAlignment="Center" />
                             </StackPanel>
                         </StackPanel>
                     </GroupBox>
