@@ -27,6 +27,8 @@ namespace Nivtropy.ViewModels
         private double _maxDistance = 15.0; // Максимальное расстояние до рейки (м)
         private double _instrumentHeightBase = 1.5; // Базовая высота установки прибора (м)
         private double _instrumentHeightVariation = 0.15; // Вариация высоты прибора (±м)
+        private double _stationLengthSpread = 0.5; // Разброс длины станции - разница между HD_Back и HD_Fore (м)
+        private double _elevationOffset = 0.0; // Смещение превышения - отклонение от исходного deltaH (мм)
         private string _sourceFilePath = string.Empty;
         private Random _random = new Random();
         private int _currentTraverseIndex = 0;
@@ -88,6 +90,18 @@ namespace Nivtropy.ViewModels
         {
             get => _instrumentHeightVariation;
             set => SetField(ref _instrumentHeightVariation, value);
+        }
+
+        public double StationLengthSpread
+        {
+            get => _stationLengthSpread;
+            set => SetField(ref _stationLengthSpread, value);
+        }
+
+        public double ElevationOffset
+        {
+            get => _elevationOffset;
+            set => SetField(ref _elevationOffset, value);
         }
 
         public string SourceFilePath
@@ -388,66 +402,111 @@ namespace Nivtropy.ViewModels
 
         /// <summary>
         /// Генерирует расстояния для всех измерений в ходе так, чтобы сумма соответствовала данным из файла
+        /// Расстояния назад и вперед генерируются попарно с учетом разброса длины станции
         /// </summary>
         private void GenerateDistancesForTraverse(System.Collections.Generic.List<GeneratedMeasurement> measurements, TraverseInfo info)
         {
             if (measurements.Count == 0)
                 return;
 
-            // Подсчитываем количество отсчетов назад и вперед
-            var backMeasurements = measurements.Where(m => m.Rb_m.HasValue).ToList();
-            var foreMeasurements = measurements.Where(m => m.Rf_m.HasValue).ToList();
+            // Группируем по станциям для попарной генерации
+            var stationGroups = measurements.GroupBy(m => m.StationCode).ToList();
 
-            if (backMeasurements.Count == 0 && foreMeasurements.Count == 0)
-                return;
+            var stationsWithDistances = new System.Collections.Generic.List<(double back, double fore)>();
 
-            // Генерируем базовые расстояния используя настройки диапазона
-            double distanceRange = MaxDistance - MinDistance;
-            var baseDistancesBack = backMeasurements.Select(_ => MinDistance + _random.NextDouble() * distanceRange).ToList();
-            var baseDistancesFore = foreMeasurements.Select(_ => MinDistance + _random.NextDouble() * distanceRange).ToList();
+            // Генерируем базовые расстояния для каждой станции (пара: назад+вперед)
+            foreach (var stationGroup in stationGroups)
+            {
+                var stationMeasurements = stationGroup.ToList();
+                var hasBack = stationMeasurements.Any(m => m.Rb_m.HasValue);
+                var hasFore = stationMeasurements.Any(m => m.Rf_m.HasValue);
 
-            double sumBack = baseDistancesBack.Sum();
-            double sumFore = baseDistancesFore.Sum();
+                if (!hasBack && !hasFore)
+                    continue;
 
-            // Если данные о длинах есть, масштабируем; иначе используем базовые расстояния
+                // Генерируем базовое расстояние для станции
+                double distanceRange = MaxDistance - MinDistance;
+                double baseDistance = MinDistance + _random.NextDouble() * distanceRange;
+
+                // Добавляем разброс между назад и вперед
+                double spread = (_random.NextDouble() - 0.5) * StationLengthSpread;
+
+                double distBack = hasBack ? baseDistance + spread : 0;
+                double distFore = hasFore ? baseDistance - spread : 0;
+
+                stationsWithDistances.Add((distBack, distFore));
+            }
+
+            // Рассчитываем суммы для масштабирования
+            double sumBack = stationsWithDistances.Where(s => s.back > 0).Sum(s => s.back);
+            double sumFore = stationsWithDistances.Where(s => s.fore > 0).Sum(s => s.fore);
+
+            // Масштабируем под целевые длины
             double scaleBack = 1.0;
             double scaleFore = 1.0;
 
             if (info.TotalLengthBack_m > 0 && sumBack > 0)
-            {
                 scaleBack = info.TotalLengthBack_m / sumBack;
-            }
 
             if (info.TotalLengthFore_m > 0 && sumFore > 0)
-            {
                 scaleFore = info.TotalLengthFore_m / sumFore;
-            }
 
-            // Применяем масштабированные расстояния
-            for (int i = 0; i < backMeasurements.Count; i++)
+            // Применяем масштабированные расстояния к измерениям
+            int stationIndex = 0;
+            foreach (var stationGroup in stationGroups)
             {
-                backMeasurements[i].HD_Back_m = baseDistancesBack[i] * scaleBack;
-            }
+                if (stationIndex >= stationsWithDistances.Count)
+                    break;
 
-            for (int i = 0; i < foreMeasurements.Count; i++)
-            {
-                foreMeasurements[i].HD_Fore_m = baseDistancesFore[i] * scaleFore;
+                var (distBack, distFore) = stationsWithDistances[stationIndex];
+
+                foreach (var m in stationGroup)
+                {
+                    if (m.Rb_m.HasValue && distBack > 0)
+                        m.HD_Back_m = distBack * scaleBack;
+
+                    if (m.Rf_m.HasValue && distFore > 0)
+                        m.HD_Fore_m = distFore * scaleFore;
+                }
+
+                stationIndex++;
             }
         }
 
         /// <summary>
-        /// Генерирует отсчеты на основе высот точек, имитируя измерения по рейкам
-        /// КРИТИЧНО: Rb и Rf на одной станции должны использовать ОДИН горизонт инструмента
-        /// чтобы deltaH = Rb - Rf соответствовал разности высот
+        /// Генерирует отсчеты на основе превышений из CSV
+        /// Rb и Rf генерируются так, чтобы Rb - Rf = deltaH (с учетом настроек смещения)
         /// </summary>
         private void GenerateReadingsForTraverse(System.Collections.Generic.List<GeneratedMeasurement> measurements, TraverseInfo info)
         {
             if (measurements.Count == 0)
                 return;
 
-            // Группируем измерения по станциям - Rb и Rf на одной станции должны разделять горизонт инструмента
+            // Группируем измерения по станциям
             var stationGroups = measurements.GroupBy(m => m.StationCode).ToList();
 
+            // Если есть смещение превышений, подготавливаем случайные смещения с нулевой суммой
+            var elevationOffsets = new System.Collections.Generic.List<double>();
+
+            if (ElevationOffset > 0)
+            {
+                // Генерируем случайные смещения для каждой станции
+                for (int i = 0; i < stationGroups.Count; i++)
+                {
+                    double offset = (_random.NextDouble() - 0.5) * 2 * ElevationOffset / 1000.0; // мм → м
+                    elevationOffsets.Add(offset);
+                }
+
+                // Компенсируем сумму смещений, чтобы невязка не изменилась
+                double totalOffset = elevationOffsets.Sum();
+                double compensation = totalOffset / stationGroups.Count;
+                for (int i = 0; i < elevationOffsets.Count; i++)
+                {
+                    elevationOffsets[i] -= compensation;
+                }
+            }
+
+            int stationIndex = 0;
             foreach (var stationGroup in stationGroups)
             {
                 var stationMeasurements = stationGroup.ToList();
@@ -456,52 +515,38 @@ namespace Nivtropy.ViewModels
                 var backMeasurement = stationMeasurements.FirstOrDefault(m => m.Rb_m.HasValue);
                 var foreMeasurement = stationMeasurements.FirstOrDefault(m => m.Rf_m.HasValue);
 
-                if (backMeasurement == null && foreMeasurement == null)
+                if (backMeasurement == null || foreMeasurement == null)
+                {
+                    stationIndex++;
                     continue;
-
-                // Вычисляем ЕДИНЫЙ горизонт инструмента для этой станции
-                // Базируем на средней высоте точек + типичная высота прибора (1.3-1.7м)
-                double baseHeight = 0;
-                int countHeights = 0;
-
-                if (backMeasurement?.Height_m.HasValue == true)
-                {
-                    baseHeight += backMeasurement.Height_m.Value;
-                    countHeights++;
                 }
 
-                if (foreMeasurement?.Height_m.HasValue == true)
+                // Берем превышение из CSV
+                double deltaH = backMeasurement.DeltaH_m ?? 0;
+
+                // Применяем смещение, если настроено
+                if (ElevationOffset > 0 && stationIndex < elevationOffsets.Count)
                 {
-                    baseHeight += foreMeasurement.Height_m.Value;
-                    countHeights++;
+                    deltaH += elevationOffsets[stationIndex];
                 }
 
-                if (countHeights == 0)
-                    continue;
+                // Генерируем Rb в разумных пределах (0.5 - 2.5 м на рейке)
+                // Добавляем вариацию на основе высоты установки прибора
+                double rbBase = InstrumentHeightBase + (_random.NextDouble() - 0.5) * (InstrumentHeightVariation * 2);
+                rbBase = Math.Max(0.5, Math.Min(2.5, rbBase)); // ограничиваем разумными пределами
 
-                double avgHeight = baseHeight / countHeights;
-                // Горизонт инструмента = средняя высота + базовая высота ± вариация
-                double instrumentHeight = avgHeight + InstrumentHeightBase + (_random.NextDouble() - 0.5) * (InstrumentHeightVariation * 2);
+                // Добавляем шум измерения
+                double noiseBack = GenerateNoise(backMeasurement.Index);
+                backMeasurement.Rb_m = rbBase + noiseBack / 1000.0; // мм → м
 
-                // Генерируем задний отсчет (Rb)
-                if (backMeasurement != null && backMeasurement.Height_m.HasValue)
-                {
-                    // Rb = Горизонт - Высота задней точки
-                    double reading = instrumentHeight - backMeasurement.Height_m.Value;
-                    double noise = GenerateNoise(backMeasurement.Index);
-                    backMeasurement.Rb_m = reading + noise / 1000.0; // мм → м
-                }
+                // Rf = Rb - deltaH (чтобы Rb - Rf = deltaH)
+                double noiseFore = GenerateNoise(foreMeasurement.Index);
+                foreMeasurement.Rf_m = backMeasurement.Rb_m - deltaH + noiseFore / 1000.0; // мм → м
 
-                // Генерируем передний отсчет (Rf) используя ТОТ ЖЕ горизонт инструмента
-                if (foreMeasurement != null && foreMeasurement.Height_m.HasValue)
-                {
-                    // Rf = Горизонт - Высота передней точки
-                    double reading = instrumentHeight - foreMeasurement.Height_m.Value;
-                    double noise = GenerateNoise(foreMeasurement.Index);
-                    foreMeasurement.Rf_m = reading + noise / 1000.0; // мм → м
-                }
+                // Убеждаемся что Rf в разумных пределах
+                foreMeasurement.Rf_m = Math.Max(0.3, Math.Min(3.0, foreMeasurement.Rf_m.Value));
 
-                // Теперь deltaH = Rb - Rf ≈ height_fore - height_back (с учетом шума)
+                stationIndex++;
             }
         }
 

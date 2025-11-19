@@ -108,19 +108,35 @@
                             </StackPanel>
 
                             <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                                <TextBlock Text="Высота установки прибора:" VerticalAlignment="Center" Width="150" />
+                                <TextBlock Text="Высота отсчета на рейке:" VerticalAlignment="Center" Width="150" />
                                 <TextBox Text="{Binding InstrumentHeightBase, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                        ToolTip="Базовая высота установки прибора над точкой"
+                                        ToolTip="Базовая высота отсчета Rb на рейке (центр диапазона)"
+                                        Width="60" />
+                                <TextBlock Text="м" Margin="4,0,0,0" VerticalAlignment="Center" />
+                            </StackPanel>
+
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                <TextBlock Text="Вариация отсчета:" VerticalAlignment="Center" Width="150" />
+                                <TextBox Text="{Binding InstrumentHeightVariation, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                        ToolTip="Случайная вариация отсчета Rb (±)"
+                                        Width="60" />
+                                <TextBlock Text="м" Margin="4,0,0,0" VerticalAlignment="Center" />
+                            </StackPanel>
+
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                <TextBlock Text="Разброс длины станции:" VerticalAlignment="Center" Width="150" />
+                                <TextBox Text="{Binding StationLengthSpread, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                        ToolTip="Максимальная разница между HD назад и HD вперед на одной станции"
                                         Width="60" />
                                 <TextBlock Text="м" Margin="4,0,0,0" VerticalAlignment="Center" />
                             </StackPanel>
 
                             <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="Вариация высоты прибора:" VerticalAlignment="Center" Width="150" />
-                                <TextBox Text="{Binding InstrumentHeightVariation, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                        ToolTip="Случайная вариация высоты прибора (±)"
+                                <TextBlock Text="Смещение превышения:" VerticalAlignment="Center" Width="150" />
+                                <TextBox Text="{Binding ElevationOffset, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                        ToolTip="Случайное отклонение превышений от CSV (0 = строго из CSV, >0 = варьируются с сохранением невязки)"
                                         Width="60" />
-                                <TextBlock Text="м" Margin="4,0,0,0" VerticalAlignment="Center" />
+                                <TextBlock Text="мм" Margin="4,0,0,0" VerticalAlignment="Center" />
                             </StackPanel>
                         </StackPanel>
                     </GroupBox>
