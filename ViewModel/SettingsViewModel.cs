@@ -15,7 +15,6 @@ namespace Nivtropy.ViewModels
         // Общие настройки
         private string _tableFontFamily = "Segoe UI";
         private double _tableFontSize = 13;
-        private double _gridLineThickness = 1.0;
         private int _gridLineColorIndex = 0; // 0=светло-серый, 1=серый, 2=темно-серый, 3=голубоватый
         private bool _alternatingRowColors = true;
         private bool _showColumnHeaderIcons = true;
@@ -43,12 +42,6 @@ namespace Nivtropy.ViewModels
         {
             get => _tableFontSize;
             set => SetField(ref _tableFontSize, value);
-        }
-
-        public double GridLineThickness
-        {
-            get => _gridLineThickness;
-            set => SetField(ref _gridLineThickness, value);
         }
 
         public int GridLineColorIndex
@@ -108,13 +101,54 @@ namespace Nivtropy.ViewModels
         public int HeightDecimalPlaces
         {
             get => _heightDecimalPlaces;
-            set => SetField(ref _heightDecimalPlaces, value);
+            set
+            {
+                if (SetField(ref _heightDecimalPlaces, value))
+                {
+                    OnPropertyChanged(nameof(ActualHeightDecimalPlaces));
+                    OnPropertyChanged(nameof(HeightFormatString));
+                }
+            }
         }
 
         public int DeltaHDecimalPlaces
         {
             get => _deltaHDecimalPlaces;
-            set => SetField(ref _deltaHDecimalPlaces, value);
+            set
+            {
+                if (SetField(ref _deltaHDecimalPlaces, value))
+                {
+                    OnPropertyChanged(nameof(ActualDeltaHDecimalPlaces));
+                    OnPropertyChanged(nameof(DeltaHFormatString));
+                }
+            }
+        }
+
+        /// <summary>
+        /// Возвращает количество знаков после запятой для высот: 3, 4 или 5
+        /// </summary>
+        public int ActualHeightDecimalPlaces => HeightDecimalPlaces + 3;
+
+        /// <summary>
+        /// Возвращает количество знаков после запятой для превышений: 3, 4 или 5
+        /// </summary>
+        public int ActualDeltaHDecimalPlaces => DeltaHDecimalPlaces + 3;
+
+        /// <summary>
+        /// Возвращает формат строки для высот (например, "F4")
+        /// </summary>
+        public string HeightFormatString => $"F{ActualHeightDecimalPlaces}";
+
+        /// <summary>
+        /// Возвращает формат строки для превышений (например, "+0.0000;-0.0000;0.0000")
+        /// </summary>
+        public string DeltaHFormatString
+        {
+            get
+            {
+                var zeros = new string('0', ActualDeltaHDecimalPlaces);
+                return $"+0.{zeros};-0.{zeros};0.{zeros}";
+            }
         }
 
         private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
@@ -165,7 +199,6 @@ namespace Nivtropy.ViewModels
                         // Напрямую устанавливаем поля, чтобы не вызывать Save()
                         _tableFontFamily = settings.TableFontFamily;
                         _tableFontSize = settings.TableFontSize;
-                        _gridLineThickness = settings.GridLineThickness;
                         _gridLineColorIndex = settings.GridLineColorIndex;
                         _alternatingRowColors = settings.AlternatingRowColors;
                         _showColumnHeaderIcons = settings.ShowColumnHeaderIcons;
@@ -181,7 +214,6 @@ namespace Nivtropy.ViewModels
                         // Уведомляем об изменении всех свойств
                         OnPropertyChanged(nameof(TableFontFamily));
                         OnPropertyChanged(nameof(TableFontSize));
-                        OnPropertyChanged(nameof(GridLineThickness));
                         OnPropertyChanged(nameof(GridLineColorIndex));
                         OnPropertyChanged(nameof(AlternatingRowColors));
                         OnPropertyChanged(nameof(ShowColumnHeaderIcons));

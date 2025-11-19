@@ -6,6 +6,7 @@ namespace Nivtropy.Models
     public class GeneratedMeasurement
     {
         public int Index { get; set; }
+        public string LineName { get; set; } = "?"; // Название хода
         public string PointCode { get; set; } = string.Empty;
         public string StationCode { get; set; } = string.Empty;
         public string? BackPointCode { get; set; }  // Код задней точки для Rb

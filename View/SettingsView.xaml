@@ -62,23 +62,6 @@
                     <!-- Сетка таблиц -->
                     <GroupBox Header="Сетка таблиц" Margin="0,0,0,16">
                         <StackPanel Margin="8">
-                            <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
-                                <TextBlock Text="Толщина линий сетки:"
-                                           VerticalAlignment="Center"
-                                           Width="180" />
-                                <Slider Width="200"
-                                        Minimum="0.5"
-                                        Maximum="3"
-                                        Value="{Binding GridLineThickness, Mode=TwoWay}"
-                                        TickFrequency="0.5"
-                                        IsSnapToTickEnabled="True"
-                                        TickPlacement="BottomRight" />
-                                <TextBlock Text="{Binding GridLineThickness, StringFormat={}{0:F1} px}"
-                                           Margin="8,0,0,0"
-                                           VerticalAlignment="Center"
-                                           Width="50" />
-                            </StackPanel>
-
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="Цвет линий сетки:"
                                            VerticalAlignment="Center"
