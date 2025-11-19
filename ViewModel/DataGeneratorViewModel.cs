@@ -23,6 +23,10 @@ namespace Nivtropy.ViewModels
         private double _stdDevMeasurement = 0.3; // СКО для измерений (мм)
         private double _stdDevGrossError = 2.0; // СКО для грубых ошибок (мм)
         private int _grossErrorFrequency = 0; // Частота грубых ошибок (каждая N-ная станция) - 0 = отключено
+        private double _minDistance = 5.0; // Минимальное расстояние до рейки (м)
+        private double _maxDistance = 15.0; // Максимальное расстояние до рейки (м)
+        private double _instrumentHeightBase = 1.5; // Базовая высота установки прибора (м)
+        private double _instrumentHeightVariation = 0.15; // Вариация высоты прибора (±м)
         private string _sourceFilePath = string.Empty;
         private Random _random = new Random();
         private int _currentTraverseIndex = 0;
@@ -60,6 +64,30 @@ namespace Nivtropy.ViewModels
         {
             get => _grossErrorFrequency;
             set => SetField(ref _grossErrorFrequency, value);
+        }
+
+        public double MinDistance
+        {
+            get => _minDistance;
+            set => SetField(ref _minDistance, value);
+        }
+
+        public double MaxDistance
+        {
+            get => _maxDistance;
+            set => SetField(ref _maxDistance, value);
+        }
+
+        public double InstrumentHeightBase
+        {
+            get => _instrumentHeightBase;
+            set => SetField(ref _instrumentHeightBase, value);
+        }
+
+        public double InstrumentHeightVariation
+        {
+            get => _instrumentHeightVariation;
+            set => SetField(ref _instrumentHeightVariation, value);
         }
 
         public string SourceFilePath
@@ -279,8 +307,6 @@ namespace Nivtropy.ViewModels
                 }
             }
 
-            MessageBox.Show($"Сгенерировано {_measurements.Count} измерений из {traverses.Count} ходов", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
-
             // Обновляем профиль для первого хода
             _currentTraverseIndex = 0;
             UpdateCurrentTraverse();
@@ -375,9 +401,10 @@ namespace Nivtropy.ViewModels
             if (backMeasurements.Count == 0 && foreMeasurements.Count == 0)
                 return;
 
-            // Генерируем базовые расстояния (5-15 метров)
-            var baseDistancesBack = backMeasurements.Select(_ => 5.0 + _random.NextDouble() * 10.0).ToList();
-            var baseDistancesFore = foreMeasurements.Select(_ => 5.0 + _random.NextDouble() * 10.0).ToList();
+            // Генерируем базовые расстояния используя настройки диапазона
+            double distanceRange = MaxDistance - MinDistance;
+            var baseDistancesBack = backMeasurements.Select(_ => MinDistance + _random.NextDouble() * distanceRange).ToList();
+            var baseDistancesFore = foreMeasurements.Select(_ => MinDistance + _random.NextDouble() * distanceRange).ToList();
 
             double sumBack = baseDistancesBack.Sum();
             double sumFore = baseDistancesFore.Sum();
@@ -453,8 +480,8 @@ namespace Nivtropy.ViewModels
                     continue;
 
                 double avgHeight = baseHeight / countHeights;
-                // Горизонт инструмента = средняя высота + 1.5м ± 0.15м
-                double instrumentHeight = avgHeight + 1.5 + (_random.NextDouble() - 0.5) * 0.3;
+                // Горизонт инструмента = средняя высота + базовая высота ± вариация
+                double instrumentHeight = avgHeight + InstrumentHeightBase + (_random.NextDouble() - 0.5) * (InstrumentHeightVariation * 2);
 
                 // Генерируем задний отсчет (Rb)
                 if (backMeasurement != null && backMeasurement.Height_m.HasValue)
