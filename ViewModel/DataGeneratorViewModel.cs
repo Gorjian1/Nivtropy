@@ -231,6 +231,8 @@ namespace Nivtropy.ViewModels
                         double? rb = !string.IsNullOrWhiteSpace(parts[4]) ? double.Parse(parts[4], System.Globalization.CultureInfo.InvariantCulture) : null;
                         double? rf = !string.IsNullOrWhiteSpace(parts[5]) ? double.Parse(parts[5], System.Globalization.CultureInfo.InvariantCulture) : null;
                         double? deltaH = !string.IsNullOrWhiteSpace(parts[6]) ? double.Parse(parts[6], System.Globalization.CultureInfo.InvariantCulture) : null;
+                        // Используем высоту Z0 (без поправки на невязку) из parts[9]
+                        double? height = !string.IsNullOrWhiteSpace(parts[9]) ? double.Parse(parts[9], System.Globalization.CultureInfo.InvariantCulture) : null;
 
                         var measurement = new GeneratedMeasurement
                         {
@@ -245,7 +247,7 @@ namespace Nivtropy.ViewModels
                             HD_Back_m = null, // Будет рассчитано позже
                             HD_Fore_m = null, // Будет рассчитано позже
                             DeltaH_m = deltaH, // Превышение из CSV
-                            Height_m = null,  // Будет рассчитано позже на основе превышений
+                            Height_m = height, // Высота из CSV (колонка "Высота непров. (м)")
                             IsBackSight = rb.HasValue
                         };
 
@@ -260,8 +262,8 @@ namespace Nivtropy.ViewModels
                 var traverseInfo = kvp.Value.Info;
                 var measurements = kvp.Value.Measurements;
 
-                // Рассчитываем высоты на основе превышений
-                CalculateHeightsForTraverse(measurements);
+                // Высоты уже прочитаны из CSV (колонка "Высота непров. (м)")
+                // CalculateHeightsForTraverse больше не нужен
 
                 // Генерируем правильные расстояния и отсчеты
                 GenerateDistancesForTraverse(measurements, traverseInfo);
@@ -408,46 +410,71 @@ namespace Nivtropy.ViewModels
 
         /// <summary>
         /// Генерирует отсчеты на основе высот точек, имитируя измерения по рейкам
+        /// КРИТИЧНО: Rb и Rf на одной станции должны использовать ОДИН горизонт инструмента
+        /// чтобы deltaH = Rb - Rf соответствовал разности высот
         /// </summary>
         private void GenerateReadingsForTraverse(System.Collections.Generic.List<GeneratedMeasurement> measurements, TraverseInfo info)
         {
             if (measurements.Count == 0)
                 return;
 
-            // Генерируем базовую высоту инструмента (горизонт инструмента)
-            // Обычно это высота точки + высота рейки (1-2 метра)
-            double baseInstrumentHeight = 1.5;
+            // Группируем измерения по станциям - Rb и Rf на одной станции должны разделять горизонт инструмента
+            var stationGroups = measurements.GroupBy(m => m.StationCode).ToList();
 
-            foreach (var m in measurements)
+            foreach (var stationGroup in stationGroups)
             {
-                // Генерируем отсчеты на основе высоты точки
-                // Отсчет по рейке = Горизонт инструмента - Высота точки
+                var stationMeasurements = stationGroup.ToList();
 
-                if (m.Rb_m.HasValue && m.Height_m.HasValue)
+                // Находим измерения с задним и передним отсчетами
+                var backMeasurement = stationMeasurements.FirstOrDefault(m => m.Rb_m.HasValue);
+                var foreMeasurement = stationMeasurements.FirstOrDefault(m => m.Rf_m.HasValue);
+
+                if (backMeasurement == null && foreMeasurement == null)
+                    continue;
+
+                // Вычисляем ЕДИНЫЙ горизонт инструмента для этой станции
+                // Базируем на средней высоте точек + типичная высота прибора (1.3-1.7м)
+                double baseHeight = 0;
+                int countHeights = 0;
+
+                if (backMeasurement?.Height_m.HasValue == true)
                 {
-                    // Для задней точки: генерируем случайный горизонт инструмента
-                    double instrumentHeight = m.Height_m.Value + baseInstrumentHeight + (_random.NextDouble() - 0.5) * 0.5;
-
-                    // Отсчет = Горизонт - Высота точки
-                    double reading = instrumentHeight - m.Height_m.Value;
-
-                    // Добавляем небольшой шум
-                    double noise = GenerateNoise(m.Index);
-                    m.Rb_m = reading + noise / 1000.0; // Переводим мм в м
+                    baseHeight += backMeasurement.Height_m.Value;
+                    countHeights++;
                 }
 
-                if (m.Rf_m.HasValue && m.Height_m.HasValue)
+                if (foreMeasurement?.Height_m.HasValue == true)
                 {
-                    // Для передней точки используем тот же подход
-                    double instrumentHeight = m.Height_m.Value + baseInstrumentHeight + (_random.NextDouble() - 0.5) * 0.5;
-
-                    // Отсчет = Горизонт - Высота точки
-                    double reading = instrumentHeight - m.Height_m.Value;
-
-                    // Добавляем небольшой шум
-                    double noise = GenerateNoise(m.Index);
-                    m.Rf_m = reading + noise / 1000.0; // Переводим мм в м
+                    baseHeight += foreMeasurement.Height_m.Value;
+                    countHeights++;
                 }
+
+                if (countHeights == 0)
+                    continue;
+
+                double avgHeight = baseHeight / countHeights;
+                // Горизонт инструмента = средняя высота + 1.5м ± 0.15м
+                double instrumentHeight = avgHeight + 1.5 + (_random.NextDouble() - 0.5) * 0.3;
+
+                // Генерируем задний отсчет (Rb)
+                if (backMeasurement != null && backMeasurement.Height_m.HasValue)
+                {
+                    // Rb = Горизонт - Высота задней точки
+                    double reading = instrumentHeight - backMeasurement.Height_m.Value;
+                    double noise = GenerateNoise(backMeasurement.Index);
+                    backMeasurement.Rb_m = reading + noise / 1000.0; // мм → м
+                }
+
+                // Генерируем передний отсчет (Rf) используя ТОТ ЖЕ горизонт инструмента
+                if (foreMeasurement != null && foreMeasurement.Height_m.HasValue)
+                {
+                    // Rf = Горизонт - Высота передней точки
+                    double reading = instrumentHeight - foreMeasurement.Height_m.Value;
+                    double noise = GenerateNoise(foreMeasurement.Index);
+                    foreMeasurement.Rf_m = reading + noise / 1000.0; // мм → м
+                }
+
+                // Теперь deltaH = Rb - Rf ≈ height_fore - height_back (с учетом шума)
             }
         }
 
