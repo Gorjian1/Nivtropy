@@ -20,9 +20,9 @@ namespace Nivtropy.ViewModels
     {
         private readonly ObservableCollection<GeneratedMeasurement> _measurements = new();
         private bool _formatNivelir = true;
-        private double _stdDevMeasurement = 0.5; // СКО для измерений (мм)
+        private double _stdDevMeasurement = 0.3; // СКО для измерений (мм)
         private double _stdDevGrossError = 2.0; // СКО для грубых ошибок (мм)
-        private int _grossErrorFrequency = 10; // Частота грубых ошибок (каждая N-ная станция)
+        private int _grossErrorFrequency = 0; // Частота грубых ошибок (каждая N-ная станция) - 0 = отключено
         private string _sourceFilePath = string.Empty;
         private Random _random = new Random();
 
@@ -318,9 +318,19 @@ namespace Nivtropy.ViewModels
             double sumBack = baseDistancesBack.Sum();
             double sumFore = baseDistancesFore.Sum();
 
-            // Масштабируем расстояния, чтобы сумма соответствовала целевым значениям
-            double scaleBack = sumBack > 0 ? info.TotalLengthBack_m / sumBack : 1.0;
-            double scaleFore = sumFore > 0 ? info.TotalLengthFore_m / sumFore : 1.0;
+            // Если данные о длинах есть, масштабируем; иначе используем базовые расстояния
+            double scaleBack = 1.0;
+            double scaleFore = 1.0;
+
+            if (info.TotalLengthBack_m > 0 && sumBack > 0)
+            {
+                scaleBack = info.TotalLengthBack_m / sumBack;
+            }
+
+            if (info.TotalLengthFore_m > 0 && sumFore > 0)
+            {
+                scaleFore = info.TotalLengthFore_m / sumFore;
+            }
 
             // Применяем масштабированные расстояния
             for (int i = 0; i < backMeasurements.Count; i++)
@@ -335,26 +345,46 @@ namespace Nivtropy.ViewModels
         }
 
         /// <summary>
-        /// Генерирует отсчеты с шумом, сохраняя исходные превышения
+        /// Генерирует отсчеты на основе высот точек, имитируя измерения по рейкам
         /// </summary>
         private void GenerateReadingsForTraverse(System.Collections.Generic.List<GeneratedMeasurement> measurements, TraverseInfo info)
         {
             if (measurements.Count == 0)
                 return;
 
+            // Генерируем базовую высоту инструмента (горизонт инструмента)
+            // Обычно это высота точки + высота рейки (1-2 метра)
+            double baseInstrumentHeight = 1.5;
+
             foreach (var m in measurements)
             {
-                // Добавляем шум к измерениям
-                if (m.Rb_m.HasValue)
+                // Генерируем отсчеты на основе высоты точки
+                // Отсчет по рейке = Горизонт инструмента - Высота точки
+
+                if (m.Rb_m.HasValue && m.Height_m.HasValue)
                 {
+                    // Для задней точки: генерируем случайный горизонт инструмента
+                    double instrumentHeight = m.Height_m.Value + baseInstrumentHeight + (_random.NextDouble() - 0.5) * 0.5;
+
+                    // Отсчет = Горизонт - Высота точки
+                    double reading = instrumentHeight - m.Height_m.Value;
+
+                    // Добавляем небольшой шум
                     double noise = GenerateNoise(m.Index);
-                    m.Rb_m = m.Rb_m.Value + noise / 1000.0; // Переводим мм в м
+                    m.Rb_m = reading + noise / 1000.0; // Переводим мм в м
                 }
 
-                if (m.Rf_m.HasValue)
+                if (m.Rf_m.HasValue && m.Height_m.HasValue)
                 {
+                    // Для передней точки используем тот же подход
+                    double instrumentHeight = m.Height_m.Value + baseInstrumentHeight + (_random.NextDouble() - 0.5) * 0.5;
+
+                    // Отсчет = Горизонт - Высота точки
+                    double reading = instrumentHeight - m.Height_m.Value;
+
+                    // Добавляем небольшой шум
                     double noise = GenerateNoise(m.Index);
-                    m.Rf_m = m.Rf_m.Value + noise / 1000.0; // Переводим мм в м
+                    m.Rf_m = reading + noise / 1000.0; // Переводим мм в м
                 }
             }
         }
