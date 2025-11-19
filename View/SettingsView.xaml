@@ -4,9 +4,14 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:models="clr-namespace:Nivtropy.Models"
+             xmlns:converters="clr-namespace:Nivtropy.Converters"
              mc:Ignorable="d"
              d:DesignHeight="450"
              d:DesignWidth="800">
+    <UserControl.Resources>
+        <converters:EnumToBoolConverter x:Key="EnumToBoolConverter" />
+    </UserControl.Resources>
+
     <ScrollViewer VerticalScrollBarVisibility="Auto">
         <StackPanel Margin="20">
             <TextBlock Text="Настройки"
@@ -228,8 +233,4 @@
             </Border>
         </StackPanel>
     </ScrollViewer>
-
-    <UserControl.Resources>
-        <models:EnumToBoolConverter x:Key="EnumToBoolConverter" />
-    </UserControl.Resources>
 </UserControl>

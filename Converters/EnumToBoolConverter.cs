@@ -2,7 +2,7 @@ using System;
 using System.Globalization;
 using System.Windows.Data;
 
-namespace Nivtropy.Models
+namespace Nivtropy.Converters
 {
     /// <summary>
     /// Конвертер для привязки RadioButton к enum
