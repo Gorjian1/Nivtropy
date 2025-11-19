@@ -278,40 +278,6 @@ namespace Nivtropy.ViewModels
         }
 
         /// <summary>
-        /// Рассчитывает высоты точек на основе превышений
-        /// Стартовая высота: 100 м
-        /// </summary>
-        private void CalculateHeightsForTraverse(System.Collections.Generic.List<GeneratedMeasurement> measurements)
-        {
-            if (measurements.Count == 0)
-                return;
-
-            // Стартовая высота для первой точки
-            double currentHeight = 100.0;  // метры
-
-            foreach (var m in measurements)
-            {
-                // Для задней точки устанавливаем текущую высоту
-                if (m.Rb_m.HasValue)
-                {
-                    m.Height_m = currentHeight;
-                }
-
-                // Применяем превышение для передней точки
-                if (m.Rf_m.HasValue && m.DeltaH_m.HasValue)
-                {
-                    currentHeight += m.DeltaH_m.Value;
-                    m.Height_m = currentHeight;
-                }
-                else if (m.Rf_m.HasValue)
-                {
-                    // Если нет превышения, используем текущую высоту
-                    m.Height_m = currentHeight;
-                }
-            }
-        }
-
-        /// <summary>
         /// Парсит информационную строку о ходе
         /// Формат: "{stationCount};{lengthBack};{lengthFore};{totalLength};{armAccumulation}"
         /// Порядок: Станций, Длина назад (м), Длина вперёд (м), Общая длина (м), Накопление плеч (м)
@@ -528,20 +494,6 @@ namespace Nivtropy.ViewModels
                 "Используйте CSV формат",
                 MessageBoxButton.OK,
                 MessageBoxImage.Information);
-        }
-
-        private double GenerateNoise(int index)
-        {
-            // Проверяем, нужно ли добавить грубую ошибку
-            bool isGrossError = GrossErrorFrequency > 0 && index % GrossErrorFrequency == 0;
-            double stdDev = isGrossError ? StdDevGrossError : StdDevMeasurement;
-
-            // Генерируем нормально распределённый шум (Box-Muller transform)
-            double u1 = 1.0 - _random.NextDouble();
-            double u2 = 1.0 - _random.NextDouble();
-            double randStdNormal = Math.Sqrt(-2.0 * Math.Log(u1)) * Math.Sin(2.0 * Math.PI * u2);
-
-            return randStdNormal * stdDev; // в мм
         }
 
         private void Export()
