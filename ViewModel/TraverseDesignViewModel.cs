@@ -148,7 +148,20 @@ namespace Nivtropy.ViewModels
 
         private void UpdateRows()
         {
+            // Отписываемся от событий у существующих строк перед очисткой
+            foreach (var row in _rows)
+            {
+                row.PropertyChanged -= OnDesignRowPropertyChanged;
+            }
+
             _rows.Clear();
+
+            // Автоматически выбираем первый ход, если он не выбран
+            if (SelectedRun == null && Runs.Count > 0)
+            {
+                SelectedRun = Runs[0];
+                return; // UpdateRows будет вызван повторно через setter SelectedRun
+            }
 
             if (SelectedRun == null)
             {
@@ -233,7 +246,7 @@ namespace Nivtropy.ViewModels
                     adjustedSum += adjustedDelta.Value;
                 }
 
-                _rows.Add(new DesignRow
+                var designRow = new DesignRow
                 {
                     Index = row.Index,
                     Station = string.IsNullOrWhiteSpace(row.BackCode) && string.IsNullOrWhiteSpace(row.ForeCode)
@@ -243,8 +256,16 @@ namespace Nivtropy.ViewModels
                     OriginalDeltaH = row.DeltaH,
                     Correction = correction,
                     AdjustedDeltaH = adjustedDelta,
-                    DesignedHeight = runningHeight
-                });
+                    DesignedHeight = runningHeight,
+                    OriginalHeight = runningHeight,
+                    OriginalDistance = avgDistance > 0 ? avgDistance : null,
+                    IsEdited = false
+                };
+
+                // Подписываемся на изменения в строке для автоматического пересчета
+                designRow.PropertyChanged += OnDesignRowPropertyChanged;
+
+                _rows.Add(designRow);
             }
 
             DesignedClosure = adjustedSum;
@@ -261,6 +282,133 @@ namespace Nivtropy.ViewModels
             field = value;
             OnPropertyChanged(propertyName);
             return true;
+        }
+
+        /// <summary>
+        /// Обработчик изменений в строке проектирования
+        /// Пересчитывает связанные параметры при редактировании Z или HD
+        /// </summary>
+        private void OnDesignRowPropertyChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            if (sender is not DesignRow changedRow)
+                return;
+
+            // Игнорируем изменения в служебных свойствах
+            if (e.PropertyName == nameof(DesignRow.IsEdited))
+                return;
+
+            // Находим индекс измененной строки
+            var changedIndex = _rows.IndexOf(changedRow);
+            if (changedIndex < 0)
+                return;
+
+            // Отмечаем строку как отредактированную
+            changedRow.IsEdited = true;
+
+            // Если изменилась высота (DesignedHeight), пересчитываем все последующие высоты
+            if (e.PropertyName == nameof(DesignRow.DesignedHeight))
+            {
+                RecalculateHeightsFromIndex(changedIndex);
+            }
+
+            // Если изменилась дистанция (Distance_m), пересчитываем поправки и высоты
+            if (e.PropertyName == nameof(DesignRow.Distance_m))
+            {
+                RecalculateCorrectionsAndHeights();
+            }
+        }
+
+        /// <summary>
+        /// Пересчитывает высоты всех точек начиная с указанного индекса + 1
+        /// </summary>
+        private void RecalculateHeightsFromIndex(int startIndex)
+        {
+            // Начинаем со следующей строки
+            for (int i = startIndex + 1; i < _rows.Count; i++)
+            {
+                var prevRow = _rows[i - 1];
+                var currentRow = _rows[i];
+
+                // Временно отписываемся от событий, чтобы избежать рекурсии
+                currentRow.PropertyChanged -= OnDesignRowPropertyChanged;
+
+                // Пересчитываем высоту: H_current = H_prev + ΔH_adjusted
+                if (currentRow.AdjustedDeltaH.HasValue)
+                {
+                    currentRow.DesignedHeight = prevRow.DesignedHeight + currentRow.AdjustedDeltaH.Value;
+                }
+
+                // Подписываемся обратно
+                currentRow.PropertyChanged += OnDesignRowPropertyChanged;
+            }
+        }
+
+        /// <summary>
+        /// Пересчитывает поправки для всех строк и высоты
+        /// Вызывается при изменении дистанции (Distance_m)
+        /// </summary>
+        private void RecalculateCorrectionsAndHeights()
+        {
+            if (_rows.Count == 0)
+                return;
+
+            // Рассчитываем фактическую невязку (сумма исходных превышений)
+            var originalClosure = _rows
+                .Where(r => r.OriginalDeltaH.HasValue)
+                .Sum(r => r.OriginalDeltaH!.Value);
+
+            // Рассчитываем общую длину хода с учетом отредактированных дистанций
+            var totalDistance = _rows.Sum(r => r.Distance_m ?? 0);
+
+            // Расчет невязки для распределения
+            var closureToDistribute = TargetClosure - originalClosure;
+
+            // Распределение поправок ПРОПОРЦИОНАЛЬНО ДЛИНАМ
+            double correctionFactor = totalDistance > 0 ? closureToDistribute / totalDistance : 0;
+
+            double runningHeight = StartHeight;
+            double adjustedSum = 0;
+
+            for (int i = 0; i < _rows.Count; i++)
+            {
+                var row = _rows[i];
+
+                // Временно отписываемся от событий, чтобы избежать рекурсии
+                row.PropertyChanged -= OnDesignRowPropertyChanged;
+
+                // Поправка пропорционально длине данного хода
+                double correction = row.OriginalDeltaH.HasValue
+                    ? correctionFactor * (row.Distance_m ?? 0)
+                    : 0;
+
+                double? adjustedDelta = row.OriginalDeltaH.HasValue
+                    ? row.OriginalDeltaH + correction
+                    : null;
+
+                row.Correction = correction;
+                row.AdjustedDeltaH = adjustedDelta;
+
+                if (adjustedDelta.HasValue)
+                {
+                    runningHeight += adjustedDelta.Value;
+                    adjustedSum += adjustedDelta.Value;
+                }
+
+                // Обновляем высоту только если строка не была отредактирована вручную
+                if (!row.IsEdited || i == 0)
+                {
+                    row.DesignedHeight = runningHeight;
+                }
+
+                // Подписываемся обратно
+                row.PropertyChanged += OnDesignRowPropertyChanged;
+            }
+
+            DesignedClosure = adjustedSum;
+
+            // Обновляем среднюю поправку на станцию
+            var adjustableCount = _rows.Count(r => r.OriginalDeltaH.HasValue);
+            CorrectionPerStation = adjustableCount > 0 ? closureToDistribute / adjustableCount : 0;
         }
     }
 }

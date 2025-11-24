@@ -79,6 +79,9 @@ namespace Nivtropy.ViewModels
             if (dlg.ShowDialog() == true)
             {
                 SourceFilePath = dlg.FileName;
+
+                // Автоматически генерируем данные при загрузке файла
+                Generate();
             }
         }
 
@@ -219,7 +222,10 @@ namespace Nivtropy.ViewModels
                             HD_Back_m = hdBack,
                             HD_Fore_m = hdFore,
                             Height_m = height,
-                            IsBackSight = rb.HasValue
+                            IsBackSight = rb.HasValue,
+                            OriginalHeight = height,
+                            OriginalHD_Back = hdBack,
+                            OriginalHD_Fore = hdFore
                         });
                     }
                 }
@@ -320,7 +326,10 @@ namespace Nivtropy.ViewModels
                     HD_Back_m = hdBack,
                     HD_Fore_m = hdFore,
                     Height_m = height,
-                    IsBackSight = rb.HasValue
+                    IsBackSight = rb.HasValue,
+                    OriginalHeight = height,
+                    OriginalHD_Back = hdBack,
+                    OriginalHD_Fore = hdFore
                 });
             }
 
