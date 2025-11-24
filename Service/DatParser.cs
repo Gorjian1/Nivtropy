@@ -27,11 +27,72 @@ namespace Nivtropy.Services
         public IEnumerable<MeasurementRecord> Parse(string path, string? synonymsConfigPath = null)
         {
             var text = ReadTextSmart(path);
+
+            // Определяем формат файла по первым строкам
+            var lines = text.Split(new[] { "\r\n", "\n" }, StringSplitOptions.None);
+            var fileFormat = DetectFileFormat(lines);
+
+            if (fileFormat == FileFormat.TrimbleDini)
+            {
+                // Используем парсер для Trimble Dini формата
+                return ParseTrimbleDini(lines);
+            }
+            else
+            {
+                // Используем старый парсер для формата "For"
+                return ParseForFormat(lines, path, synonymsConfigPath);
+            }
+        }
+
+        private enum FileFormat
+        {
+            ForFormat,      // Старый формат с "For"
+            TrimbleDini     // Формат Trimble Dini
+        }
+
+        /// <summary>
+        /// Определяет формат файла по первым строкам
+        /// </summary>
+        private static FileFormat DetectFileFormat(string[] lines)
+        {
+            // Берем первые 50 строк для анализа
+            var sampleLines = lines.Take(50).Where(l => !string.IsNullOrWhiteSpace(l)).ToArray();
+
+            // Если большинство строк начинаются с числа (индекс строки), это Trimble Dini формат
+            int trimbleDiniCount = 0;
+            int forFormatCount = 0;
+
+            foreach (var line in sampleLines)
+            {
+                var trimmed = line.TrimStart();
+
+                // Проверка на Trimble Dini: строка начинается с числа
+                if (Regex.IsMatch(trimmed, @"^\d+\s+"))
+                {
+                    trimbleDiniCount++;
+                }
+
+                // Проверка на For формат: строка содержит "For"
+                if (Regex.IsMatch(trimmed, @"^\s*For\b", RegexOptions.IgnoreCase))
+                {
+                    forFormatCount++;
+                }
+            }
+
+            // Если больше половины строк начинаются с числа, это Trimble Dini
+            return trimbleDiniCount > forFormatCount ? FileFormat.TrimbleDini : FileFormat.ForFormat;
+        }
+
+        /// <summary>
+        /// Парсер для старого формата "For"
+        /// </summary>
+        private IEnumerable<MeasurementRecord> ParseForFormat(string[] lines, string path, string? synonymsConfigPath)
+        {
             var synonyms = LoadSynonyms(path, synonymsConfigPath);
             var measurementPatterns = BuildMeasurementPatterns(synonyms);
 
             int autoStation = 1;
-            foreach (var rawLine in text.Split(new[] { "\r\n", "\n" }, StringSplitOptions.None))
+            foreach (var rawLine in lines)
             {
                 var line = rawLine ?? string.Empty;
                 if (!Regex.IsMatch(line, @"^\s*For\b", RegexOptions.IgnoreCase))
@@ -55,6 +116,176 @@ namespace Nivtropy.Services
 
                 yield return record;
             }
+        }
+
+        /// <summary>
+        /// Парсер для формата Trimble Dini
+        /// Формат: [lineNumber] [pointCode] [session?] [time?] [runNumber] [Rb/Rf] [value] [HD] [value] [Z] [value]
+        /// </summary>
+        private IEnumerable<MeasurementRecord> ParseTrimbleDini(string[] lines)
+        {
+            foreach (var rawLine in lines)
+            {
+                var line = rawLine ?? string.Empty;
+                if (string.IsNullOrWhiteSpace(line))
+                    continue;
+
+                var record = ParseTrimbleDiniLine(line);
+
+                if (record == null)
+                    continue;
+
+                // Пропускаем строки с ##### (ошибочные измерения)
+                if (record.IsInvalidMeasurement)
+                    continue;
+
+                // Пропускаем строки с маркерами "Measurement repeated" (не содержат данных)
+                if (record.LineMarker == "Measurement-Repeated")
+                    continue;
+
+                // Пропускаем строки, которые содержат только Z или Sh
+                var isLineMarker = record.LineMarker == "Start-Line" || record.LineMarker == "End-Line";
+                if (!record.Rb_m.HasValue && !record.Rf_m.HasValue && !isLineMarker)
+                    continue;
+
+                yield return record;
+            }
+        }
+
+        /// <summary>
+        /// Парсит одну строку в формате Trimble Dini
+        /// </summary>
+        private static MeasurementRecord? ParseTrimbleDiniLine(string line)
+        {
+            var record = new MeasurementRecord();
+
+            // Проверка на специальные маркеры
+            if (Regex.IsMatch(line, @"\bStart-Line\b", RegexOptions.IgnoreCase))
+            {
+                record.LineMarker = "Start-Line";
+                // Извлекаем номер хода из Start-Line
+                var runMatch = Regex.Match(line, @"\bBF\s+(\d+)", RegexOptions.IgnoreCase);
+                if (runMatch.Success)
+                {
+                    record.StationCode = runMatch.Groups[1].Value;
+                }
+                return record;
+            }
+
+            if (Regex.IsMatch(line, @"\bEnd-Line\b", RegexOptions.IgnoreCase))
+            {
+                record.LineMarker = "End-Line";
+                return record;
+            }
+
+            if (Regex.IsMatch(line, @"\bMeasurement\s+repeated\b", RegexOptions.IgnoreCase))
+            {
+                record.LineMarker = "Measurement-Repeated";
+                return record;
+            }
+
+            // Проверка на ошибочные измерения (#####)
+            if (line.Contains("#####"))
+            {
+                record.IsInvalidMeasurement = true;
+                return record;
+            }
+
+            // Парсим обычную строку данных
+            // Формат: [lineNumber] [pointCode] [session?] [time?] [runNumber] [Rb/Rf] [value] [HD] [value] [Z] [value]
+            var tokens = line.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
+
+            if (tokens.Length < 2)
+                return null;
+
+            // Пропускаем номер строки (первый токен - всегда число)
+            int tokenIndex = 1;
+
+            // Извлекаем код точки (Target)
+            if (tokenIndex < tokens.Length && !string.IsNullOrWhiteSpace(tokens[tokenIndex]))
+            {
+                // Проверяем, является ли токен числом (код точки может быть числом или буквенно-цифровым)
+                record.Target = tokens[tokenIndex];
+                tokenIndex++;
+            }
+
+            // Пропускаем номер сессии и время (если есть)
+            while (tokenIndex < tokens.Length && (tokens[tokenIndex].Contains(":") || tokens[tokenIndex].Length <= 2))
+            {
+                tokenIndex++;
+            }
+
+            // Извлекаем номер хода (StationCode)
+            if (tokenIndex < tokens.Length)
+            {
+                record.StationCode = tokens[tokenIndex];
+                tokenIndex++;
+            }
+
+            // Парсим параметры (Rb, Rf, HD, Z, Sh, dz, Db, Df)
+            while (tokenIndex < tokens.Length)
+            {
+                var param = tokens[tokenIndex];
+                tokenIndex++;
+
+                if (tokenIndex >= tokens.Length)
+                    break;
+
+                var value = tokens[tokenIndex];
+                tokenIndex++;
+
+                // Парсим значение
+                var parsedValue = ParseValue(value);
+
+                switch (param.ToUpperInvariant())
+                {
+                    case "RB":
+                        record.Rb_m = parsedValue;
+                        break;
+                    case "RF":
+                        record.Rf_m = parsedValue;
+                        break;
+                    case "HD":
+                        // Определяем, для какого отсчета это расстояние
+                        if (record.Rb_m.HasValue && !record.HdBack_m.HasValue)
+                            record.HdBack_m = parsedValue;
+                        else if (record.Rf_m.HasValue && !record.HdFore_m.HasValue)
+                            record.HdFore_m = parsedValue;
+                        break;
+                    case "Z":
+                        record.Z_m = parsedValue;
+                        break;
+                    // Пропускаем другие параметры (Sh, dz, Db, Df)
+                }
+            }
+
+            // Устанавливаем Mode
+            if (record.Rb_m.HasValue && record.Rf_m.HasValue)
+                record.Mode = "BF"; // Двойной ход
+            else if (record.Rb_m.HasValue)
+                record.Mode = "B";  // Только задний отсчет
+            else if (record.Rf_m.HasValue)
+                record.Mode = "F";  // Только передний отсчет
+
+            return record;
+        }
+
+        /// <summary>
+        /// Парсит числовое значение из строки
+        /// </summary>
+        private static double? ParseValue(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+                return null;
+
+            // Убираем запятые и заменяем на точку
+            value = value.Replace(',', '.');
+
+            // Парсим с учетом отрицательных значений (для перевернутой рейки)
+            if (double.TryParse(value, NumberStyles.Float, CI, out var parsed))
+                return parsed;
+
+            return null;
         }
 
         private static string ReadTextSmart(string path)

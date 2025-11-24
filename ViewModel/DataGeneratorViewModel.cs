@@ -231,7 +231,7 @@ namespace Nivtropy.ViewModels
                 }
             }
 
-            MessageBox.Show($"Сгенерировано {_measurements.Count} измерений", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
+            // Уведомление убрано - данные генерируются автоматически
         }
 
         private void GenerateFromExcel()
@@ -333,7 +333,7 @@ namespace Nivtropy.ViewModels
                 });
             }
 
-            MessageBox.Show($"Сгенерировано {_measurements.Count} измерений", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
+            // Уведомление убрано - данные генерируются автоматически
         }
 
         private double GenerateNoise(int index)

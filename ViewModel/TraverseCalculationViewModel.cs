@@ -886,15 +886,15 @@ namespace Nivtropy.ViewModels
                     row.IsBackHeightKnown = _dataViewModel.HasKnownHeight(row.BackCode);
                 }
 
-                // Для Z0: обратный проход только если это НЕ стартовая точка Z0
+                // Для Z0: обратный проход для всех точек без высоты
+                // НО только если мы не перезаписываем известную высоту начальной точки
                 if (!string.IsNullOrWhiteSpace(row.BackCode) &&
                     !calculatedHeightsZ0.ContainsKey(row.BackCode) &&
-                    !z0StartPoints.Contains(row.BackCode) &&
                     !string.IsNullOrWhiteSpace(row.ForeCode) &&
                     calculatedHeightsZ0.TryGetValue(row.ForeCode, out var foreHeightZ0) &&
                     row.DeltaH.HasValue)
                 {
-                    // H_back = H_fore - Δh
+                    // H_back = H_fore - Δh (без поправки!)
                     var calculatedBackHeightZ0 = foreHeightZ0 - row.DeltaH.Value;
                     calculatedHeightsZ0[row.BackCode] = calculatedBackHeightZ0;
                     row.BackHeightZ0 = calculatedBackHeightZ0;
