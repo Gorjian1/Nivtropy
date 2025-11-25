@@ -108,10 +108,11 @@ namespace Nivtropy.Services
                 if (record.LineMarker == "Measurement-Repeated")
                     continue;
 
-                // Пропускаем строки, которые содержат только Z (вычисленные нивелиром высоты)
+                // Пропускаем строки, которые не содержат никаких измерений
                 // НО сохраняем маркеры линий (Start-Line, End-Line, Cont-Line) - они нужны для группировки
+                var hasMeasurements = record.Rb_m.HasValue || record.Rf_m.HasValue || record.HdBack_m.HasValue || record.HdFore_m.HasValue || record.Z_m.HasValue;
                 var isLineMarker = record.LineMarker == "Start-Line" || record.LineMarker == "End-Line" || record.LineMarker == "Cont-Line";
-                if (!record.Rb_m.HasValue && !record.Rf_m.HasValue && !isLineMarker)
+                if (!hasMeasurements && !isLineMarker)
                     continue;
 
                 yield return record;
