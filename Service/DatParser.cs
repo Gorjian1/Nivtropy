@@ -22,6 +22,8 @@ namespace Nivtropy.Services
             ["HD"] = new[] { "HD", "HorizontalDistance", "Dist" },
             ["HDback"] = new[] { "HDBack", "HD_B", "HB" },
             ["HDfore"] = new[] { "HDFore", "HD_F", "HF" },
+            ["Db"] = new[] { "DB" },
+            ["Df"] = new[] { "DF" },
         };
 
         public IEnumerable<MeasurementRecord> Parse(string path, string? synonymsConfigPath = null)
@@ -98,7 +100,8 @@ namespace Nivtropy.Services
                 if (!Regex.IsMatch(line, @"^\s*For\b", RegexOptions.IgnoreCase))
                     continue;
 
-                var record = ParseLine(line, measurementPatterns, ref autoStation);
+                var record = TryParseBarSeparated(line, measurementPatterns, ref autoStation)
+                             ?? ParseLine(line, measurementPatterns, ref autoStation);
 
                 // Пропускаем строки с ##### (ошибочные измерения, которые будут заменены)
                 if (record.IsInvalidMeasurement)
@@ -379,6 +382,72 @@ namespace Nivtropy.Services
             return patterns;
         }
 
+        private static MeasurementRecord? TryParseBarSeparated(string line, IReadOnlyDictionary<string, Regex> measurementPatterns, ref int autoStation)
+        {
+            var parts = line.Split('|');
+            if (parts.Length < 3)
+                return null;
+
+            var record = new MeasurementRecord();
+
+            var adrMatch = Regex.Match(parts[1], @"\b(\d+)\b");
+            if (adrMatch.Success && int.TryParse(adrMatch.Groups[1].Value, NumberStyles.Integer, CI, out var seq))
+                record.Seq = seq;
+
+            var modeSegment = parts[2] ?? string.Empty;
+            DetectLineMarker(record, modeSegment);
+            DetectInvalidMeasurement(record, line);
+
+            var tokens = Regex.Split(modeSegment, @"\s+")
+                .Where(t => !string.IsNullOrWhiteSpace(t))
+                .Select(t => t.Replace("#####", string.Empty).Trim())
+                .Where(t => !string.IsNullOrWhiteSpace(t))
+                .ToArray();
+
+            record.Mode = tokens.FirstOrDefault();
+
+            // Определяем StationCode как последний токен, содержащий цифры
+            int stationIndex = Array.FindLastIndex(tokens, t => Regex.IsMatch(t, @"\d"));
+            if (stationIndex >= 0)
+            {
+                record.StationCode = tokens[stationIndex];
+                if (int.TryParse(record.StationCode, NumberStyles.Integer, CI, out var parsed))
+                    autoStation = parsed + 1;
+            }
+            else
+            {
+                record.StationCode = autoStation.ToString(CI);
+                autoStation++;
+            }
+
+            // Target — всё между Mode и StationCode (если она есть)
+            if (stationIndex > 0)
+            {
+                var targetTokens = tokens.Skip(1).Take(stationIndex - 1).ToArray();
+                record.Target = targetTokens.Length > 0 ? string.Join(" ", targetTokens) : null;
+            }
+            else if (tokens.Length > 1)
+            {
+                record.Target = string.Join(" ", tokens.Skip(1));
+            }
+
+            // Для Start-Line выцепляем направление BF/FB, если оно присутствует после маркера
+            if (record.LineMarker == "Start-Line")
+            {
+                var modeToken = tokens.FirstOrDefault(t => string.Equals(t, "BF", StringComparison.OrdinalIgnoreCase)
+                                                          || string.Equals(t, "FB", StringComparison.OrdinalIgnoreCase));
+                if (!string.IsNullOrWhiteSpace(modeToken))
+                    record.Mode = modeToken;
+            }
+
+            foreach (var segment in parts.Skip(3))
+            {
+                PopulateMeasurementsFromSegment(record, segment, measurementPatterns);
+            }
+
+            return record;
+        }
+
         private static MeasurementRecord ParseLine(string line, IReadOnlyDictionary<string, Regex> measurementPatterns, ref int autoStation)
         {
             var record = new MeasurementRecord();
@@ -555,21 +624,32 @@ namespace Nivtropy.Services
 
         private static void PopulateMeasurements(MeasurementRecord record, string line, IReadOnlyDictionary<string, Regex> patterns)
         {
+            PopulateMeasurementsFromSegment(record, line, patterns);
+        }
+
+        private static void PopulateMeasurementsFromSegment(MeasurementRecord record, string segment, IReadOnlyDictionary<string, Regex> patterns)
+        {
             if (patterns.TryGetValue("Rb", out var rbRegex))
-                record.Rb_m ??= TryMatchMeasurement(rbRegex, line);
+                record.Rb_m ??= TryMatchMeasurement(rbRegex, segment);
             if (patterns.TryGetValue("Rf", out var rfRegex))
-                record.Rf_m ??= TryMatchMeasurement(rfRegex, line);
+                record.Rf_m ??= TryMatchMeasurement(rfRegex, segment);
 
             // Сначала пробуем найти HDback и HDfore
             if (patterns.TryGetValue("HDback", out var hdBackRegex))
-                record.HdBack_m ??= TryMatchMeasurement(hdBackRegex, line);
+                record.HdBack_m ??= TryMatchMeasurement(hdBackRegex, segment);
             if (patterns.TryGetValue("HDfore", out var hdForeRegex))
-                record.HdFore_m ??= TryMatchMeasurement(hdForeRegex, line);
+                record.HdFore_m ??= TryMatchMeasurement(hdForeRegex, segment);
+
+            // Db/Df — альтернативные обозначения расстояний
+            if (patterns.TryGetValue("Db", out var dbRegex))
+                record.HdBack_m ??= TryMatchMeasurement(dbRegex, segment);
+            if (patterns.TryGetValue("Df", out var dfRegex))
+                record.HdFore_m ??= TryMatchMeasurement(dfRegex, segment);
 
             // Если HDback и HDfore не найдены, пробуем просто HD (для обоих)
             if (patterns.TryGetValue("HD", out var hdRegex))
             {
-                var hdValue = TryMatchMeasurement(hdRegex, line);
+                var hdValue = TryMatchMeasurement(hdRegex, segment);
                 if (hdValue.HasValue)
                 {
                     // Если есть Rb, это HDback
@@ -582,7 +662,7 @@ namespace Nivtropy.Services
             }
 
             if (patterns.TryGetValue("Z", out var zRegex))
-                record.Z_m ??= TryMatchMeasurement(zRegex, line);
+                record.Z_m ??= TryMatchMeasurement(zRegex, segment);
         }
 
         private static double? TryMatchMeasurement(Regex regex, string line)
