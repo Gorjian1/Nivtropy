@@ -73,8 +73,8 @@ namespace Nivtropy.ViewModels
                     StationNumber = traverseRow.Index,
                     LineName = traverseRow.LineName,
                     PointCode = traverseRow.BackCode,
-                    Z0 = traverseRow.HeightZ0Back,
-                    Z = traverseRow.HeightBack
+                    Z0 = traverseRow.BackHeightZ0,
+                    Z = traverseRow.BackHeight
                 });
 
                 // Строка 2: Превышение (средняя строка с расчётными данными)
@@ -96,8 +96,8 @@ namespace Nivtropy.ViewModels
                     StationNumber = traverseRow.Index,
                     LineName = traverseRow.LineName,
                     PointCode = traverseRow.ForeCode,
-                    Z0 = traverseRow.HeightZ0,
-                    Z = traverseRow.Height
+                    Z0 = traverseRow.ForeHeightZ0,
+                    Z = traverseRow.ForeHeight
                 });
             }
 
