@@ -14,7 +14,8 @@ namespace Nivtropy.Models
             double? deltaHSum,
             double? totalDistanceBack = null,
             double? totalDistanceFore = null,
-            double? armDifferenceAccumulation = null)
+            double? armDifferenceAccumulation = null,
+            int knownPointsCount = 0)
         {
             Index = index;
             StartTarget = startTarget;
@@ -26,6 +27,7 @@ namespace Nivtropy.Models
             TotalDistanceBack = totalDistanceBack;
             TotalDistanceFore = totalDistanceFore;
             ArmDifferenceAccumulation = armDifferenceAccumulation;
+            KnownPointsCount = knownPointsCount;
         }
 
         public int Index { get; }
@@ -59,9 +61,24 @@ namespace Nivtropy.Models
             : null;
 
         /// <summary>
+        /// Количество известных точек в этом ходе
+        /// </summary>
+        public int KnownPointsCount { get; set; }
+
+        /// <summary>
         /// Флаг превышения допуска накопления разности плеч
         /// </summary>
         public bool IsArmDifferenceAccumulationExceeded { get; set; }
+
+        /// <summary>
+        /// Включить локальное уравнивание по секциям (когда в ходе несколько известных точек)
+        /// </summary>
+        public bool UseLocalAdjustment { get; set; }
+
+        /// <summary>
+        /// Нужна ли кнопка локального уравнивания (больше 1 известной точки)
+        /// </summary>
+        public bool NeedsLocalAdjustment => KnownPointsCount > 1;
 
         private static string FormatPoint(string? target, string? station)
         {

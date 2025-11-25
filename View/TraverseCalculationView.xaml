@@ -207,6 +207,54 @@
                                                 </Button.Template>
                                             </Button>
 
+                                            <!-- Кнопка локального уравнивания (видна только когда больше 1 известной точки) -->
+                                            <Button x:Name="LocalAdjustmentButton"
+                                                    Width="24" Height="24"
+                                                    Margin="0,0,8,0"
+                                                    Padding="0"
+                                                    BorderThickness="0"
+                                                    Cursor="Hand"
+                                                    Tag="{Binding Items[0].LineSummary}"
+                                                    Click="ToggleLocalAdjustment_Click">
+                                                <Button.Style>
+                                                    <Style TargetType="Button">
+                                                        <Setter Property="Visibility" Value="Collapsed" />
+                                                        <Setter Property="Background" Value="#8A8A8A" />
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding Items[0].LineSummary.NeedsLocalAdjustment}" Value="True">
+                                                                <Setter Property="Visibility" Value="Visible" />
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding Items[0].LineSummary.UseLocalAdjustment}" Value="True">
+                                                                <Setter Property="Background" Value="#107C10" />
+                                                                <Setter Property="ToolTip" Value="Локальное уравнивание ВКЛЮЧЕНО. Нажмите для отключения" />
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding Items[0].LineSummary.UseLocalAdjustment}" Value="False">
+                                                                <Setter Property="Background" Value="#8A8A8A" />
+                                                                <Setter Property="ToolTip" Value="Локальное уравнивание выключено. Нажмите для включения" />
+                                                            </DataTrigger>
+                                                            <Trigger Property="IsMouseOver" Value="True">
+                                                                <Setter Property="Opacity" Value="0.8" />
+                                                            </Trigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Button.Style>
+                                                <Button.Template>
+                                                    <ControlTemplate TargetType="Button">
+                                                        <Border Background="{TemplateBinding Background}"
+                                                                CornerRadius="12"
+                                                                Width="24"
+                                                                Height="24">
+                                                            <TextBlock Text="&#xE8CB;"
+                                                                       FontFamily="Segoe MDL2 Assets"
+                                                                       FontSize="14"
+                                                                       Foreground="White"
+                                                                       HorizontalAlignment="Center"
+                                                                       VerticalAlignment="Center"/>
+                                                        </Border>
+                                                    </ControlTemplate>
+                                                </Button.Template>
+                                            </Button>
+
                                             <TextBlock Text="{Binding Name}" FontWeight="SemiBold" Foreground="#202020" />
                                             <TextBlock Text=" • Станций: " Margin="12,0,0,0" Foreground="#707070" />
                                             <TextBlock Text="{Binding ItemCount}" FontWeight="SemiBold" Foreground="#202020" />

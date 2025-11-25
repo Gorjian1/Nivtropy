@@ -655,15 +655,98 @@ namespace Nivtropy.ViewModels
         /// <summary>
         /// Рассчитывает поправки для распределения невязки пропорционально длинам станций
         /// Невязка рассчитывается для конкретного хода (группы станций)
+        ///
+        /// Поддерживает два режима:
+        /// 1. Обычный - невязка распределяется по всему ходу
+        /// 2. Локальное уравнивание - ход разбивается на секции между известными точками,
+        ///    и каждая секция уравнивается отдельно
         /// </summary>
         private void CalculateCorrections(List<TraverseRow> items)
         {
             if (items.Count == 0)
                 return;
 
-            // Вычисляем невязку для данного хода
+            // Проверяем, нужно ли локальное уравнивание
+            var lineSummary = items.FirstOrDefault()?.LineSummary;
+            if (lineSummary != null && lineSummary.UseLocalAdjustment && lineSummary.KnownPointsCount > 1)
+            {
+                // Локальное уравнивание: разбиваем на секции между известными точками
+                CalculateCorrectionsWithSections(items);
+            }
+            else
+            {
+                // Обычное уравнивание: по всему ходу
+                CalculateCorrectionsForSection(items);
+            }
+        }
+
+        /// <summary>
+        /// Локальное уравнивание: разбивает ход на секции и уравнивает каждую отдельно
+        /// </summary>
+        private void CalculateCorrectionsWithSections(List<TraverseRow> items)
+        {
+            if (items.Count == 0)
+                return;
+
+            // Находим индексы известных точек
+            var knownPointIndices = new List<int>();
+
+            for (int i = 0; i < items.Count; i++)
+            {
+                var row = items[i];
+
+                // Проверяем заднюю точку
+                if (!string.IsNullOrWhiteSpace(row.BackCode) && _dataViewModel.HasKnownHeight(row.BackCode))
+                {
+                    if (!knownPointIndices.Contains(i))
+                        knownPointIndices.Add(i);
+                }
+
+                // Проверяем переднюю точку
+                if (!string.IsNullOrWhiteSpace(row.ForeCode) && _dataViewModel.HasKnownHeight(row.ForeCode))
+                {
+                    // ForeCode станции i соответствует BackCode станции i+1
+                    if (i < items.Count - 1 && !knownPointIndices.Contains(i + 1))
+                        knownPointIndices.Add(i + 1);
+                }
+            }
+
+            knownPointIndices.Sort();
+
+            if (knownPointIndices.Count < 2)
+            {
+                // Недостаточно известных точек для секций, используем обычное уравнивание
+                CalculateCorrectionsForSection(items);
+                return;
+            }
+
+            // Разбиваем на секции между известными точками
+            for (int i = 0; i < knownPointIndices.Count - 1; i++)
+            {
+                int startIdx = knownPointIndices[i];
+                int endIdx = knownPointIndices[i + 1];
+
+                // Секция включает станции от startIdx до endIdx (не включая startIdx, т.к. это виртуальная станция начала секции)
+                var sectionRows = items.Skip(startIdx).Take(endIdx - startIdx).ToList();
+
+                if (sectionRows.Count > 0)
+                {
+                    CalculateCorrectionsForSection(sectionRows);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Рассчитывает поправки для одной секции хода (или всего хода)
+        /// </summary>
+        private void CalculateCorrectionsForSection(List<TraverseRow> items)
+        {
+            if (items.Count == 0)
+                return;
+
+            // Вычисляем невязку для данной секции
             var sign = MethodOrientationSign;
-            var traverseClosure = items
+            var sectionClosure = items
                 .Where(r => r.DeltaH.HasValue)
                 .Sum(r => r.DeltaH!.Value * sign);
 
@@ -671,7 +754,7 @@ namespace Nivtropy.ViewModels
             if (adjustableRows.Count == 0)
                 return;
 
-            // Вычисляем общую длину хода (среднее расстояние для каждой станции)
+            // Вычисляем общую длину секции (среднее расстояние для каждой станции)
             double totalDistance = 0;
             foreach (var row in items)
             {
@@ -684,7 +767,7 @@ namespace Nivtropy.ViewModels
             if (totalDistance <= 0)
             {
                 // Если нет данных о расстояниях, распределяем поровну на все станции
-                var correctionPerStation = -traverseClosure / adjustableRows.Count;
+                var correctionPerStation = -sectionClosure / adjustableRows.Count;
                 foreach (var row in adjustableRows)
                 {
                     allocations.Add(new CorrectionAllocation(row, correctionPerStation));
@@ -694,7 +777,7 @@ namespace Nivtropy.ViewModels
             }
 
             // Распределяем невязку пропорционально длинам
-            var correctionFactor = -traverseClosure / totalDistance;
+            var correctionFactor = -sectionClosure / totalDistance;
             foreach (var row in adjustableRows)
             {
                 var avgDistance = ((row.HdBack_m ?? 0) + (row.HdFore_m ?? 0)) / 2.0;
@@ -762,8 +845,9 @@ namespace Nivtropy.ViewModels
         /// Рассчитываются две версии: с поправкой (Z) и без поправки (Z0)
         ///
         /// Для Z: используются известные высоты для замыкания хода
-        /// Для Z0: известные высоты используются ТОЛЬКО для начальной точки хода,
-        ///         далее идет накопление превышений без замыкания (показывает незамкнутый ход)
+        /// Для Z0: показывает чистое накопление превышений БЕЗ поправок
+        ///         Если есть известная высота в начале - используется как стартовая
+        ///         Если нет известных высот - начинается с условного нуля
         ///
         /// НОВОЕ: Поддержка установки высоты на любой точке (не только начальной)
         /// Алгоритм распространяет высоты в обе стороны от известных точек
@@ -776,22 +860,8 @@ namespace Nivtropy.ViewModels
             // Создаем словари для хранения высот по кодам точек
             var calculatedHeights = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
             var calculatedHeightsZ0 = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
-            var z0StartPoints = new HashSet<string>(StringComparer.OrdinalIgnoreCase); // Точки, где Z0 начинается
 
-            // Шаг 1: Инициализируем известные высоты
-            // Для Z: добавляем все известные высоты
-            // Для Z0: добавляем только начальные точки ходов (не конечные реперы)
-
-            // Сначала найдём все точки, которые являются ForeCode (конечные точки)
-            var forePoints = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            foreach (var row in items)
-            {
-                if (!string.IsNullOrWhiteSpace(row.ForeCode))
-                {
-                    forePoints.Add(row.ForeCode);
-                }
-            }
-
+            // Шаг 1: Инициализируем известные высоты для Z (с поправкой)
             foreach (var row in items)
             {
                 if (!string.IsNullOrWhiteSpace(row.BackCode))
@@ -800,15 +870,6 @@ namespace Nivtropy.ViewModels
                     if (knownHeight.HasValue && !calculatedHeights.ContainsKey(row.BackCode))
                     {
                         calculatedHeights[row.BackCode] = knownHeight.Value;
-
-                        // Для Z0: используем известную высоту только для начальных точек
-                        // Начальная точка = имеет известную высоту И не встречалась ранее как ForeCode в этом же наборе
-                        // ИЛИ это точка без предшественника (первая в последовательности)
-                        if (!calculatedHeightsZ0.ContainsKey(row.BackCode))
-                        {
-                            calculatedHeightsZ0[row.BackCode] = knownHeight.Value;
-                            z0StartPoints.Add(row.BackCode);
-                        }
                     }
                 }
 
@@ -818,11 +879,39 @@ namespace Nivtropy.ViewModels
                     if (knownHeight.HasValue && !calculatedHeights.ContainsKey(row.ForeCode))
                     {
                         calculatedHeights[row.ForeCode] = knownHeight.Value;
-
-                        // Для Z0: НЕ добавляем известную высоту ForeCode!
-                        // Это может быть конечный репер хода - мы НЕ замыкаем на него Z0
-                        // Z0 должен показывать незамкнутый ход (накопление превышений)
                     }
+                }
+            }
+
+            // Шаг 1.5: Инициализируем Z0 (без поправки)
+            // Z0 начинается либо с первой известной высоты в ходе, либо с условного нуля
+            double z0StartHeight = 0.0;
+            string? z0StartPointCode = null;
+
+            // Ищем первую точку с известной высотой для Z0
+            foreach (var row in items)
+            {
+                if (!string.IsNullOrWhiteSpace(row.BackCode))
+                {
+                    var knownHeight = _dataViewModel.GetKnownHeight(row.BackCode);
+                    if (knownHeight.HasValue)
+                    {
+                        z0StartHeight = knownHeight.Value;
+                        z0StartPointCode = row.BackCode;
+                        calculatedHeightsZ0[row.BackCode] = z0StartHeight;
+                        break;
+                    }
+                }
+            }
+
+            // Если не нашли известную высоту, начинаем с первой точки хода с условным нулем
+            if (z0StartPointCode == null && items.Count > 0)
+            {
+                var firstRow = items[0];
+                if (!string.IsNullOrWhiteSpace(firstRow.BackCode))
+                {
+                    z0StartPointCode = firstRow.BackCode;
+                    calculatedHeightsZ0[firstRow.BackCode] = z0StartHeight; // 0.0
                 }
             }
 
@@ -871,17 +960,14 @@ namespace Nivtropy.ViewModels
                 }
 
                 // Рассчитываем высоту передней точки без поправки (Z0): H_fore = H_back + Δh
+                // Z0 ВСЕГДА вычисляется простым накоплением превышений (без учета поправок)
                 if (row.BackHeightZ0.HasValue && row.DeltaH.HasValue && !string.IsNullOrWhiteSpace(row.ForeCode))
                 {
                     var calculatedForeHeightZ0 = row.BackHeightZ0.Value + row.DeltaH.Value;
 
-                    // Для Z0: НЕ перезаписываем если уже есть значение (показываем незамкнутый ход)
-                    if (!calculatedHeightsZ0.ContainsKey(row.ForeCode))
-                    {
-                        calculatedHeightsZ0[row.ForeCode] = calculatedForeHeightZ0;
-                    }
-
-                    row.ForeHeightZ0 = calculatedHeightsZ0[row.ForeCode];
+                    // Для Z0: ВСЕГДА используем накопленное значение (не замыкаем на известные высоты)
+                    calculatedHeightsZ0[row.ForeCode] = calculatedForeHeightZ0;
+                    row.ForeHeightZ0 = calculatedForeHeightZ0;
                 }
             }
 
@@ -891,7 +977,7 @@ namespace Nivtropy.ViewModels
             {
                 var row = items[i];
 
-                // Если передняя точка имеет высоту, а задняя - нет, рассчитываем высоту задней точки
+                // Если передняя точка имеет высоту, а задняя - нет, рассчитываем высоту задней точки (с поправкой)
                 if (!string.IsNullOrWhiteSpace(row.BackCode) &&
                     !calculatedHeights.ContainsKey(row.BackCode) &&
                     !string.IsNullOrWhiteSpace(row.ForeCode) &&
@@ -905,19 +991,8 @@ namespace Nivtropy.ViewModels
                     row.IsBackHeightKnown = _dataViewModel.HasKnownHeight(row.BackCode);
                 }
 
-                // Для Z0: обратный проход для всех точек без высоты
-                // НО только если мы не перезаписываем известную высоту начальной точки
-                if (!string.IsNullOrWhiteSpace(row.BackCode) &&
-                    !calculatedHeightsZ0.ContainsKey(row.BackCode) &&
-                    !string.IsNullOrWhiteSpace(row.ForeCode) &&
-                    calculatedHeightsZ0.TryGetValue(row.ForeCode, out var foreHeightZ0) &&
-                    row.DeltaH.HasValue)
-                {
-                    // H_back = H_fore - Δh (без поправки!)
-                    var calculatedBackHeightZ0 = foreHeightZ0 - row.DeltaH.Value;
-                    calculatedHeightsZ0[row.BackCode] = calculatedBackHeightZ0;
-                    row.BackHeightZ0 = calculatedBackHeightZ0;
-                }
+                // Для Z0: backward pass НЕ нужен, т.к. Z0 вычисляется только вперед (накопление превышений)
+                // Это намеренно: Z0 показывает незамкнутый ход от начальной точки
             }
 
             // Шаг 4: Еще один forward pass для заполнения пропущенных значений
@@ -1015,6 +1090,21 @@ namespace Nivtropy.ViewModels
                     }
                 }
 
+                // Подсчитываем количество известных точек в этом ходе
+                var knownPointsSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var row in rows)
+                {
+                    if (!string.IsNullOrWhiteSpace(row.BackCode) && _dataViewModel.HasKnownHeight(row.BackCode))
+                    {
+                        knownPointsSet.Add(row.BackCode);
+                    }
+                    if (!string.IsNullOrWhiteSpace(row.ForeCode) && _dataViewModel.HasKnownHeight(row.ForeCode))
+                    {
+                        knownPointsSet.Add(row.ForeCode);
+                    }
+                }
+                var knownPointsCount = knownPointsSet.Count;
+
                 // Создаем новый LineSummary с обновленными значениями
                 var newSummary = new LineSummary(
                     existingSummary.Index,
@@ -1026,7 +1116,12 @@ namespace Nivtropy.ViewModels
                     existingSummary.DeltaHSum,
                     totalDistanceBack,
                     totalDistanceFore,
-                    accumulation);
+                    accumulation,
+                    knownPointsCount);
+
+                // Сохраняем состояние UseLocalAdjustment
+                newSummary.UseLocalAdjustment = existingSummary.UseLocalAdjustment;
+                newSummary.IsArmDifferenceAccumulationExceeded = existingSummary.IsArmDifferenceAccumulationExceeded;
 
                 // Заменяем в коллекции
                 _dataViewModel.Runs[existingIndex] = newSummary;

@@ -47,6 +47,25 @@ namespace Nivtropy.Views
         }
 
         /// <summary>
+        /// Переключить локальное уравнивание для хода
+        /// </summary>
+        private void ToggleLocalAdjustment_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button button && button.Tag is Models.LineSummary lineSummary && DataContext is TraverseCalculationViewModel viewModel)
+            {
+                // Переключаем флаг
+                lineSummary.UseLocalAdjustment = !lineSummary.UseLocalAdjustment;
+
+                // Обновляем отображение (пересчитываем высоты)
+                // Вызываем приватный метод UpdateRows через рефлексию или
+                // делаем фиктивное изменение для запуска пересчета
+                var selectedRun = viewModel.SelectedRun;
+                viewModel.SelectedRun = null;
+                viewModel.SelectedRun = selectedRun;
+            }
+        }
+
+        /// <summary>
         /// Показать детали хода (всплывающее окно)
         /// </summary>
         private void ShowTraverseDetails_Click(object sender, RoutedEventArgs e)
