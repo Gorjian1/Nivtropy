@@ -894,38 +894,17 @@ namespace Nivtropy.ViewModels
                 if (traverseRows.Count == 0)
                     continue;
 
-                // Ищем первую точку с известной высотой для этого хода
-                double z0StartHeight = 0.0;
-                string? z0StartPointCode = null;
-
-                foreach (var row in traverseRows)
+                // Z0 ВСЕГДА начинается с ПЕРВОЙ точки хода (не с первой известной!)
+                // Это важно для правильного отображения незамкнутого хода
+                var firstRow = traverseRows[0];
+                if (!string.IsNullOrWhiteSpace(firstRow.BackCode))
                 {
-                    if (!string.IsNullOrWhiteSpace(row.BackCode))
-                    {
-                        var knownHeight = _dataViewModel.GetKnownHeight(row.BackCode);
-                        if (knownHeight.HasValue)
-                        {
-                            z0StartHeight = knownHeight.Value;
-                            z0StartPointCode = row.BackCode;
-                            break;
-                        }
-                    }
-                }
+                    // Проверяем, есть ли у первой точки известная высота
+                    var knownHeight = _dataViewModel.GetKnownHeight(firstRow.BackCode);
+                    double z0StartHeight = knownHeight ?? 0.0;
 
-                // Если не нашли известную высоту, начинаем с первой точки хода с условным нулем
-                if (z0StartPointCode == null)
-                {
-                    var firstRow = traverseRows[0];
-                    if (!string.IsNullOrWhiteSpace(firstRow.BackCode))
-                    {
-                        z0StartPointCode = firstRow.BackCode;
-                    }
-                }
-
-                // Устанавливаем начальную высоту для Z0 этого хода
-                if (!string.IsNullOrWhiteSpace(z0StartPointCode))
-                {
-                    calculatedHeightsZ0[z0StartPointCode] = z0StartHeight;
+                    // Устанавливаем начальную высоту для Z0 этого хода
+                    calculatedHeightsZ0[firstRow.BackCode] = z0StartHeight;
                 }
             }
 
