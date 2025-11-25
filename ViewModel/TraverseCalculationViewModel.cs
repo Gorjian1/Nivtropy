@@ -668,7 +668,9 @@ namespace Nivtropy.ViewModels
 
             // Проверяем, нужно ли локальное уравнивание
             var lineSummary = items.FirstOrDefault()?.LineSummary;
-            if (lineSummary != null && lineSummary.UseLocalAdjustment && lineSummary.KnownPointsCount > 1)
+            var hasIntermediateAnchors = lineSummary != null && lineSummary.KnownPointsCount > 1;
+
+            if (hasIntermediateAnchors || (lineSummary?.UseLocalAdjustment ?? false))
             {
                 // Локальное уравнивание: разбиваем на секции между известными точками
                 CalculateCorrectionsWithSections(items);
@@ -857,180 +859,244 @@ namespace Nivtropy.ViewModels
             if (items.Count == 0)
                 return;
 
-            // Создаем словари для хранения высот по кодам точек
-            var calculatedHeights = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
-            var calculatedHeightsZ0 = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
-
-            // Шаг 1: Инициализируем известные высоты для Z (с поправкой)
-            foreach (var row in items)
-            {
-                if (!string.IsNullOrWhiteSpace(row.BackCode))
-                {
-                    var knownHeight = _dataViewModel.GetKnownHeight(row.BackCode);
-                    if (knownHeight.HasValue && !calculatedHeights.ContainsKey(row.BackCode))
-                    {
-                        calculatedHeights[row.BackCode] = knownHeight.Value;
-                    }
-                }
-
-                if (!string.IsNullOrWhiteSpace(row.ForeCode))
-                {
-                    var knownHeight = _dataViewModel.GetKnownHeight(row.ForeCode);
-                    if (knownHeight.HasValue && !calculatedHeights.ContainsKey(row.ForeCode))
-                    {
-                        calculatedHeights[row.ForeCode] = knownHeight.Value;
-                    }
-                }
-            }
-
-            // Шаг 1.5: Инициализируем Z0 (без поправки) для каждого хода отдельно
-            // Z0 начинается либо с первой известной высоты в ходе, либо с условного нуля
-            // Группируем по ходам для правильной инициализации
+            // Группируем станции по ходам и рассчитываем высоты отдельно для каждого хода
             var traverseGroups = items.GroupBy(r => r.LineName).ToList();
 
-            foreach (var group in traverseGroups)
+            // Глобальные словари высот: сначала известные точки, затем накопленные вычисления для всех ходов
+            var adjustedGlobal = new Dictionary<string, double>(_dataViewModel.KnownHeights, StringComparer.OrdinalIgnoreCase);
+            var rawGlobal = new Dictionary<string, double>(_dataViewModel.KnownHeights, StringComparer.OrdinalIgnoreCase);
+
+            // Сбрасываем предыдущие значения, чтобы не смешивать данные разных пересчётов
+            foreach (var row in traverseGroups.SelectMany(g => g))
             {
-                var traverseRows = group.ToList();
-                if (traverseRows.Count == 0)
-                    continue;
-
-                // Z0 ВСЕГДА начинается с ПЕРВОЙ точки хода (не с первой известной!)
-                // Это важно для правильного отображения незамкнутого хода
-                var firstRow = traverseRows[0];
-                if (!string.IsNullOrWhiteSpace(firstRow.BackCode))
-                {
-                    // Проверяем, есть ли у первой точки известная высота
-                    var knownHeight = _dataViewModel.GetKnownHeight(firstRow.BackCode);
-                    double z0StartHeight = knownHeight ?? 0.0;
-
-                    // Устанавливаем начальную высоту для Z0 этого хода
-                    calculatedHeightsZ0[firstRow.BackCode] = z0StartHeight;
-                }
+                row.BackHeight = null;
+                row.ForeHeight = null;
+                row.BackHeightZ0 = null;
+                row.ForeHeightZ0 = null;
+                row.IsBackHeightKnown = false;
+                row.IsForeHeightKnown = false;
             }
 
-            // Шаг 2: Распространяем высоты вперед (forward pass)
-            for (int i = 0; i < items.Count; i++)
+            // Несколько итераций позволяют перенести вычисленные высоты на смежные ходы через общие точки
+            var guard = 0;
+            bool changed;
+
+            do
             {
-                var row = items[i];
+                changed = false;
 
-                // === Обработка задней точки ===
-
-                // Получаем высоту задней точки (с поправкой)
-                if (!string.IsNullOrWhiteSpace(row.BackCode) && calculatedHeights.TryGetValue(row.BackCode, out var backHeight))
+                foreach (var traverseGroup in traverseGroups)
                 {
-                    row.BackHeight = backHeight;
+                    var traverseRows = traverseGroup.OrderBy(r => r.Index).ToList();
+
+                    // Z0: используем только первое доступное начало (известное или вычисленное), чтобы сохранить невязку
+                    var rawLocal = ComputeTraverseHeights(traverseRows, rawGlobal, useAdjustedDelta: false, seedAllKnownAnchors: false);
+                    changed |= MergeHeights(rawLocal, rawGlobal);
+
+                    // Z: закрепляем ход на всех известных точках, используя уравнённые превышения
+                    var adjustedLocal = ComputeTraverseHeights(traverseRows, adjustedGlobal, useAdjustedDelta: true, seedAllKnownAnchors: true);
+                    changed |= MergeHeights(adjustedLocal, adjustedGlobal);
+                }
+
+                guard++;
+            } while (changed && guard < 5);
+
+            // Переносим рассчитанные значения в строки хода
+            foreach (var row in traverseGroups.SelectMany(g => g))
+            {
+                if (!string.IsNullOrWhiteSpace(row.BackCode) && adjustedGlobal.TryGetValue(row.BackCode, out var back))
+                {
+                    row.BackHeight = back;
                     row.IsBackHeightKnown = _dataViewModel.HasKnownHeight(row.BackCode);
                 }
 
-                // Получаем высоту задней точки без поправки (Z0)
-                if (!string.IsNullOrWhiteSpace(row.BackCode) && calculatedHeightsZ0.TryGetValue(row.BackCode, out var backHeightZ0))
+                if (!string.IsNullOrWhiteSpace(row.ForeCode) && adjustedGlobal.TryGetValue(row.ForeCode, out var fore))
                 {
-                    row.BackHeightZ0 = backHeightZ0;
+                    row.ForeHeight = fore;
+                    row.IsForeHeightKnown = _dataViewModel.HasKnownHeight(row.ForeCode);
                 }
 
-                // === Обработка передней точки ===
-
-                // Рассчитываем высоту передней точки с поправкой: H_fore = H_back + Δh_испр
-                if (row.BackHeight.HasValue && row.AdjustedDeltaH.HasValue && !string.IsNullOrWhiteSpace(row.ForeCode))
+                if (!string.IsNullOrWhiteSpace(row.BackCode) && rawGlobal.TryGetValue(row.BackCode, out var backZ0))
                 {
-                    var calculatedForeHeight = row.BackHeight.Value + row.AdjustedDeltaH.Value;
-
-                    // Если у передней точки нет известной высоты, используем рассчитанную
-                    if (!_dataViewModel.HasKnownHeight(row.ForeCode))
-                    {
-                        calculatedHeights[row.ForeCode] = calculatedForeHeight;
-                        row.ForeHeight = calculatedForeHeight;
-                        row.IsForeHeightKnown = false;
-                    }
-                    else
-                    {
-                        // Если есть известная высота, используем её
-                        var knownHeight = _dataViewModel.GetKnownHeight(row.ForeCode)!.Value;
-                        calculatedHeights[row.ForeCode] = knownHeight;
-                        row.ForeHeight = knownHeight;
-                        row.IsForeHeightKnown = true;
-                    }
+                    row.BackHeightZ0 = backZ0;
                 }
 
-                // Рассчитываем высоту передней точки без поправки (Z0): H_fore = H_back + Δh
-                // Z0 ВСЕГДА вычисляется простым накоплением превышений (без учета поправок)
-                if (row.BackHeightZ0.HasValue && row.DeltaH.HasValue && !string.IsNullOrWhiteSpace(row.ForeCode))
+                if (!string.IsNullOrWhiteSpace(row.ForeCode) && rawGlobal.TryGetValue(row.ForeCode, out var foreZ0))
                 {
-                    var calculatedForeHeightZ0 = row.BackHeightZ0.Value + row.DeltaH.Value;
-
-                    // Для Z0: ВСЕГДА используем накопленное значение (не замыкаем на известные высоты)
-                    calculatedHeightsZ0[row.ForeCode] = calculatedForeHeightZ0;
-                    row.ForeHeightZ0 = calculatedForeHeightZ0;
+                    row.ForeHeightZ0 = foreZ0;
                 }
             }
+        }
 
-            // Шаг 3: Распространяем высоты назад (backward pass)
-            // Это необходимо для случая, когда известная высота установлена не на начальной точке
-            for (int i = items.Count - 1; i >= 0; i--)
+        private Dictionary<string, double> ComputeTraverseHeights(
+            List<TraverseRow> traverseRows,
+            Dictionary<string, double> globalHeights,
+            bool useAdjustedDelta,
+            bool seedAllKnownAnchors)
+        {
+            var localHeights = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
+
+            // Заполняем начальными известными высотами (полностью либо только первую доступную)
+            if (seedAllKnownAnchors)
             {
-                var row = items[i];
-
-                // Если передняя точка имеет высоту, а задняя - нет, рассчитываем высоту задней точки (с поправкой)
-                if (!string.IsNullOrWhiteSpace(row.BackCode) &&
-                    !calculatedHeights.ContainsKey(row.BackCode) &&
-                    !string.IsNullOrWhiteSpace(row.ForeCode) &&
-                    calculatedHeights.TryGetValue(row.ForeCode, out var foreHeight) &&
-                    row.AdjustedDeltaH.HasValue)
+                foreach (var row in traverseRows)
                 {
-                    // H_back = H_fore - Δh_испр
-                    var calculatedBackHeight = foreHeight - row.AdjustedDeltaH.Value;
-                    calculatedHeights[row.BackCode] = calculatedBackHeight;
-                    row.BackHeight = calculatedBackHeight;
-                    row.IsBackHeightKnown = _dataViewModel.HasKnownHeight(row.BackCode);
+                    TrySeed(row.BackCode);
+                    TrySeed(row.ForeCode);
                 }
-
-                // Для Z0: backward pass НЕ нужен, т.к. Z0 вычисляется только вперед (накопление превышений)
-                // Это намеренно: Z0 показывает незамкнутый ход от начальной точки
             }
-
-            // Шаг 4: Еще один forward pass для заполнения пропущенных значений
-            for (int i = 0; i < items.Count; i++)
+            else
             {
-                var row = items[i];
-
-                // Обновляем BackHeight, если еще не установлена
-                if (!row.BackHeight.HasValue && !string.IsNullOrWhiteSpace(row.BackCode))
+                // Только первое доступное начало (из глобальных или из списка известных)
+                var anchor = FindAnchor(traverseRows, globalHeights);
+                if (anchor.code != null)
                 {
-                    if (calculatedHeights.TryGetValue(row.BackCode, out var backHeight))
+                    localHeights[anchor.code] = anchor.height;
+                }
+            }
+
+            // Если ничего не знаем, стартуем с условного нуля на первой точке
+            if (localHeights.Count == 0 && traverseRows.Count > 0 && !string.IsNullOrWhiteSpace(traverseRows[0].BackCode))
+            {
+                localHeights[traverseRows[0].BackCode] = 0.0;
+            }
+
+            // Итеративно распространяем высоты в обе стороны
+            bool changed;
+            int guard = 0;
+
+            do
+            {
+                changed = false;
+
+                foreach (var row in traverseRows)
+                {
+                    if (TryGetDelta(row, useAdjustedDelta, out var delta) &&
+                        !string.IsNullOrWhiteSpace(row.BackCode) &&
+                        !string.IsNullOrWhiteSpace(row.ForeCode))
                     {
-                        row.BackHeight = backHeight;
-                        row.IsBackHeightKnown = _dataViewModel.HasKnownHeight(row.BackCode);
+                        if (localHeights.TryGetValue(row.BackCode, out var backHeight) && !localHeights.ContainsKey(row.ForeCode))
+                        {
+                            localHeights[row.ForeCode] = backHeight + delta;
+                            changed = true;
+                        }
+                        else if (localHeights.TryGetValue(row.ForeCode, out var foreHeight) && !localHeights.ContainsKey(row.BackCode))
+                        {
+                            localHeights[row.BackCode] = foreHeight - delta;
+                            changed = true;
+                        }
+                        else if (seedAllKnownAnchors)
+                        {
+                            // Если обе точки известны и одна задана вручную, закрепляем её значением из глобального словаря
+                            if (globalHeights.TryGetValue(row.BackCode, out var globalBack))
+                            {
+                                changed |= EnsureOverride(localHeights, row.BackCode, globalBack);
+                            }
+                            if (globalHeights.TryGetValue(row.ForeCode, out var globalFore))
+                            {
+                                changed |= EnsureOverride(localHeights, row.ForeCode, globalFore);
+                            }
+                        }
                     }
                 }
 
-                // Обновляем BackHeightZ0, если еще не установлена
-                if (!row.BackHeightZ0.HasValue && !string.IsNullOrWhiteSpace(row.BackCode))
-                {
-                    if (calculatedHeightsZ0.TryGetValue(row.BackCode, out var backHeightZ0))
-                    {
-                        row.BackHeightZ0 = backHeightZ0;
-                    }
-                }
+                guard++;
+            } while (changed && guard < traverseRows.Count * 2 + 4);
 
-                // Обновляем ForeHeight, если еще не установлена
-                if (!row.ForeHeight.HasValue && !string.IsNullOrWhiteSpace(row.ForeCode))
-                {
-                    if (calculatedHeights.TryGetValue(row.ForeCode, out var foreHeight))
-                    {
-                        row.ForeHeight = foreHeight;
-                        row.IsForeHeightKnown = _dataViewModel.HasKnownHeight(row.ForeCode);
-                    }
-                }
+            return localHeights;
 
-                // Обновляем ForeHeightZ0, если еще не установлена
-                if (!row.ForeHeightZ0.HasValue && !string.IsNullOrWhiteSpace(row.ForeCode))
+            void TrySeed(string? code)
+            {
+                if (string.IsNullOrWhiteSpace(code))
+                    return;
+
+                if (localHeights.ContainsKey(code))
+                    return;
+
+                if (globalHeights.TryGetValue(code, out var existing))
                 {
-                    if (calculatedHeightsZ0.TryGetValue(row.ForeCode, out var foreHeightZ0))
+                    localHeights[code] = existing;
+                }
+                else
+                {
+                    var known = _dataViewModel.GetKnownHeight(code);
+                    if (known.HasValue)
                     {
-                        row.ForeHeightZ0 = foreHeightZ0;
+                        localHeights[code] = known.Value;
                     }
                 }
             }
+        }
+
+        private static (string? code, double height) FindAnchor(List<TraverseRow> traverseRows, Dictionary<string, double> globalHeights)
+        {
+            foreach (var row in traverseRows)
+            {
+                if (!string.IsNullOrWhiteSpace(row.BackCode) && globalHeights.TryGetValue(row.BackCode, out var back))
+                {
+                    return (row.BackCode, back);
+                }
+                if (!string.IsNullOrWhiteSpace(row.ForeCode) && globalHeights.TryGetValue(row.ForeCode, out var fore))
+                {
+                    return (row.ForeCode, fore);
+                }
+            }
+
+            foreach (var row in traverseRows)
+            {
+                if (!string.IsNullOrWhiteSpace(row.BackCode) && globalHeights.TryGetValue(row.BackCode, out var backKnown))
+                {
+                    return (row.BackCode, backKnown);
+                }
+
+                if (!string.IsNullOrWhiteSpace(row.ForeCode) && globalHeights.TryGetValue(row.ForeCode, out var foreKnown))
+                {
+                    return (row.ForeCode, foreKnown);
+                }
+            }
+
+            // Ничего не нашли
+            return (null, 0);
+        }
+
+        private static bool EnsureOverride(Dictionary<string, double> target, string code, double value)
+        {
+            if (!target.TryGetValue(code, out var current) || Math.Abs(current - value) > 1e-8)
+            {
+                target[code] = value;
+                return true;
+            }
+
+            return false;
+        }
+
+        private static bool MergeHeights(Dictionary<string, double> source, Dictionary<string, double> destination)
+        {
+            var changed = false;
+
+            foreach (var kvp in source)
+            {
+                if (!destination.ContainsKey(kvp.Key))
+                {
+                    destination[kvp.Key] = kvp.Value;
+                    changed = true;
+                }
+            }
+
+            return changed;
+        }
+
+        private static bool TryGetDelta(TraverseRow row, bool useAdjusted, out double delta)
+        {
+            var source = useAdjusted ? row.AdjustedDeltaH : row.DeltaH;
+            if (source.HasValue)
+            {
+                delta = source.Value;
+                return true;
+            }
+
+            delta = 0;
+            return false;
         }
 
         /// <summary>
