@@ -779,6 +779,19 @@ namespace Nivtropy.ViewModels
             var z0StartPoints = new HashSet<string>(StringComparer.OrdinalIgnoreCase); // Точки, где Z0 начинается
 
             // Шаг 1: Инициализируем известные высоты
+            // Для Z: добавляем все известные высоты
+            // Для Z0: добавляем только начальные точки ходов (не конечные реперы)
+
+            // Сначала найдём все точки, которые являются ForeCode (конечные точки)
+            var forePoints = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var row in items)
+            {
+                if (!string.IsNullOrWhiteSpace(row.ForeCode))
+                {
+                    forePoints.Add(row.ForeCode);
+                }
+            }
+
             foreach (var row in items)
             {
                 if (!string.IsNullOrWhiteSpace(row.BackCode))
@@ -788,7 +801,9 @@ namespace Nivtropy.ViewModels
                     {
                         calculatedHeights[row.BackCode] = knownHeight.Value;
 
-                        // Для Z0: используем известную высоту только если это первое вхождение
+                        // Для Z0: используем известную высоту только для начальных точек
+                        // Начальная точка = имеет известную высоту И не встречалась ранее как ForeCode в этом же наборе
+                        // ИЛИ это точка без предшественника (первая в последовательности)
                         if (!calculatedHeightsZ0.ContainsKey(row.BackCode))
                         {
                             calculatedHeightsZ0[row.BackCode] = knownHeight.Value;
@@ -804,13 +819,9 @@ namespace Nivtropy.ViewModels
                     {
                         calculatedHeights[row.ForeCode] = knownHeight.Value;
 
-                        // Для Z0: также добавляем известную высоту ForeCode
-                        // Это позволяет устанавливать высоту на любой точке, не только начальной
-                        if (!calculatedHeightsZ0.ContainsKey(row.ForeCode))
-                        {
-                            calculatedHeightsZ0[row.ForeCode] = knownHeight.Value;
-                            z0StartPoints.Add(row.ForeCode);
-                        }
+                        // Для Z0: НЕ добавляем известную высоту ForeCode!
+                        // Это может быть конечный репер хода - мы НЕ замыкаем на него Z0
+                        // Z0 должен показывать незамкнутый ход (накопление превышений)
                     }
                 }
             }
