@@ -497,18 +497,24 @@ namespace Nivtropy.Services
             if (string.IsNullOrWhiteSpace(text))
                 return null;
 
-            var stationMatches = Regex.Matches(text, @"(?i)\b([A-Z]{1,3}\d+)\b[^0-9+-]*([+-]?\d+)(?![\d.,])");
+            var stationMatches = Regex.Matches(text, @"(?i)\b([A-Z]{1,3}\d+)\b[^0-9+-]*([+-]?\d+(?:[.,]\d+)?)");
             if (stationMatches.Count > 0)
-                return stationMatches[^1].Groups[2].Value;
+                return NormalizeStationCode(stationMatches[^1].Groups[2].Value);
 
             if (requireLabel)
                 return null;
 
-            var numberMatches = Regex.Matches(text, @"(?<!\d)([+-]?\d+)(?![\d.,])");
+            var numberMatches = Regex.Matches(text, @"(?<![\d.,])([+-]?\d+(?:[.,]\d+)?)(?![\d.,])");
             if (numberMatches.Count > 0)
-                return numberMatches[^1].Groups[1].Value;
+                return NormalizeStationCode(numberMatches[^1].Groups[1].Value);
 
             return null;
+        }
+
+        private static string NormalizeStationCode(string raw)
+        {
+            // Унифицируем разделитель целой и дробной части, чтобы точки вида "8,1" и "8.1" считались одинаковыми кодами
+            return raw.Replace(',', '.').Trim();
         }
 
         /// <summary>
