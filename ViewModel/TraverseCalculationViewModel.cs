@@ -803,6 +803,14 @@ namespace Nivtropy.ViewModels
                     if (knownHeight.HasValue && !calculatedHeights.ContainsKey(row.ForeCode))
                     {
                         calculatedHeights[row.ForeCode] = knownHeight.Value;
+
+                        // Для Z0: также добавляем известную высоту ForeCode
+                        // Это позволяет устанавливать высоту на любой точке, не только начальной
+                        if (!calculatedHeightsZ0.ContainsKey(row.ForeCode))
+                        {
+                            calculatedHeightsZ0[row.ForeCode] = knownHeight.Value;
+                            z0StartPoints.Add(row.ForeCode);
+                        }
                     }
                 }
             }
