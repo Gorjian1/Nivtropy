@@ -846,173 +846,201 @@ namespace Nivtropy.ViewModels
         /// Логика нивелирования: H_fore = H_back + Δh, где Δh = Rb - Rf
         /// Рассчитываются две версии: с поправкой (Z) и без поправки (Z0)
         ///
-        /// Для Z: используются известные высоты для замыкания хода
-        /// Для Z0: показывает чистое накопление превышений БЕЗ поправок
-        ///         Если есть известная высота в начале - используется как стартовая
-        ///         Если нет известных высот - начинается с условного нуля
+        /// Для Z: используются все известные высоты и уравнённые превышения
+        /// Для Z0: показывает чистое накопление превышений без поправок и без принудительного
+        ///         замыкания на промежуточных известных точках (только стартовый якорь)
         ///
-        /// НОВОЕ: Поддержка установки высоты на любой точке (не только начальной)
-        /// Алгоритм распространяет высоты в обе стороны от известных точек
+        /// Алгоритм строит единый граф по всем ходам и распространяет отметки между
+        /// смежными ходами, если у них есть общие точки.
         /// </summary>
         private void CalculateHeights(List<TraverseRow> items)
         {
             if (items.Count == 0)
                 return;
 
-            // Группируем станции по ходам и рассчитываем высоты отдельно для каждого хода
-            var traverseGroups = items.GroupBy(r => r.LineName).ToList();
-
-            foreach (var traverseGroup in traverseGroups)
+            // Сбрасываем значения перед перерасчётом
+            foreach (var row in items)
             {
-                var traverseRows = traverseGroup.ToList();
+                row.BackHeight = null;
+                row.ForeHeight = null;
+                row.BackHeightZ0 = null;
+                row.ForeHeightZ0 = null;
+                row.IsBackHeightKnown = false;
+                row.IsForeHeightKnown = false;
+            }
 
-                // Сбрасываем предыдущие значения, чтобы не смешивать данные разных пересчётов
-                foreach (var row in traverseRows)
+            var edges = BuildEdges(items);
+
+            // Расчёт уравнённых отметок (Z) с использованием всех известных точек
+            var adjustedHeights = BuildHeightNetwork(
+                items,
+                edges,
+                useAdjustedDelta: true,
+                seedAllKnown: true);
+
+            // Расчёт чистых отметок (Z0) — только один стартовый якорь, без принудительного
+            // замыкания на остальных известных точках, чтобы видеть невязку
+            var rawHeights = BuildHeightNetwork(
+                items,
+                edges,
+                useAdjustedDelta: false,
+                seedAllKnown: false);
+
+            foreach (var row in items)
+            {
+                if (!string.IsNullOrWhiteSpace(row.BackCode) && adjustedHeights.TryGetValue(row.BackCode, out var back))
                 {
-                    row.BackHeight = null;
-                    row.ForeHeight = null;
-                    row.BackHeightZ0 = null;
-                    row.ForeHeightZ0 = null;
-                    row.IsBackHeightKnown = false;
-                    row.IsForeHeightKnown = false;
+                    row.BackHeight = back;
+                    row.IsBackHeightKnown = _dataViewModel.HasKnownHeight(row.BackCode);
                 }
 
-                // Заполняем словари для высот с поправкой и без неё
-                var adjustedHeights = SeedHeightsFromKnownPoints(traverseRows);
-                var rawHeights = SeedHeightsFromKnownPoints(traverseRows);
-
-                // Если в ходе нет ни одной известной точки, используем условный ноль на первой точке
-                EnsureStartHeight(traverseRows, adjustedHeights);
-                EnsureStartHeight(traverseRows, rawHeights);
-
-                // Распространяем высоты с учетом уравнённых превышений (Z)
-                PropagateHeights(traverseRows, adjustedHeights, useAdjustedDelta: true);
-                // Распространяем высоты по исходным превышениям (Z0)
-                PropagateHeights(traverseRows, rawHeights, useAdjustedDelta: false);
-
-                // Переносим рассчитанные значения в строки хода
-                foreach (var row in traverseRows)
+                if (!string.IsNullOrWhiteSpace(row.ForeCode) && adjustedHeights.TryGetValue(row.ForeCode, out var fore))
                 {
-                    if (!string.IsNullOrWhiteSpace(row.BackCode) && adjustedHeights.TryGetValue(row.BackCode, out var back))
-                    {
-                        row.BackHeight = back;
-                        row.IsBackHeightKnown = _dataViewModel.HasKnownHeight(row.BackCode);
-                    }
+                    row.ForeHeight = fore;
+                    row.IsForeHeightKnown = _dataViewModel.HasKnownHeight(row.ForeCode);
+                }
 
-                    if (!string.IsNullOrWhiteSpace(row.ForeCode) && adjustedHeights.TryGetValue(row.ForeCode, out var fore))
-                    {
-                        row.ForeHeight = fore;
-                        row.IsForeHeightKnown = _dataViewModel.HasKnownHeight(row.ForeCode);
-                    }
+                if (!string.IsNullOrWhiteSpace(row.BackCode) && rawHeights.TryGetValue(row.BackCode, out var backZ0))
+                {
+                    row.BackHeightZ0 = backZ0;
+                }
 
-                    if (!string.IsNullOrWhiteSpace(row.BackCode) && rawHeights.TryGetValue(row.BackCode, out var backZ0))
-                    {
-                        row.BackHeightZ0 = backZ0;
-                    }
-
-                    if (!string.IsNullOrWhiteSpace(row.ForeCode) && rawHeights.TryGetValue(row.ForeCode, out var foreZ0))
-                    {
-                        row.ForeHeightZ0 = foreZ0;
-                    }
+                if (!string.IsNullOrWhiteSpace(row.ForeCode) && rawHeights.TryGetValue(row.ForeCode, out var foreZ0))
+                {
+                    row.ForeHeightZ0 = foreZ0;
                 }
             }
         }
 
+        private sealed record HeightEdge(string BackCode, string ForeCode, double? AdjustedDelta, double? RawDelta);
+
         /// <summary>
-        /// Создаёт словарь высот, инициализируя его всеми известными точками хода.
+        /// Строит список рёбер графа высот по всем ходам
         /// </summary>
-        private Dictionary<string, double> SeedHeightsFromKnownPoints(List<TraverseRow> traverseRows)
+        private static List<HeightEdge> BuildEdges(List<TraverseRow> rows)
+        {
+            var edges = new List<HeightEdge>();
+
+            foreach (var row in rows)
+            {
+                if (string.IsNullOrWhiteSpace(row.BackCode) || string.IsNullOrWhiteSpace(row.ForeCode))
+                    continue;
+
+                edges.Add(new HeightEdge(row.BackCode, row.ForeCode, row.AdjustedDeltaH, row.DeltaH));
+            }
+
+            return edges;
+        }
+
+        /// <summary>
+        /// Строит сеть высот: распространяет отметки по графу смежных ходов
+        /// </summary>
+        private Dictionary<string, double> BuildHeightNetwork(
+            List<TraverseRow> items,
+            List<HeightEdge> edges,
+            bool useAdjustedDelta,
+            bool seedAllKnown)
         {
             var heights = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
+            var pointsInRows = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-            foreach (var row in traverseRows)
+            foreach (var row in items)
             {
-                TrySeedPoint(row.BackCode, heights);
-                TrySeedPoint(row.ForeCode, heights);
+                if (!string.IsNullOrWhiteSpace(row.BackCode))
+                    pointsInRows.Add(row.BackCode);
+                if (!string.IsNullOrWhiteSpace(row.ForeCode))
+                    pointsInRows.Add(row.ForeCode);
             }
 
-            return heights;
-
-            void TrySeedPoint(string? code, Dictionary<string, double> target)
+            if (seedAllKnown)
             {
-                if (string.IsNullOrWhiteSpace(code))
-                    return;
-
-                if (target.ContainsKey(code))
-                    return;
-
-                var knownHeight = _dataViewModel.GetKnownHeight(code);
-                if (knownHeight.HasValue)
+                foreach (var point in pointsInRows)
                 {
-                    target[code] = knownHeight.Value;
+                    var known = _dataViewModel.GetKnownHeight(point);
+                    if (known.HasValue)
+                    {
+                        heights[point] = known.Value;
+                    }
                 }
             }
-        }
-
-        /// <summary>
-        /// Устанавливает начальную высоту для хода, если нет известных точек.
-        /// </summary>
-        private static void EnsureStartHeight(List<TraverseRow> traverseRows, Dictionary<string, double> heights)
-        {
-            if (heights.Count > 0)
-                return;
-
-            if (traverseRows.Count == 0)
-                return;
-
-            var firstRow = traverseRows[0];
-            if (!string.IsNullOrWhiteSpace(firstRow.BackCode))
+            else
             {
-                heights[firstRow.BackCode] = 0.0;
+                // Только один стартовый якорь для Z0: первая найденная известная точка
+                // либо первая точка из записей при отсутствии известных высот
+                foreach (var row in items)
+                {
+                    if (!string.IsNullOrWhiteSpace(row.BackCode))
+                    {
+                        var known = _dataViewModel.GetKnownHeight(row.BackCode);
+                        if (known.HasValue)
+                        {
+                            heights[row.BackCode] = known.Value;
+                            break;
+                        }
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(row.ForeCode))
+                    {
+                        var known = _dataViewModel.GetKnownHeight(row.ForeCode);
+                        if (known.HasValue)
+                        {
+                            heights[row.ForeCode] = known.Value;
+                            break;
+                        }
+                    }
+                }
+
+                if (heights.Count == 0)
+                {
+                    // Нет известных точек – используем условный ноль на первой доступной точке
+                    foreach (var row in items)
+                    {
+                        if (!string.IsNullOrWhiteSpace(row.BackCode))
+                        {
+                            heights[row.BackCode] = 0.0;
+                            break;
+                        }
+
+                        if (!string.IsNullOrWhiteSpace(row.ForeCode))
+                        {
+                            heights[row.ForeCode] = 0.0;
+                            break;
+                        }
+                    }
+                }
             }
-        }
 
-        /// <summary>
-        /// Распространяет высоты вдоль хода в обоих направлениях, используя либо исходные, либо уравнённые превышения.
-        /// </summary>
-        private static void PropagateHeights(List<TraverseRow> traverseRows, Dictionary<string, double> heights, bool useAdjustedDelta)
-        {
-            if (traverseRows.Count == 0)
-                return;
-
+            // Итеративное распространение отметок по всем ходам и смежным точкам
             bool changed;
             int guard = 0;
+            var maxIterations = Math.Max(edges.Count * 2, 1);
 
             do
             {
                 changed = false;
 
-                // Прямой проход
-                foreach (var row in traverseRows)
+                foreach (var edge in edges)
                 {
-                    if (TryGetDelta(row, useAdjustedDelta, out var delta) &&
-                        !string.IsNullOrWhiteSpace(row.BackCode) &&
-                        !string.IsNullOrWhiteSpace(row.ForeCode) &&
-                        heights.TryGetValue(row.BackCode, out var backHeight) &&
-                        !heights.ContainsKey(row.ForeCode))
+                    var delta = useAdjustedDelta ? edge.AdjustedDelta : edge.RawDelta;
+                    if (!delta.HasValue)
+                        continue;
+
+                    if (heights.TryGetValue(edge.BackCode, out var back) && !heights.ContainsKey(edge.ForeCode))
                     {
-                        heights[row.ForeCode] = backHeight + delta;
+                        heights[edge.ForeCode] = back + delta.Value;
                         changed = true;
                     }
-                }
-
-                // Обратный проход
-                for (int i = traverseRows.Count - 1; i >= 0; i--)
-                {
-                    var row = traverseRows[i];
-                    if (TryGetDelta(row, useAdjustedDelta, out var delta) &&
-                        !string.IsNullOrWhiteSpace(row.BackCode) &&
-                        !string.IsNullOrWhiteSpace(row.ForeCode) &&
-                        heights.TryGetValue(row.ForeCode, out var foreHeight) &&
-                        !heights.ContainsKey(row.BackCode))
+                    else if (heights.TryGetValue(edge.ForeCode, out var fore) && !heights.ContainsKey(edge.BackCode))
                     {
-                        heights[row.BackCode] = foreHeight - delta;
+                        heights[edge.BackCode] = fore - delta.Value;
                         changed = true;
                     }
                 }
 
                 guard++;
-            } while (changed && guard < traverseRows.Count * 2);
+            } while (changed && guard < maxIterations);
+
+            return heights;
         }
 
         private static bool TryGetDelta(TraverseRow row, bool useAdjusted, out double delta)
