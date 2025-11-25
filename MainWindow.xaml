@@ -215,6 +215,18 @@
                 </ToolBarTray>
             </TabItem>
 
+            <TabItem Header="Журнал">
+                <ToolBarTray>
+                    <ToolBar>
+                        <Label Content="Журнальное представление" FontWeight="SemiBold"/>
+                        <Separator/>
+                        <TextBlock Text="Классический формат журнала нивелирования"
+                                   VerticalAlignment="Center"
+                                   Foreground="#FF606060"/>
+                    </ToolBar>
+                </ToolBarTray>
+            </TabItem>
+
             <TabItem Header="Проектирование">
                 <ToolBarTray>
                     <ToolBar>
