@@ -862,9 +862,12 @@ namespace Nivtropy.ViewModels
             // Группируем станции по ходам и рассчитываем высоты отдельно для каждого хода
             var traverseGroups = items.GroupBy(r => r.LineName).ToList();
 
-            // Глобальные словари высот: сначала известные точки, затем накопленные вычисления для всех ходов
+            // Словари высот:
+            //  adjustedGlobal — общие высоты (Z) c возможной передачей через общие точки
+            //  rawKnownAnchors — только известные реперы для Z0, без переноса между ходами
             var adjustedGlobal = new Dictionary<string, double>(_dataViewModel.KnownHeights, StringComparer.OrdinalIgnoreCase);
-            var rawGlobal = new Dictionary<string, double>(_dataViewModel.KnownHeights, StringComparer.OrdinalIgnoreCase);
+            var rawKnownAnchors = new Dictionary<string, double>(_dataViewModel.KnownHeights, StringComparer.OrdinalIgnoreCase);
+            var rawResults = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
 
             // Сбрасываем предыдущие значения, чтобы не смешивать данные разных пересчётов
             foreach (var row in traverseGroups.SelectMany(g => g))
@@ -877,7 +880,15 @@ namespace Nivtropy.ViewModels
                 row.IsForeHeightKnown = false;
             }
 
-            // Несколько итераций позволяют перенести вычисленные высоты на смежные ходы через общие точки
+            // Сначала посчитаем Z0 по каждому ходу отдельно, чтобы не перетягивать невязку между ходами
+            foreach (var traverseGroup in traverseGroups)
+            {
+                var traverseRows = traverseGroup.OrderBy(r => r.Index).ToList();
+                var rawLocal = ComputeTraverseHeights(traverseRows, rawKnownAnchors, useAdjustedDelta: false, seedAllKnownAnchors: false);
+                MergeHeights(rawLocal, rawResults);
+            }
+
+            // Затем несколько итераций для Z, чтобы переносить высоты между ходами с общими точками
             var guard = 0;
             bool changed;
 
@@ -888,10 +899,6 @@ namespace Nivtropy.ViewModels
                 foreach (var traverseGroup in traverseGroups)
                 {
                     var traverseRows = traverseGroup.OrderBy(r => r.Index).ToList();
-
-                    // Z0: используем только первое доступное начало (известное или вычисленное), чтобы сохранить невязку
-                    var rawLocal = ComputeTraverseHeights(traverseRows, rawGlobal, useAdjustedDelta: false, seedAllKnownAnchors: false);
-                    changed |= MergeHeights(rawLocal, rawGlobal);
 
                     // Z: закрепляем ход на всех известных точках, используя уравнённые превышения
                     var adjustedLocal = ComputeTraverseHeights(traverseRows, adjustedGlobal, useAdjustedDelta: true, seedAllKnownAnchors: true);
@@ -916,12 +923,12 @@ namespace Nivtropy.ViewModels
                     row.IsForeHeightKnown = _dataViewModel.HasKnownHeight(row.ForeCode);
                 }
 
-                if (!string.IsNullOrWhiteSpace(row.BackCode) && rawGlobal.TryGetValue(row.BackCode, out var backZ0))
+                if (!string.IsNullOrWhiteSpace(row.BackCode) && rawResults.TryGetValue(row.BackCode, out var backZ0))
                 {
                     row.BackHeightZ0 = backZ0;
                 }
 
-                if (!string.IsNullOrWhiteSpace(row.ForeCode) && rawGlobal.TryGetValue(row.ForeCode, out var foreZ0))
+                if (!string.IsNullOrWhiteSpace(row.ForeCode) && rawResults.TryGetValue(row.ForeCode, out var foreZ0))
                 {
                     row.ForeHeightZ0 = foreZ0;
                 }
