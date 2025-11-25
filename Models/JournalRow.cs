@@ -30,6 +30,11 @@ namespace Nivtropy.Models
         /// </summary>
         public string LineName { get; set; }
 
+        /// <summary>
+        /// Ссылка на сводку хода (для отображения данных в заголовке группы)
+        /// </summary>
+        public LineSummary? LineSummary { get; set; }
+
         // === Данные для точек (BackPoint, ForePoint) ===
 
         /// <summary>

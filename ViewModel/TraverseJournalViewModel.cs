@@ -72,6 +72,7 @@ namespace Nivtropy.ViewModels
                     RowType = JournalRowType.BackPoint,
                     StationNumber = traverseRow.Index,
                     LineName = traverseRow.LineName,
+                    LineSummary = traverseRow.LineSummary,
                     PointCode = traverseRow.BackCode,
                     Z0 = traverseRow.BackHeightZ0,
                     Z = traverseRow.BackHeight
@@ -83,6 +84,7 @@ namespace Nivtropy.ViewModels
                     RowType = JournalRowType.Elevation,
                     StationNumber = traverseRow.Index,
                     LineName = traverseRow.LineName,
+                    LineSummary = traverseRow.LineSummary,
                     StationLength = traverseRow.StationLength_m,
                     DeltaH = traverseRow.DeltaH,
                     Correction = traverseRow.Correction,
@@ -95,6 +97,7 @@ namespace Nivtropy.ViewModels
                     RowType = JournalRowType.ForePoint,
                     StationNumber = traverseRow.Index,
                     LineName = traverseRow.LineName,
+                    LineSummary = traverseRow.LineSummary,
                     PointCode = traverseRow.ForeCode,
                     Z0 = traverseRow.ForeHeightZ0,
                     Z = traverseRow.ForeHeight
