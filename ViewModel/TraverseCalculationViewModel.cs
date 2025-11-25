@@ -883,35 +883,49 @@ namespace Nivtropy.ViewModels
                 }
             }
 
-            // Шаг 1.5: Инициализируем Z0 (без поправки)
+            // Шаг 1.5: Инициализируем Z0 (без поправки) для каждого хода отдельно
             // Z0 начинается либо с первой известной высоты в ходе, либо с условного нуля
-            double z0StartHeight = 0.0;
-            string? z0StartPointCode = null;
+            // Группируем по ходам для правильной инициализации
+            var traverseGroups = items.GroupBy(r => r.LineName).ToList();
 
-            // Ищем первую точку с известной высотой для Z0
-            foreach (var row in items)
+            foreach (var group in traverseGroups)
             {
-                if (!string.IsNullOrWhiteSpace(row.BackCode))
+                var traverseRows = group.ToList();
+                if (traverseRows.Count == 0)
+                    continue;
+
+                // Ищем первую точку с известной высотой для этого хода
+                double z0StartHeight = 0.0;
+                string? z0StartPointCode = null;
+
+                foreach (var row in traverseRows)
                 {
-                    var knownHeight = _dataViewModel.GetKnownHeight(row.BackCode);
-                    if (knownHeight.HasValue)
+                    if (!string.IsNullOrWhiteSpace(row.BackCode))
                     {
-                        z0StartHeight = knownHeight.Value;
-                        z0StartPointCode = row.BackCode;
-                        calculatedHeightsZ0[row.BackCode] = z0StartHeight;
-                        break;
+                        var knownHeight = _dataViewModel.GetKnownHeight(row.BackCode);
+                        if (knownHeight.HasValue)
+                        {
+                            z0StartHeight = knownHeight.Value;
+                            z0StartPointCode = row.BackCode;
+                            break;
+                        }
                     }
                 }
-            }
 
-            // Если не нашли известную высоту, начинаем с первой точки хода с условным нулем
-            if (z0StartPointCode == null && items.Count > 0)
-            {
-                var firstRow = items[0];
-                if (!string.IsNullOrWhiteSpace(firstRow.BackCode))
+                // Если не нашли известную высоту, начинаем с первой точки хода с условным нулем
+                if (z0StartPointCode == null)
                 {
-                    z0StartPointCode = firstRow.BackCode;
-                    calculatedHeightsZ0[firstRow.BackCode] = z0StartHeight; // 0.0
+                    var firstRow = traverseRows[0];
+                    if (!string.IsNullOrWhiteSpace(firstRow.BackCode))
+                    {
+                        z0StartPointCode = firstRow.BackCode;
+                    }
+                }
+
+                // Устанавливаем начальную высоту для Z0 этого хода
+                if (!string.IsNullOrWhiteSpace(z0StartPointCode))
+                {
+                    calculatedHeightsZ0[z0StartPointCode] = z0StartHeight;
                 }
             }
 
