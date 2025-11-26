@@ -12,17 +12,24 @@ namespace Nivtropy.Converters
         {
             if (value is System.Windows.Data.CollectionViewGroup group)
             {
-                var items = group.Items.OfType<TraverseRow>().ToList();
-                if (items.Count == 0)
+                // Поддержка как строк расчёта, так и журнальных строк
+                var traverseRows = group.Items.OfType<TraverseRow>().ToList();
+                if (traverseRows.Count > 0)
                 {
-                    return null;
+                    return traverseRows
+                        .Where(r => r.DeltaH.HasValue)
+                        .Sum(r => r.DeltaH!.Value);
                 }
 
-                var sum = items
-                    .Where(r => r.DeltaH.HasValue)
-                    .Sum(r => r.DeltaH!.Value);
+                var journalRows = group.Items.OfType<JournalRow>().ToList();
+                if (journalRows.Count > 0)
+                {
+                    return journalRows
+                        .Where(r => r.RowType == JournalRowType.Elevation && r.DeltaH.HasValue)
+                        .Sum(r => r.DeltaH!.Value);
+                }
 
-                return sum;
+                return null;
             }
 
             return null;

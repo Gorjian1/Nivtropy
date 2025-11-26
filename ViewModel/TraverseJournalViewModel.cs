@@ -38,6 +38,11 @@ namespace Nivtropy.ViewModels
         public ObservableCollection<JournalRow> JournalRows => _journalRows;
 
         /// <summary>
+        /// Доступ к расчётной модели для отображения сводных данных
+        /// </summary>
+        public TraverseCalculationViewModel Calculation => _calculationViewModel;
+
+        /// <summary>
         /// Получаем настройки из расчётной модели
         /// </summary>
         public SettingsViewModel Settings => _calculationViewModel.Settings;
