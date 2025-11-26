@@ -42,6 +42,20 @@ namespace Nivtropy.ViewModels
         /// </summary>
         public TraverseCalculationViewModel Calculation => _calculationViewModel;
 
+        public int StationsCount => _calculationViewModel.StationsCount;
+
+        public double? Closure => _calculationViewModel.Closure;
+
+        public bool IsClosureWithinTolerance => _calculationViewModel.IsClosureWithinTolerance;
+
+        public double? AllowableClosure => _calculationViewModel.AllowableClosure;
+
+        public double? TotalAverageLength => _calculationViewModel.TotalAverageLength;
+
+        public Method? SelectedMethod => _calculationViewModel.SelectedMethod;
+
+        public TraverseClass? SelectedClass => _calculationViewModel.SelectedClass;
+
         /// <summary>
         /// Получаем настройки из расчётной модели
         /// </summary>
@@ -59,6 +73,27 @@ namespace Nivtropy.ViewModels
             {
                 UpdateJournalRows();
             }
+
+            if (e.PropertyName == nameof(TraverseCalculationViewModel.StationsCount))
+                OnPropertyChanged(nameof(StationsCount));
+
+            if (e.PropertyName == nameof(TraverseCalculationViewModel.Closure))
+            {
+                OnPropertyChanged(nameof(Closure));
+                OnPropertyChanged(nameof(IsClosureWithinTolerance));
+            }
+
+            if (e.PropertyName == nameof(TraverseCalculationViewModel.AllowableClosure))
+                OnPropertyChanged(nameof(AllowableClosure));
+
+            if (e.PropertyName == nameof(TraverseCalculationViewModel.TotalAverageLength))
+                OnPropertyChanged(nameof(TotalAverageLength));
+
+            if (e.PropertyName == nameof(TraverseCalculationViewModel.SelectedMethod))
+                OnPropertyChanged(nameof(SelectedMethod));
+
+            if (e.PropertyName == nameof(TraverseCalculationViewModel.SelectedClass))
+                OnPropertyChanged(nameof(SelectedClass));
         }
 
         /// <summary>

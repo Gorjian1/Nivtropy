@@ -40,14 +40,14 @@
                        VerticalAlignment="Center" />
             <StackPanel Orientation="Horizontal" Margin="24,0,0,0">
                 <TextBlock Text="Метод:" VerticalAlignment="Center" />
-                <TextBlock Text="{Binding Calculation.SelectedMethod.Display}"
+                <TextBlock Text="{Binding SelectedMethod.Display}"
                            FontWeight="SemiBold"
                            Margin="6,0,0,0"
                            VerticalAlignment="Center" />
             </StackPanel>
             <StackPanel Orientation="Horizontal" Margin="16,0,0,0">
                 <TextBlock Text="Класс:" VerticalAlignment="Center" />
-                <TextBlock Text="{Binding Calculation.SelectedClass.Display}"
+                <TextBlock Text="{Binding SelectedClass.Display}"
                            FontWeight="SemiBold"
                            Margin="6,0,0,0"
                            VerticalAlignment="Center" />
@@ -58,20 +58,20 @@
         <StackPanel Grid.Row="1" Margin="8,4,8,4" Orientation="Horizontal">
             <TextBlock Text="&#xE9D9;" FontFamily="Segoe MDL2 Assets" FontSize="14" VerticalAlignment="Center" Foreground="#0078D4" />
             <TextBlock Text="Станций:" FontWeight="SemiBold" VerticalAlignment="Center" Margin="4,0,0,0" />
-            <TextBlock Text="{Binding Calculation.StationsCount}" Margin="4,0,0,0" VerticalAlignment="Center" FontWeight="SemiBold" />
+            <TextBlock Text="{Binding StationsCount}" Margin="4,0,0,0" VerticalAlignment="Center" FontWeight="SemiBold" />
 
             <TextBlock Text="•" Margin="16,0,16,0" VerticalAlignment="Center" Foreground="#707070" />
 
             <TextBlock Text="&#xE81D;" FontFamily="Segoe MDL2 Assets" FontSize="14" VerticalAlignment="Center" Foreground="#D83B01" />
             <TextBlock Text="ΣΔh:" FontWeight="SemiBold" VerticalAlignment="Center" Margin="4,0,0,0" />
-            <TextBlock Text="{Binding Calculation.Closure, StringFormat=+0.0000;-0.0000;0.0000}" Margin="4,0,4,0" VerticalAlignment="Center" FontWeight="SemiBold">
+            <TextBlock Text="{Binding Closure, StringFormat=+0.0000;-0.0000;0.0000}" Margin="4,0,4,0" VerticalAlignment="Center" FontWeight="SemiBold">
                 <TextBlock.Style>
                     <Style TargetType="TextBlock">
                         <Style.Triggers>
-                            <DataTrigger Binding="{Binding Calculation.IsClosureWithinTolerance}" Value="True">
+                            <DataTrigger Binding="{Binding IsClosureWithinTolerance}" Value="True">
                                 <Setter Property="Foreground" Value="#107C10" />
                             </DataTrigger>
-                            <DataTrigger Binding="{Binding Calculation.IsClosureWithinTolerance}" Value="False">
+                            <DataTrigger Binding="{Binding IsClosureWithinTolerance}" Value="False">
                                 <Setter Property="Foreground" Value="#FFF44336" />
                             </DataTrigger>
                         </Style.Triggers>
@@ -84,14 +84,14 @@
 
             <TextBlock Text="&#xE73E;" FontFamily="Segoe MDL2 Assets" FontSize="14" VerticalAlignment="Center" Foreground="#8764B8" />
             <TextBlock Text="Допуск:" FontWeight="SemiBold" VerticalAlignment="Center" Margin="4,0,0,0" />
-            <TextBlock Text="{Binding Calculation.AllowableClosure, StringFormat=±0.0000}" Margin="4,0,4,0" VerticalAlignment="Center" FontWeight="SemiBold" />
+            <TextBlock Text="{Binding AllowableClosure, StringFormat=±0.0000}" Margin="4,0,4,0" VerticalAlignment="Center" FontWeight="SemiBold" />
             <TextBlock Text="м" VerticalAlignment="Center" Foreground="#707070" />
 
             <TextBlock Text="•" Margin="16,0,16,0" VerticalAlignment="Center" Foreground="#707070" />
 
             <TextBlock Text="&#xECC6;" FontFamily="Segoe MDL2 Assets" FontSize="14" VerticalAlignment="Center" Foreground="#00B7C3" />
             <TextBlock Text="Длина:" FontWeight="SemiBold" VerticalAlignment="Center" Margin="4,0,0,0" />
-            <TextBlock Text="{Binding Calculation.TotalAverageLength, StringFormat=0.00}" Margin="4,0,4,0" VerticalAlignment="Center" FontWeight="SemiBold" />
+            <TextBlock Text="{Binding TotalAverageLength, StringFormat=0.00}" Margin="4,0,4,0" VerticalAlignment="Center" FontWeight="SemiBold" />
             <TextBlock Text="м" VerticalAlignment="Center" Foreground="#707070" />
         </StackPanel>
 
@@ -174,6 +174,38 @@
                             <DataTemplate>
                                 <Border Background="#F5F8FA" BorderBrush="#D0D8E0" BorderThickness="1" Padding="8" CornerRadius="3">
                                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <Button x:Name="TraverseInfoButton"
+                                                Width="24" Height="24"
+                                                Margin="0,0,8,0"
+                                                Padding="0"
+                                                Background="#0078D4"
+                                                BorderThickness="0"
+                                                Cursor="Hand"
+                                                ToolTip="Показать детали хода"
+                                                Tag="{Binding Name}"
+                                                Click="ShowTraverseDetails_Click">
+                                            <Button.Template>
+                                                <ControlTemplate TargetType="Button">
+                                                    <Border Background="{TemplateBinding Background}"
+                                                            CornerRadius="12"
+                                                            Width="24"
+                                                            Height="24">
+                                                        <TextBlock Text="&#xE783;"
+                                                                   FontFamily="Segoe MDL2 Assets"
+                                                                   FontSize="14"
+                                                                   Foreground="White"
+                                                                   HorizontalAlignment="Center"
+                                                                   VerticalAlignment="Center"/>
+                                                    </Border>
+                                                    <ControlTemplate.Triggers>
+                                                        <Trigger Property="IsMouseOver" Value="True">
+                                                            <Setter Property="Background" Value="#005A9E" />
+                                                        </Trigger>
+                                                    </ControlTemplate.Triggers>
+                                                </ControlTemplate>
+                                            </Button.Template>
+                                        </Button>
+
                                         <TextBlock Text="&#xE783;" FontFamily="Segoe MDL2 Assets" FontSize="14" Foreground="White" />
                                         <TextBlock Text="{Binding Name}" FontWeight="SemiBold" Foreground="#202020" Margin="8,0,0,0" />
                                         <TextBlock Text=" • Станций: " Margin="12,0,0,0" Foreground="#707070" />
@@ -298,5 +330,103 @@
                 </DataGrid.Columns>
             </DataGrid>
         </Border>
+
+        <!-- Popup для профиля хода -->
+        <Popup x:Name="TraverseDetailsPopup"
+               Placement="Center"
+               AllowsTransparency="True"
+               StaysOpen="True">
+            <Border Background="White"
+                    BorderBrush="#FF90CAF9"
+                    BorderThickness="1"
+                    Width="700"
+                    Height="500">
+                <Border.Effect>
+                    <DropShadowEffect Color="Black" Opacity="0.5" BlurRadius="20" ShadowDepth="0"/>
+                </Border.Effect>
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <!-- Заголовок -->
+                    <Border Grid.Row="0" Background="#FFE3F2FD" BorderBrush="#FF90CAF9" BorderThickness="0,0,0,1" Padding="12,8">
+                        <Grid>
+                            <TextBlock x:Name="ProfileTitleText"
+                                       Text="Профиль хода"
+                                       FontSize="14"
+                                       FontWeight="SemiBold"
+                                       VerticalAlignment="Center" />
+                            <Button Content="&#xE10A;"
+                                    FontFamily="Segoe MDL2 Assets"
+                                    HorizontalAlignment="Right"
+                                    Width="24"
+                                    Height="24"
+                                    FontSize="12"
+                                    Click="CloseProfilePopup_Click"
+                                    Cursor="Hand"
+                                    Background="Transparent"
+                                    BorderThickness="0"
+                                    Foreground="#707070">
+                                <Button.Style>
+                                    <Style TargetType="Button">
+                                        <Style.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter Property="Foreground" Value="#005A9E"/>
+                                            </Trigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Button.Style>
+                            </Button>
+                        </Grid>
+                    </Border>
+
+                    <!-- Canvas -->
+                    <Border Grid.Row="1" Padding="12" Background="#FFFAFAFA">
+                        <Canvas x:Name="ProfileCanvas"
+                                Background="White"
+                                ClipToBounds="True"
+                                SizeChanged="ProfileCanvas_SizeChanged"/>
+                    </Border>
+
+                    <!-- Настройки -->
+                    <Border Grid.Row="2" Background="#FFF5F5F5" BorderBrush="#FFE0E0E0" BorderThickness="0,1,0,0" Padding="12,8">
+                        <StackPanel>
+                            <TextBlock Text="Настройки отображения" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,6" Foreground="#707070"/>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+
+                                <TextBlock Grid.Column="0" Text="Цвет:" VerticalAlignment="Center" FontSize="11" Margin="0,0,8,0"/>
+                                <ComboBox x:Name="ProfileColorComboBox" Grid.Column="1" SelectedIndex="0" Margin="0,0,12,0" FontSize="11"
+                                          SelectionChanged="ProfileColorComboBox_SelectionChanged">
+                                    <ComboBoxItem Content="Синий" Tag="#005A9E"/>
+                                    <ComboBoxItem Content="Зелёный" Tag="#107C10"/>
+                                    <ComboBoxItem Content="Оранжевый" Tag="#D83B01"/>
+                                    <ComboBoxItem Content="Красный" Tag="#FFF44336"/>
+                                </ComboBox>
+
+                                <TextBlock Grid.Column="2" Text="Мин:" VerticalAlignment="Center" FontSize="11" Margin="0,0,4,0"/>
+                                <TextBox x:Name="MinHeightTextBox" Grid.Column="3" Width="60" Margin="0,0,12,0" FontSize="11"
+                                         TextChanged="HeightLimitTextBox_TextChanged" VerticalContentAlignment="Center"/>
+
+                                <StackPanel Grid.Column="4" Orientation="Horizontal">
+                                    <TextBlock Text="Макс:" VerticalAlignment="Center" FontSize="11" Margin="0,0,4,0"/>
+                                    <TextBox x:Name="MaxHeightTextBox" Width="60" FontSize="11"
+                                             TextChanged="HeightLimitTextBox_TextChanged" VerticalContentAlignment="Center"/>
+                                </StackPanel>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+            </Border>
+        </Popup>
     </Grid>
 </UserControl>
