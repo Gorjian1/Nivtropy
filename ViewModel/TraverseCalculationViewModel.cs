@@ -1002,6 +1002,11 @@ namespace Nivtropy.ViewModels
             {
                 var delta = row.DeltaH;
 
+                bool backIsAnchor = !string.IsNullOrWhiteSpace(row.BackCode)
+                    && _dataViewModel.HasKnownHeight(row.BackCode);
+                bool foreIsAnchor = !string.IsNullOrWhiteSpace(row.ForeCode)
+                    && _dataViewModel.HasKnownHeight(row.ForeCode);
+
                 // Подхватываем текущее известное значение (якорь или полученное ранее в этом ходе)
                 if (row.BackHeightZ0 == null)
                 {
@@ -1029,13 +1034,13 @@ namespace Nivtropy.ViewModels
                 var backHeight = row.BackHeightZ0 ?? GetRunHeight(row.BackCode);
                 var foreHeight = row.ForeHeightZ0 ?? GetRunHeight(row.ForeCode);
 
-                if (backHeight.HasValue)
+                if (backHeight.HasValue && !(foreIsAnchor && row.ForeHeightZ0.HasValue))
                 {
                     var computedFore = backHeight.Value + delta.Value;
                     row.ForeHeightZ0 = computedFore;
                     RecordRunHeight(row.ForeCode, computedFore);
                 }
-                else if (foreHeight.HasValue)
+                else if (foreHeight.HasValue && !(backIsAnchor && row.BackHeightZ0.HasValue))
                 {
                     var computedBack = foreHeight.Value - delta.Value;
                     row.BackHeightZ0 = computedBack;
