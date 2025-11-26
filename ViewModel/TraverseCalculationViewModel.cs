@@ -843,14 +843,12 @@ namespace Nivtropy.ViewModels
 
         /// <summary>
         /// Рассчитывает высоты точек на основе известных высот и превышений
-        /// НОВЫЙ ПОДХОД: простой и понятный алгоритм
+        /// СЕКЦИОННАЯ МОДЕЛЬ: каждая секция = 2 точки + превышение
         ///
-        /// Для каждого хода:
-        /// - Массив точек: [A, B, C, D] с индексами
-        /// - Массив превышений: между точками
-        /// - Известные высоты: индекс → высота
-        /// - От каждой известной точки распространяем высоты в обе стороны
-        /// - Для циклических ходов: начальная и конечная точки РАЗНЫЕ (A и A*)
+        /// Секция (TraverseRow): Back→Fore с превышением dH
+        /// - Если известна Back: Fore = Back + dH
+        /// - Если известна Fore: Back = Fore - dH
+        /// - Секции связываются через общие точки автоматически
         /// </summary>
         private void CalculateHeights(List<TraverseRow> items)
         {
@@ -868,32 +866,17 @@ namespace Nivtropy.ViewModels
                 row.IsForeHeightKnown = false;
             }
 
-            // Группируем станции по ходам
-            var traverseGroups = items.GroupBy(r => r.LineName).ToList();
-
-            // Глобальные словари для передачи высот между ходами
+            // Глобальные словари высот
             var globalZ0 = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
             var globalZ = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
 
-            // Итерации для передачи высот между ходами через общие точки
-            for (int iteration = 0; iteration < 10; iteration++)
+            // Итерации для распространения высот между секциями
+            for (int iteration = 0; iteration < 20; iteration++)
             {
-                bool changed = false;
+                bool changedZ0 = PropagateHeightsThroughSections(items, globalZ0, useAdjusted: false);
+                bool changedZ = PropagateHeightsThroughSections(items, globalZ, useAdjusted: true);
 
-                foreach (var traverseGroup in traverseGroups)
-                {
-                    var traverseRows = traverseGroup.OrderBy(r => r.Index).ToList();
-
-                    // Рассчитываем Z0 (неуравненные)
-                    var localZ0 = CalculateTraverseHeights(traverseRows, globalZ0, useAdjusted: false);
-                    changed |= MergeHeights(localZ0, globalZ0);
-
-                    // Рассчитываем Z (уравненные)
-                    var localZ = CalculateTraverseHeights(traverseRows, globalZ, useAdjusted: true);
-                    changed |= MergeHeights(localZ, globalZ);
-                }
-
-                if (!changed)
+                if (!changedZ0 && !changedZ)
                     break;
             }
 
@@ -929,136 +912,103 @@ namespace Nivtropy.ViewModels
         }
 
         /// <summary>
-        /// Рассчитывает высоты для одного хода
-        /// Простой алгоритм: от каждой известной точки распространяем в обе стороны
+        /// Распространяет высоты через секции
+        /// Каждая секция: Back→Fore с превышением dH
         /// </summary>
-        private Dictionary<string, double> CalculateTraverseHeights(
-            List<TraverseRow> traverseRows,
+        private bool PropagateHeightsThroughSections(
+            List<TraverseRow> allSections,
             Dictionary<string, double> globalHeights,
             bool useAdjusted)
         {
-            // Строим массивы точек и превышений
-            var pointCodes = new List<string>();
-            var deltaHeights = new List<double?>();
-
-            // Первая точка (из виртуальной станции или первой реальной)
-            var firstRow = traverseRows.FirstOrDefault();
-            if (firstRow != null && !string.IsNullOrWhiteSpace(firstRow.BackCode))
-            {
-                pointCodes.Add(firstRow.BackCode);
-            }
-
-            // Остальные точки и превышения
-            foreach (var row in traverseRows)
-            {
-                if (string.IsNullOrWhiteSpace(row.ForeCode))
-                    continue;
-
-                var delta = useAdjusted ? row.AdjustedDeltaH : row.DeltaH;
-                deltaHeights.Add(delta);
-                pointCodes.Add(row.ForeCode);
-            }
-
-            int n = pointCodes.Count;
-            var heights = new double?[n];
-
-            // Находим известные высоты в этом ходе
-            var knownIndices = new Dictionary<int, double>();
-
-            for (int i = 0; i < n; i++)
-            {
-                var code = pointCodes[i];
-
-                // Сначала проверяем глобальные высоты (из других ходов)
-                if (globalHeights.TryGetValue(code, out var globalHeight))
-                {
-                    knownIndices[i] = globalHeight;
-                }
-                // Затем реперы
-                else if (_dataViewModel.HasKnownHeight(code))
-                {
-                    var knownHeight = _dataViewModel.GetKnownHeight(code);
-                    if (knownHeight.HasValue)
-                    {
-                        knownIndices[i] = knownHeight.Value;
-                    }
-                }
-            }
-
-            // Если нет известных высот, стартуем с 0
-            if (knownIndices.Count == 0 && n > 0)
-            {
-                knownIndices[0] = 0.0;
-            }
-
-            // От каждой известной точки распространяем высоты
-            foreach (var (index, knownHeight) in knownIndices)
-            {
-                heights[index] = knownHeight;
-
-                // Распространяем вперед (i → i+1)
-                for (int i = index; i < n - 1; i++)
-                {
-                    if (heights[i].HasValue && deltaHeights[i].HasValue)
-                    {
-                        // Если следующая точка уже известна (репер), не перезаписываем
-                        if (!knownIndices.ContainsKey(i + 1))
-                        {
-                            heights[i + 1] = heights[i].Value + deltaHeights[i].Value;
-                        }
-                    }
-                }
-
-                // Распространяем назад (i ← i-1)
-                for (int i = index; i > 0; i--)
-                {
-                    if (heights[i].HasValue && deltaHeights[i - 1].HasValue)
-                    {
-                        // Если предыдущая точка уже известна (репер), не перезаписываем
-                        if (!knownIndices.ContainsKey(i - 1))
-                        {
-                            heights[i - 1] = heights[i].Value - deltaHeights[i - 1].Value;
-                        }
-                    }
-                }
-            }
-
-            // Собираем результаты
-            var result = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
-            for (int i = 0; i < n; i++)
-            {
-                if (heights[i].HasValue)
-                {
-                    result[pointCodes[i]] = heights[i].Value;
-                }
-            }
-
-            return result;
-        }
-
-        /// <summary>
-        /// Объединяет высоты, обновляя существующие значения
-        /// </summary>
-        private static bool MergeHeights(Dictionary<string, double> source, Dictionary<string, double> destination)
-        {
             bool changed = false;
 
-            foreach (var kvp in source)
+            // Сначала засеиваем известные реперы
+            foreach (var section in allSections)
             {
-                if (!destination.TryGetValue(kvp.Key, out var existingValue))
+                if (!string.IsNullOrWhiteSpace(section.BackCode) &&
+                    _dataViewModel.HasKnownHeight(section.BackCode) &&
+                    !globalHeights.ContainsKey(section.BackCode))
                 {
-                    destination[kvp.Key] = kvp.Value;
+                    var height = _dataViewModel.GetKnownHeight(section.BackCode);
+                    if (height.HasValue)
+                    {
+                        globalHeights[section.BackCode] = height.Value;
+                        changed = true;
+                    }
+                }
+
+                if (!string.IsNullOrWhiteSpace(section.ForeCode) &&
+                    _dataViewModel.HasKnownHeight(section.ForeCode) &&
+                    !globalHeights.ContainsKey(section.ForeCode))
+                {
+                    var height = _dataViewModel.GetKnownHeight(section.ForeCode);
+                    if (height.HasValue)
+                    {
+                        globalHeights[section.ForeCode] = height.Value;
+                        changed = true;
+                    }
+                }
+            }
+
+            // Если нет ни одной известной высоты, стартуем первый ход с 0
+            if (globalHeights.Count == 0)
+            {
+                var firstSection = allSections.FirstOrDefault();
+                if (firstSection != null && !string.IsNullOrWhiteSpace(firstSection.BackCode))
+                {
+                    globalHeights[firstSection.BackCode] = 0.0;
                     changed = true;
                 }
-                else if (Math.Abs(existingValue - kvp.Value) > 1e-8)
+            }
+
+            // Распространяем высоты через секции
+            foreach (var section in allSections)
+            {
+                // Пропускаем виртуальные станции без превышения
+                var delta = useAdjusted ? section.AdjustedDeltaH : section.DeltaH;
+                if (!delta.HasValue)
+                    continue;
+
+                var backCode = section.BackCode;
+                var foreCode = section.ForeCode;
+
+                if (string.IsNullOrWhiteSpace(backCode) || string.IsNullOrWhiteSpace(foreCode))
+                    continue;
+
+                // Прямое распространение: Back известна → вычисляем Fore
+                if (globalHeights.TryGetValue(backCode, out var backHeight) &&
+                    !globalHeights.ContainsKey(foreCode))
                 {
-                    destination[kvp.Key] = kvp.Value;
+                    globalHeights[foreCode] = backHeight + delta.Value;
                     changed = true;
+                }
+                // Обратное распространение: Fore известна → вычисляем Back
+                else if (globalHeights.TryGetValue(foreCode, out var foreHeight) &&
+                         !globalHeights.ContainsKey(backCode))
+                {
+                    globalHeights[backCode] = foreHeight - delta.Value;
+                    changed = true;
+                }
+                // Обе известны: проверяем согласованность и обновляем если нужно
+                else if (globalHeights.TryGetValue(backCode, out backHeight) &&
+                         globalHeights.TryGetValue(foreCode, out foreHeight))
+                {
+                    // Вычисляем ожидаемую высоту Fore по Back
+                    var expectedForeHeight = backHeight + delta.Value;
+
+                    // Если Fore не является репером И значение отличается, обновляем
+                    if (!_dataViewModel.HasKnownHeight(foreCode) &&
+                        Math.Abs(foreHeight - expectedForeHeight) > 1e-8)
+                    {
+                        globalHeights[foreCode] = expectedForeHeight;
+                        changed = true;
+                    }
                 }
             }
 
             return changed;
         }
+
 
 
         /// <summary>
