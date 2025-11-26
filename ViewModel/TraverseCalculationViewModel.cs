@@ -944,30 +944,112 @@ namespace Nivtropy.ViewModels
 
             foreach (var row in items)
             {
-                if (!string.IsNullOrWhiteSpace(row.BackCode))
+                if (!string.IsNullOrWhiteSpace(row.BackCode) && adjusted.TryGetValue(row.BackCode, out var backZ))
                 {
-                    if (adjusted.TryGetValue(row.BackCode, out var backZ))
+                    row.BackHeight = backZ;
+                    row.IsBackHeightKnown = availableAdjustedHeights.ContainsKey(row.BackCode);
+                }
+
+                if (!string.IsNullOrWhiteSpace(row.ForeCode) && adjusted.TryGetValue(row.ForeCode, out var foreZ))
+                {
+                    row.ForeHeight = foreZ;
+                    row.IsForeHeightKnown = availableAdjustedHeights.ContainsKey(row.ForeCode);
+                }
+            }
+
+            var runRawHeights = new Dictionary<string, List<double>>(StringComparer.OrdinalIgnoreCase);
+
+            double? GetRunHeight(string? code)
+            {
+                if (string.IsNullOrWhiteSpace(code))
+                    return null;
+
+                if (runRawHeights.TryGetValue(code, out var history) && history.Count > 0)
+                {
+                    return history[^1];
+                }
+
+                return raw.TryGetValue(code, out var value) ? value : null;
+            }
+
+            bool HasRunHistory(string? code)
+            {
+                return !string.IsNullOrWhiteSpace(code)
+                    && runRawHeights.TryGetValue(code, out var history)
+                    && history.Count > 0;
+            }
+
+            void RecordRunHeight(string? code, double value)
+            {
+                if (string.IsNullOrWhiteSpace(code))
+                    return;
+
+                if (!runRawHeights.TryGetValue(code, out var history))
+                {
+                    history = new List<double>();
+                    runRawHeights[code] = history;
+                }
+
+                history.Add(value);
+
+                if (!raw.ContainsKey(code) && !availableRawHeights.ContainsKey(code))
+                {
+                    raw[code] = value;
+                }
+            }
+
+            foreach (var row in items)
+            {
+                var delta = row.DeltaH;
+
+                // Подхватываем текущее известное значение (якорь или полученное ранее в этом ходе)
+                if (row.BackHeightZ0 == null)
+                {
+                    var existingBack = GetRunHeight(row.BackCode);
+                    if (existingBack.HasValue)
                     {
-                        row.BackHeight = backZ;
-                        row.IsBackHeightKnown = availableAdjustedHeights.ContainsKey(row.BackCode);
-                    }
-                    if (raw.TryGetValue(row.BackCode, out var backZ0))
-                    {
-                        row.BackHeightZ0 = backZ0;
+                        row.BackHeightZ0 = existingBack;
+                        RecordRunHeight(row.BackCode, existingBack.Value);
                     }
                 }
 
-                if (!string.IsNullOrWhiteSpace(row.ForeCode))
+                if (row.ForeHeightZ0 == null)
                 {
-                    if (adjusted.TryGetValue(row.ForeCode, out var foreZ))
+                    var existingFore = GetRunHeight(row.ForeCode);
+                    if (existingFore.HasValue)
                     {
-                        row.ForeHeight = foreZ;
-                        row.IsForeHeightKnown = availableAdjustedHeights.ContainsKey(row.ForeCode);
+                        row.ForeHeightZ0 = existingFore;
+                        RecordRunHeight(row.ForeCode, existingFore.Value);
                     }
-                    if (raw.TryGetValue(row.ForeCode, out var foreZ0))
-                    {
-                        row.ForeHeightZ0 = foreZ0;
-                    }
+                }
+
+                if (!delta.HasValue)
+                    continue;
+
+                var backHeight = row.BackHeightZ0 ?? GetRunHeight(row.BackCode);
+                var foreHeight = row.ForeHeightZ0 ?? GetRunHeight(row.ForeCode);
+
+                if (backHeight.HasValue)
+                {
+                    var computedFore = backHeight.Value + delta.Value;
+                    row.ForeHeightZ0 = computedFore;
+                    RecordRunHeight(row.ForeCode, computedFore);
+                }
+                else if (foreHeight.HasValue)
+                {
+                    var computedBack = foreHeight.Value - delta.Value;
+                    row.BackHeightZ0 = computedBack;
+                    RecordRunHeight(row.BackCode, computedBack);
+                }
+
+                // Если обе стороны уже имели значения до расчёта, фиксируем их для повторных точек
+                if (backHeight.HasValue && !HasRunHistory(row.BackCode))
+                {
+                    RecordRunHeight(row.BackCode, backHeight.Value);
+                }
+                if (foreHeight.HasValue && !HasRunHistory(row.ForeCode))
+                {
+                    RecordRunHeight(row.ForeCode, foreHeight.Value);
                 }
             }
 
