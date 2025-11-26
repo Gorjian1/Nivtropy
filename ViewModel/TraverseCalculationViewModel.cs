@@ -880,17 +880,36 @@ namespace Nivtropy.ViewModels
                 row.IsForeHeightKnown = false;
             }
 
-            // Сначала посчитаем Z0 по каждому ходу отдельно, чтобы не перетягивать невязку между ходами
-            foreach (var traverseGroup in traverseGroups)
+            // Рассчитываем Z0 с итерациями для передачи высот между ходами через общие точки
+            // Используем только известные реперы, но передаем вычисленные высоты между ходами
+            var rawGlobal = new Dictionary<string, double>(_dataViewModel.KnownHeights, StringComparer.OrdinalIgnoreCase);
+            int guard = 0;
+            bool changed = false;
+
+            do
             {
-                var traverseRows = traverseGroup.OrderBy(r => r.Index).ToList();
-                var rawLocal = ComputeTraverseHeights(traverseRows, rawKnownAnchors, useAdjustedDelta: false, seedAllKnownAnchors: false);
-                MergeHeights(rawLocal, rawResults);
+                changed = false;
+
+                foreach (var traverseGroup in traverseGroups)
+                {
+                    var traverseRows = traverseGroup.OrderBy(r => r.Index).ToList();
+                    // Z0: используем сырые превышения, но передаем высоты через общие точки
+                    var rawLocal = ComputeTraverseHeights(traverseRows, rawGlobal, useAdjustedDelta: false, seedAllKnownAnchors: false);
+                    changed |= MergeHeights(rawLocal, rawGlobal);
+                }
+
+                guard++;
+            } while (changed && guard < 5);
+
+            // Копируем результаты Z0
+            foreach (var kvp in rawGlobal)
+            {
+                rawResults[kvp.Key] = kvp.Value;
             }
 
             // Затем несколько итераций для Z, чтобы переносить высоты между ходами с общими точками
-            var guard = 0;
-            bool changed;
+            guard = 0;
+            changed = false;
 
             do
             {
@@ -1100,6 +1119,7 @@ namespace Nivtropy.ViewModels
 
         private static (string? code, double height) FindAnchor(List<TraverseRow> traverseRows, Dictionary<string, double> globalHeights)
         {
+            // Ищем любую известную точку в ходе
             foreach (var row in traverseRows)
             {
                 if (!string.IsNullOrWhiteSpace(row.BackCode) && globalHeights.TryGetValue(row.BackCode, out var back))
@@ -1109,19 +1129,6 @@ namespace Nivtropy.ViewModels
                 if (!string.IsNullOrWhiteSpace(row.ForeCode) && globalHeights.TryGetValue(row.ForeCode, out var fore))
                 {
                     return (row.ForeCode, fore);
-                }
-            }
-
-            foreach (var row in traverseRows)
-            {
-                if (!string.IsNullOrWhiteSpace(row.BackCode) && globalHeights.TryGetValue(row.BackCode, out var backKnown))
-                {
-                    return (row.BackCode, backKnown);
-                }
-
-                if (!string.IsNullOrWhiteSpace(row.ForeCode) && globalHeights.TryGetValue(row.ForeCode, out var foreKnown))
-                {
-                    return (row.ForeCode, foreKnown);
                 }
             }
 
