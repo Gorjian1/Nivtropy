@@ -14,10 +14,10 @@
         <converters:GroupClosureConverter x:Key="GroupClosureConverter" />
         <converters:ArmDifferenceExceededToBrushConverter x:Key="ArmDifferenceExceededToBrushConverter" />
         <converters:GridLineColorConverter x:Key="GridLineColorConverter" />
-        <converters:RowBackgroundConverter x:Key="RowBackgroundConverter" />
         <converters:JournalStationCountConverter x:Key="JournalStationCountConverter" />
-        <converters:JournalRowBorderConverter x:Key="JournalRowBorderConverter" />
-        <CollectionViewSource x:Key="JournalRowsGrouped" Source="{Binding JournalRows}">
+        <converters:StringPresenceToVisibilityConverter x:Key="StringPresenceToVisibilityConverter" />
+        <converters:DualValueSeparatorVisibilityConverter x:Key="DualValueSeparatorVisibilityConverter" />
+        <CollectionViewSource x:Key="StationsGrouped" Source="{Binding Calculation.Rows}">
             <CollectionViewSource.GroupDescriptions>
                 <PropertyGroupDescription PropertyName="LineName" />
             </CollectionViewSource.GroupDescriptions>
@@ -96,7 +96,7 @@
         </StackPanel>
 
         <Border Grid.Row="2" Margin="8" BorderBrush="#FFB0B0B0" BorderThickness="1">
-            <DataGrid ItemsSource="{Binding Source={StaticResource JournalRowsGrouped}}"
+            <DataGrid ItemsSource="{Binding Source={StaticResource StationsGrouped}}"
                       AutoGenerateColumns="False"
                       CanUserAddRows="False"
                       IsReadOnly="True"
@@ -137,7 +137,7 @@
 
                 <DataGrid.ColumnHeaderStyle>
                     <Style TargetType="DataGridColumnHeader">
-                        <Setter Property="Background" Value="#FAFAFA" />
+                        <Setter Property="Background" Value="White" />
                         <Setter Property="Foreground" Value="#202020" />
                         <Setter Property="FontWeight" Value="SemiBold" />
                         <Setter Property="Padding" Value="8,10,8,10" />
@@ -150,16 +150,7 @@
                 <DataGrid.RowStyle>
                     <Style TargetType="DataGridRow">
                         <Setter Property="MinHeight" Value="32" />
-                        <Setter Property="Background">
-                            <Setter.Value>
-                                <MultiBinding Converter="{StaticResource RowBackgroundConverter}">
-                                    <Binding Path="DataContext.Settings.RowColoringMode" RelativeSource="{RelativeSource AncestorType=UserControl}" />
-                                    <Binding Path="StationNumber" />
-                                    <Binding Path="LineSummary.RecordCount" />
-                                </MultiBinding>
-                            </Setter.Value>
-                        </Setter>
-                        <Setter Property="BorderThickness" Value="{Binding RowType, Converter={StaticResource JournalRowBorderConverter}}" />
+                        <Setter Property="Background" Value="White" />
                     </Style>
                 </DataGrid.RowStyle>
 
@@ -286,7 +277,7 @@
                 </DataGrid.GroupStyle>
 
                 <DataGrid.Columns>
-                    <DataGridTextColumn Binding="{Binding StationNumberDisplay}" Width="50">
+                    <DataGridTextColumn Binding="{Binding Index}" Width="50">
                         <DataGridTextColumn.HeaderTemplate>
                             <DataTemplate>
                                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
@@ -297,18 +288,69 @@
                         </DataGridTextColumn.HeaderTemplate>
                     </DataGridTextColumn>
 
-                    <DataGridTextColumn Binding="{Binding PointCode}" Width="1.2*">
-                        <DataGridTextColumn.HeaderTemplate>
+                    <DataGridTemplateColumn Width="1.2*">
+                        <DataGridTemplateColumn.HeaderTemplate>
                             <DataTemplate>
                                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                                     <TextBlock Text="&#xE81D;" FontFamily="Segoe MDL2 Assets" FontSize="12" Margin="0,0,4,0" Foreground="#0078D4" VerticalAlignment="Center" />
                                     <TextBlock Text="Точка" VerticalAlignment="Center" />
                                 </StackPanel>
                             </DataTemplate>
-                        </DataGridTextColumn.HeaderTemplate>
-                    </DataGridTextColumn>
+                        </DataGridTemplateColumn.HeaderTemplate>
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="*" />
+                                        <RowDefinition Height="*" />
+                                    </Grid.RowDefinitions>
+                                    <TextBlock Text="{Binding BackCode}"
+                                               Grid.Row="0"
+                                               HorizontalAlignment="Stretch"
+                                               TextAlignment="Center"
+                                               VerticalAlignment="Top"
+                                               Visibility="{Binding BackCode, Converter={StaticResource StringPresenceToVisibilityConverter}}">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding ForeCode}" Value="">
+                                                        <Setter Property="Grid.RowSpan" Value="2" />
+                                                        <Setter Property="VerticalAlignment" Value="Center" />
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding ForeCode}" Value="{x:Null}">
+                                                        <Setter Property="Grid.RowSpan" Value="2" />
+                                                        <Setter Property="VerticalAlignment" Value="Center" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
 
-                    <DataGridTextColumn Binding="{Binding StationLengthDisplay}" Width="1.1*">
+                                    <Border Grid.Row="1"
+                                            Height="1"
+                                            Background="#E0E0E0"
+                                            Margin="8,2"
+                                            VerticalAlignment="Top">
+                                        <Border.Visibility>
+                                            <MultiBinding Converter="{StaticResource DualValueSeparatorVisibilityConverter}">
+                                                <Binding Path="BackCode" />
+                                                <Binding Path="ForeCode" />
+                                            </MultiBinding>
+                                        </Border.Visibility>
+                                    </Border>
+
+                                    <TextBlock Text="{Binding ForeCode}"
+                                               Grid.Row="1"
+                                               HorizontalAlignment="Stretch"
+                                               TextAlignment="Center"
+                                               VerticalAlignment="Bottom"
+                                               Visibility="{Binding ForeCode, Converter={StaticResource StringPresenceToVisibilityConverter}}" />
+                                </Grid>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+
+                    <DataGridTextColumn Binding="{Binding StationLength_m, StringFormat=0.00}" Width="1.1*">
                         <DataGridTextColumn.HeaderTemplate>
                             <DataTemplate>
                                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
@@ -319,7 +361,7 @@
                         </DataGridTextColumn.HeaderTemplate>
                     </DataGridTextColumn>
 
-                    <DataGridTextColumn Binding="{Binding DeltaHDisplay}" Width="*">
+                    <DataGridTextColumn Binding="{Binding DeltaH, StringFormat=+0.0000;-0.0000;0.0000}" Width="*">
                         <DataGridTextColumn.HeaderTemplate>
                             <DataTemplate>
                                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
@@ -330,7 +372,7 @@
                         </DataGridTextColumn.HeaderTemplate>
                     </DataGridTextColumn>
 
-                    <DataGridTextColumn Binding="{Binding CorrectionDisplay}" Width="*">
+                    <DataGridTextColumn Binding="{Binding Correction, StringFormat=+0.0000;-0.0000;0.0000}" Width="*">
                         <DataGridTextColumn.HeaderTemplate>
                             <DataTemplate>
                                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
@@ -341,7 +383,7 @@
                         </DataGridTextColumn.HeaderTemplate>
                     </DataGridTextColumn>
 
-                    <DataGridTextColumn Binding="{Binding AdjustedDeltaHDisplay}" Width="1.1*">
+                    <DataGridTextColumn Binding="{Binding AdjustedDeltaH, StringFormat=+0.0000;-0.0000;0.0000}" Width="1.1*">
                         <DataGridTextColumn.HeaderTemplate>
                             <DataTemplate>
                                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
@@ -352,27 +394,131 @@
                         </DataGridTextColumn.HeaderTemplate>
                     </DataGridTextColumn>
 
-                    <DataGridTextColumn Binding="{Binding Z0Display}" Width="1.1*">
-                        <DataGridTextColumn.HeaderTemplate>
+                    <DataGridTemplateColumn Width="1.1*">
+                        <DataGridTemplateColumn.HeaderTemplate>
                             <DataTemplate>
                                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                                     <TextBlock Text="&#xE8B7;" FontFamily="Segoe MDL2 Assets" FontSize="12" Margin="0,0,4,0" Foreground="#FF9E9E9E" VerticalAlignment="Center" />
                                     <TextBlock Text="Z0, м" VerticalAlignment="Center" />
                                 </StackPanel>
                             </DataTemplate>
-                        </DataGridTextColumn.HeaderTemplate>
-                    </DataGridTextColumn>
+                        </DataGridTemplateColumn.HeaderTemplate>
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="*" />
+                                        <RowDefinition Height="*" />
+                                    </Grid.RowDefinitions>
 
-                    <DataGridTextColumn Binding="{Binding ZDisplay}" Width="1.1*">
-                        <DataGridTextColumn.HeaderTemplate>
+                                    <TextBlock Text="{Binding BackHeightZ0, StringFormat=0.0000}"
+                                               Grid.Row="0"
+                                               HorizontalAlignment="Stretch"
+                                               TextAlignment="Center"
+                                               VerticalAlignment="Top"
+                                               Visibility="{Binding BackHeightZ0, Converter={StaticResource StringPresenceToVisibilityConverter}}">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding ForeHeightZ0}" Value="">
+                                                        <Setter Property="Grid.RowSpan" Value="2" />
+                                                        <Setter Property="VerticalAlignment" Value="Center" />
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding ForeHeightZ0}" Value="{x:Null}">
+                                                        <Setter Property="Grid.RowSpan" Value="2" />
+                                                        <Setter Property="VerticalAlignment" Value="Center" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+
+                                    <Border Grid.Row="1"
+                                            Height="1"
+                                            Background="#E0E0E0"
+                                            Margin="8,2"
+                                            VerticalAlignment="Top">
+                                        <Border.Visibility>
+                                            <MultiBinding Converter="{StaticResource DualValueSeparatorVisibilityConverter}">
+                                                <Binding Path="BackHeightZ0" />
+                                                <Binding Path="ForeHeightZ0" />
+                                            </MultiBinding>
+                                        </Border.Visibility>
+                                    </Border>
+
+                                    <TextBlock Text="{Binding ForeHeightZ0, StringFormat=0.0000}"
+                                               Grid.Row="1"
+                                               HorizontalAlignment="Stretch"
+                                               TextAlignment="Center"
+                                               VerticalAlignment="Bottom"
+                                               Visibility="{Binding ForeHeightZ0, Converter={StaticResource StringPresenceToVisibilityConverter}}" />
+                                </Grid>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+
+                    <DataGridTemplateColumn Width="1.1*">
+                        <DataGridTemplateColumn.HeaderTemplate>
                             <DataTemplate>
                                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                                     <TextBlock Text="&#xE707;" FontFamily="Segoe MDL2 Assets" FontSize="12" Margin="0,0,4,0" Foreground="#005A9E" VerticalAlignment="Center" />
                                     <TextBlock Text="Z, м" VerticalAlignment="Center" />
                                 </StackPanel>
                             </DataTemplate>
-                        </DataGridTextColumn.HeaderTemplate>
-                    </DataGridTextColumn>
+                        </DataGridTemplateColumn.HeaderTemplate>
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="*" />
+                                        <RowDefinition Height="*" />
+                                    </Grid.RowDefinitions>
+
+                                    <TextBlock Text="{Binding BackHeight, StringFormat=0.0000}"
+                                               Grid.Row="0"
+                                               HorizontalAlignment="Stretch"
+                                               TextAlignment="Center"
+                                               VerticalAlignment="Top"
+                                               Visibility="{Binding BackHeight, Converter={StaticResource StringPresenceToVisibilityConverter}}">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding ForeHeight}" Value="">
+                                                        <Setter Property="Grid.RowSpan" Value="2" />
+                                                        <Setter Property="VerticalAlignment" Value="Center" />
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding ForeHeight}" Value="{x:Null}">
+                                                        <Setter Property="Grid.RowSpan" Value="2" />
+                                                        <Setter Property="VerticalAlignment" Value="Center" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+
+                                    <Border Grid.Row="1"
+                                            Height="1"
+                                            Background="#E0E0E0"
+                                            Margin="8,2"
+                                            VerticalAlignment="Top">
+                                        <Border.Visibility>
+                                            <MultiBinding Converter="{StaticResource DualValueSeparatorVisibilityConverter}">
+                                                <Binding Path="BackHeight" />
+                                                <Binding Path="ForeHeight" />
+                                            </MultiBinding>
+                                        </Border.Visibility>
+                                    </Border>
+
+                                    <TextBlock Text="{Binding ForeHeight, StringFormat=0.0000}"
+                                               Grid.Row="1"
+                                               HorizontalAlignment="Stretch"
+                                               TextAlignment="Center"
+                                               VerticalAlignment="Bottom"
+                                               Visibility="{Binding ForeHeight, Converter={StaticResource StringPresenceToVisibilityConverter}}" />
+                                </Grid>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
                 </DataGrid.Columns>
             </DataGrid>
         </Border>
