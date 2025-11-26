@@ -942,6 +942,9 @@ namespace Nivtropy.ViewModels
             bool seedAllKnownAnchors)
         {
             var localHeights = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
+            // Отслеживаем точки, которые были ЗАСЕЯНЫ (а не вычислены)
+            // Это нужно, чтобы не переписывать вычисленные значения в замкнутых ходах
+            var seededPoints = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             // Заполняем начальными известными высотами (полностью либо только первую доступную)
             if (seedAllKnownAnchors)
@@ -959,6 +962,7 @@ namespace Nivtropy.ViewModels
                 if (anchor.code != null)
                 {
                     localHeights[anchor.code] = anchor.height;
+                    seededPoints.Add(anchor.code);
                 }
             }
 
@@ -966,6 +970,7 @@ namespace Nivtropy.ViewModels
             if (localHeights.Count == 0 && traverseRows.Count > 0 && !string.IsNullOrWhiteSpace(traverseRows[0].BackCode))
             {
                 localHeights[traverseRows[0].BackCode] = 0.0;
+                seededPoints.Add(traverseRows[0].BackCode);
             }
 
             // Итеративно распространяем высоты в обе стороны
@@ -985,23 +990,52 @@ namespace Nivtropy.ViewModels
                         if (localHeights.TryGetValue(row.BackCode, out var backHeight) && !localHeights.ContainsKey(row.ForeCode))
                         {
                             localHeights[row.ForeCode] = backHeight + delta;
+                            // Это ВЫЧИСЛЕННАЯ точка, не добавляем в seededPoints
                             changed = true;
                         }
                         else if (localHeights.TryGetValue(row.ForeCode, out var foreHeight) && !localHeights.ContainsKey(row.BackCode))
                         {
                             localHeights[row.BackCode] = foreHeight - delta;
+                            // Это ВЫЧИСЛЕННАЯ точка, не добавляем в seededPoints
                             changed = true;
                         }
                         else if (seedAllKnownAnchors)
                         {
-                            // Если обе точки известны и одна задана вручную, закрепляем её значением из глобального словаря
+                            // ИСПРАВЛЕНО: закрепляем только ЗАСЕЯННЫЕ точки, не вычисленные
+                            // Вычисленные точки показывают реальное распространение высот и невязки в замкнутых ходах
+
                             if (globalHeights.TryGetValue(row.BackCode, out var globalBack))
                             {
-                                changed |= EnsureOverride(localHeights, row.BackCode, globalBack);
+                                if (!localHeights.ContainsKey(row.BackCode))
+                                {
+                                    // Точка ещё не добавлена - засеиваем
+                                    localHeights[row.BackCode] = globalBack;
+                                    seededPoints.Add(row.BackCode);
+                                    changed = true;
+                                }
+                                else if (seededPoints.Contains(row.BackCode))
+                                {
+                                    // Точка была засеяна ранее - закрепляем глобальным значением
+                                    changed |= EnsureOverride(localHeights, row.BackCode, globalBack);
+                                }
+                                // Если точка была вычислена (в localHeights, но НЕ в seededPoints) - НЕ переписываем!
                             }
+
                             if (globalHeights.TryGetValue(row.ForeCode, out var globalFore))
                             {
-                                changed |= EnsureOverride(localHeights, row.ForeCode, globalFore);
+                                if (!localHeights.ContainsKey(row.ForeCode))
+                                {
+                                    // Точка ещё не добавлена - засеиваем
+                                    localHeights[row.ForeCode] = globalFore;
+                                    seededPoints.Add(row.ForeCode);
+                                    changed = true;
+                                }
+                                else if (seededPoints.Contains(row.ForeCode))
+                                {
+                                    // Точка была засеяна ранее - закрепляем глобальным значением
+                                    changed |= EnsureOverride(localHeights, row.ForeCode, globalFore);
+                                }
+                                // Если точка была вычислена (в localHeights, но НЕ в seededPoints) - НЕ переписываем!
                             }
                         }
                     }
@@ -1023,6 +1057,7 @@ namespace Nivtropy.ViewModels
                 if (globalHeights.TryGetValue(code, out var existing))
                 {
                     localHeights[code] = existing;
+                    seededPoints.Add(code);
                 }
                 else
                 {
@@ -1030,6 +1065,7 @@ namespace Nivtropy.ViewModels
                     if (known.HasValue)
                     {
                         localHeights[code] = known.Value;
+                        seededPoints.Add(code);
                     }
                 }
             }
