@@ -1044,6 +1044,33 @@ namespace Nivtropy.ViewModels
                 guard++;
             } while (changed && guard < traverseRows.Count * 2 + 4);
 
+            // ИСПРАВЛЕНИЕ: для замкнутых ходов пересчитываем конечную точку
+            // Это нужно, чтобы показать невязку (разницу между вычисленным и известным значением)
+            if (traverseRows.Count >= 2)
+            {
+                var firstVirtual = traverseRows.FirstOrDefault(r => r.IsVirtualStation);
+                var lastRegular = traverseRows.LastOrDefault(r => !r.IsVirtualStation);
+
+                if (firstVirtual != null && lastRegular != null &&
+                    !string.IsNullOrWhiteSpace(firstVirtual.BackCode) &&
+                    !string.IsNullOrWhiteSpace(lastRegular.ForeCode) &&
+                    string.Equals(firstVirtual.BackCode, lastRegular.ForeCode, StringComparison.OrdinalIgnoreCase))
+                {
+                    // Это замкнутый ход (начальная точка = конечная точка)
+                    // Пересчитываем конечную точку, даже если она была засеяна
+                    if (TryGetDelta(lastRegular, useAdjustedDelta, out var delta) &&
+                        localHeights.TryGetValue(lastRegular.BackCode, out var backHeight))
+                    {
+                        // ВАЖНО: перезаписываем значение конечной точки вычисленным
+                        // Это показывает реальную невязку в замкнутом ходе
+                        localHeights[lastRegular.ForeCode] = backHeight + delta;
+
+                        // Убираем конечную точку из seededPoints, так как она теперь вычислена
+                        seededPoints.Remove(lastRegular.ForeCode);
+                    }
+                }
+            }
+
             return localHeights;
 
             void TrySeed(string? code)
@@ -1119,8 +1146,17 @@ namespace Nivtropy.ViewModels
 
             foreach (var kvp in source)
             {
-                if (!destination.ContainsKey(kvp.Key))
+                // ИСПРАВЛЕНО: обновляем существующие значения, если они изменились
+                // Это критично для пересчета смежных ходов с общими точками
+                if (!destination.TryGetValue(kvp.Key, out var existingValue))
                 {
+                    // Новая точка - добавляем
+                    destination[kvp.Key] = kvp.Value;
+                    changed = true;
+                }
+                else if (Math.Abs(existingValue - kvp.Value) > 1e-8)
+                {
+                    // Существующая точка с изменившимся значением - обновляем
                     destination[kvp.Key] = kvp.Value;
                     changed = true;
                 }
