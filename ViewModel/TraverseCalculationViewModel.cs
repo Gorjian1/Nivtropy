@@ -534,17 +534,54 @@ namespace Nivtropy.ViewModels
             // Группируем станции по ходам для корректного расчета поправок
             var traverseGroups = items.GroupBy(r => r.LineName).ToList();
 
-            // Рассчитываем поправки для каждого хода отдельно
-            foreach (var group in traverseGroups)
+            // Доступные высоты точек: сначала известные вручную
+            var availableHeights = new Dictionary<string, double>(_dataViewModel.KnownHeights,
+                StringComparer.OrdinalIgnoreCase);
+
+            var processedGroups = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            for (int iteration = 0; iteration < traverseGroups.Count; iteration++)
             {
-                CalculateCorrections(group.ToList());
+                bool progress = false;
+
+                foreach (var group in traverseGroups)
+                {
+                    if (processedGroups.Contains(group.Key))
+                        continue;
+
+                    var groupItems = group.ToList();
+                    bool hasAnchor = groupItems.Any(r =>
+                        (!string.IsNullOrWhiteSpace(r.BackCode) && availableHeights.ContainsKey(r.BackCode!)) ||
+                        (!string.IsNullOrWhiteSpace(r.ForeCode) && availableHeights.ContainsKey(r.ForeCode!)));
+
+                    if (!hasAnchor && iteration < traverseGroups.Count - 1)
+                        continue;
+
+                    // Если к этому моменту высот нет ни у одной точки ни одного хода,
+                    // стартуем первый обработанный ход с 0 в первой точке
+                    if (!hasAnchor)
+                    {
+                        var firstCode = groupItems.Select(r => r.BackCode ?? r.ForeCode)
+                            .FirstOrDefault(c => !string.IsNullOrWhiteSpace(c));
+                        if (!string.IsNullOrWhiteSpace(firstCode))
+                        {
+                            availableHeights[firstCode!] = 0.0;
+                            hasAnchor = true;
+                        }
+                    }
+
+                    CalculateCorrections(groupItems, availableHeights.ContainsKey);
+                    CalculateHeightsForRun(groupItems, availableHeights);
+                    processedGroups.Add(group.Key);
+                    progress = true;
+                }
+
+                if (!progress)
+                    break;
             }
 
             // Обновляем накопление разности плеч для каждого хода
-            UpdateArmDifferenceAccumulation(traverseGroups);
-
-            // Рассчитываем высоты точек
-            CalculateHeights(items);
+            UpdateArmDifferenceAccumulation(traverseGroups, availableHeights.ContainsKey);
 
             foreach (var row in items)
             {
@@ -661,19 +698,25 @@ namespace Nivtropy.ViewModels
         /// 2. Локальное уравнивание - ход разбивается на секции между известными точками,
         ///    и каждая секция уравнивается отдельно
         /// </summary>
-        private void CalculateCorrections(List<TraverseRow> items)
+        private void CalculateCorrections(List<TraverseRow> items, Func<string, bool> isAnchor)
         {
             if (items.Count == 0)
                 return;
 
             // Проверяем, нужно ли локальное уравнивание
             var lineSummary = items.FirstOrDefault()?.LineSummary;
-            var hasIntermediateAnchors = lineSummary != null && lineSummary.KnownPointsCount > 1;
+            var anchorsCount = CountAnchors(items, isAnchor);
+            var hasIntermediateAnchors = anchorsCount > 1;
+
+            if (lineSummary != null)
+            {
+                lineSummary.KnownPointsCount = anchorsCount;
+            }
 
             if (hasIntermediateAnchors || (lineSummary?.UseLocalAdjustment ?? false))
             {
                 // Локальное уравнивание: разбиваем на секции между известными точками
-                CalculateCorrectionsWithSections(items);
+                CalculateCorrectionsWithSections(items, isAnchor);
             }
             else
             {
@@ -682,10 +725,30 @@ namespace Nivtropy.ViewModels
             }
         }
 
+        private static int CountAnchors(IEnumerable<TraverseRow> items, Func<string, bool> isAnchor)
+        {
+            var anchors = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var row in items)
+            {
+                if (!string.IsNullOrWhiteSpace(row.BackCode) && isAnchor(row.BackCode))
+                {
+                    anchors.Add(row.BackCode);
+                }
+
+                if (!string.IsNullOrWhiteSpace(row.ForeCode) && isAnchor(row.ForeCode))
+                {
+                    anchors.Add(row.ForeCode);
+                }
+            }
+
+            return anchors.Count;
+        }
+
         /// <summary>
         /// Локальное уравнивание: разбивает ход на секции и уравнивает каждую отдельно
         /// </summary>
-        private void CalculateCorrectionsWithSections(List<TraverseRow> items)
+        private void CalculateCorrectionsWithSections(List<TraverseRow> items, Func<string, bool> isAnchor)
         {
             if (items.Count == 0)
                 return;
@@ -698,14 +761,14 @@ namespace Nivtropy.ViewModels
                 var row = items[i];
 
                 // Проверяем заднюю точку
-                if (!string.IsNullOrWhiteSpace(row.BackCode) && _dataViewModel.HasKnownHeight(row.BackCode))
+                if (!string.IsNullOrWhiteSpace(row.BackCode) && isAnchor(row.BackCode!))
                 {
                     if (!knownPointIndices.Contains(i))
                         knownPointIndices.Add(i);
                 }
 
                 // Проверяем переднюю точку
-                if (!string.IsNullOrWhiteSpace(row.ForeCode) && _dataViewModel.HasKnownHeight(row.ForeCode))
+                if (!string.IsNullOrWhiteSpace(row.ForeCode) && isAnchor(row.ForeCode!))
                 {
                     // ForeCode станции i соответствует BackCode станции i+1
                     if (i < items.Count - 1 && !knownPointIndices.Contains(i + 1))
@@ -842,15 +905,10 @@ namespace Nivtropy.ViewModels
         }
 
         /// <summary>
-        /// Рассчитывает высоты точек на основе известных высот и превышений
-        /// СЕКЦИОННАЯ МОДЕЛЬ: каждая секция = 2 точки + превышение
-        ///
-        /// Секция (TraverseRow): Back→Fore с превышением dH
-        /// - Если известна Back: Fore = Back + dH
-        /// - Если известна Fore: Back = Fore - dH
-        /// - Секции связываются через общие точки автоматически
+        /// Рассчитывает высоты точек внутри конкретного хода и добавляет их в словарь доступных высот
+        /// с учётом локального уравнивания и уже пересчитанных смежных ходов.
         /// </summary>
-        private void CalculateHeights(List<TraverseRow> items)
+        private void CalculateHeightsForRun(List<TraverseRow> items, Dictionary<string, double> availableHeights)
         {
             if (items.Count == 0)
                 return;
@@ -866,31 +924,28 @@ namespace Nivtropy.ViewModels
                 row.IsForeHeightKnown = false;
             }
 
-            // Глобальные словари высот
-            var globalZ0 = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
-            var globalZ = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
+            var adjusted = new Dictionary<string, double>(availableHeights, StringComparer.OrdinalIgnoreCase);
+            var raw = new Dictionary<string, double>(availableHeights, StringComparer.OrdinalIgnoreCase);
 
-            // Итерации для распространения высот между секциями
             for (int iteration = 0; iteration < 20; iteration++)
             {
-                bool changedZ0 = PropagateHeightsThroughSections(items, globalZ0, useAdjusted: false);
-                bool changedZ = PropagateHeightsThroughSections(items, globalZ, useAdjusted: true);
+                bool changedRaw = PropagateHeightsWithinRun(items, raw, useAdjusted: false);
+                bool changedAdjusted = PropagateHeightsWithinRun(items, adjusted, useAdjusted: true);
 
-                if (!changedZ0 && !changedZ)
+                if (!changedRaw && !changedAdjusted)
                     break;
             }
 
-            // Записываем результаты обратно в TraverseRow
             foreach (var row in items)
             {
                 if (!string.IsNullOrWhiteSpace(row.BackCode))
                 {
-                    if (globalZ.TryGetValue(row.BackCode, out var backZ))
+                    if (adjusted.TryGetValue(row.BackCode, out var backZ))
                     {
                         row.BackHeight = backZ;
-                        row.IsBackHeightKnown = _dataViewModel.HasKnownHeight(row.BackCode);
+                        row.IsBackHeightKnown = availableHeights.ContainsKey(row.BackCode);
                     }
-                    if (globalZ0.TryGetValue(row.BackCode, out var backZ0))
+                    if (raw.TryGetValue(row.BackCode, out var backZ0))
                     {
                         row.BackHeightZ0 = backZ0;
                     }
@@ -898,73 +953,33 @@ namespace Nivtropy.ViewModels
 
                 if (!string.IsNullOrWhiteSpace(row.ForeCode))
                 {
-                    if (globalZ.TryGetValue(row.ForeCode, out var foreZ))
+                    if (adjusted.TryGetValue(row.ForeCode, out var foreZ))
                     {
                         row.ForeHeight = foreZ;
-                        row.IsForeHeightKnown = _dataViewModel.HasKnownHeight(row.ForeCode);
+                        row.IsForeHeightKnown = availableHeights.ContainsKey(row.ForeCode);
                     }
-                    if (globalZ0.TryGetValue(row.ForeCode, out var foreZ0))
+                    if (raw.TryGetValue(row.ForeCode, out var foreZ0))
                     {
                         row.ForeHeightZ0 = foreZ0;
                     }
                 }
             }
+
+            foreach (var kvp in adjusted)
+            {
+                availableHeights[kvp.Key] = kvp.Value;
+            }
         }
 
-        /// <summary>
-        /// Распространяет высоты через секции
-        /// Каждая секция: Back→Fore с превышением dH
-        /// </summary>
-        private bool PropagateHeightsThroughSections(
-            List<TraverseRow> allSections,
-            Dictionary<string, double> globalHeights,
+        private static bool PropagateHeightsWithinRun(
+            List<TraverseRow> sections,
+            Dictionary<string, double> heights,
             bool useAdjusted)
         {
             bool changed = false;
 
-            // Сначала засеиваем известные реперы
-            foreach (var section in allSections)
+            foreach (var section in sections)
             {
-                if (!string.IsNullOrWhiteSpace(section.BackCode) &&
-                    _dataViewModel.HasKnownHeight(section.BackCode) &&
-                    !globalHeights.ContainsKey(section.BackCode))
-                {
-                    var height = _dataViewModel.GetKnownHeight(section.BackCode);
-                    if (height.HasValue)
-                    {
-                        globalHeights[section.BackCode] = height.Value;
-                        changed = true;
-                    }
-                }
-
-                if (!string.IsNullOrWhiteSpace(section.ForeCode) &&
-                    _dataViewModel.HasKnownHeight(section.ForeCode) &&
-                    !globalHeights.ContainsKey(section.ForeCode))
-                {
-                    var height = _dataViewModel.GetKnownHeight(section.ForeCode);
-                    if (height.HasValue)
-                    {
-                        globalHeights[section.ForeCode] = height.Value;
-                        changed = true;
-                    }
-                }
-            }
-
-            // Если нет ни одной известной высоты, стартуем первый ход с 0
-            if (globalHeights.Count == 0)
-            {
-                var firstSection = allSections.FirstOrDefault();
-                if (firstSection != null && !string.IsNullOrWhiteSpace(firstSection.BackCode))
-                {
-                    globalHeights[firstSection.BackCode] = 0.0;
-                    changed = true;
-                }
-            }
-
-            // Распространяем высоты через секции
-            foreach (var section in allSections)
-            {
-                // Пропускаем виртуальные станции без превышения
                 var delta = useAdjusted ? section.AdjustedDeltaH : section.DeltaH;
                 if (!delta.HasValue)
                     continue;
@@ -975,34 +990,15 @@ namespace Nivtropy.ViewModels
                 if (string.IsNullOrWhiteSpace(backCode) || string.IsNullOrWhiteSpace(foreCode))
                     continue;
 
-                // Прямое распространение: Back известна → вычисляем Fore
-                if (globalHeights.TryGetValue(backCode, out var backHeight) &&
-                    !globalHeights.ContainsKey(foreCode))
+                if (heights.TryGetValue(backCode, out var backHeight) && !heights.ContainsKey(foreCode))
                 {
-                    globalHeights[foreCode] = backHeight + delta.Value;
+                    heights[foreCode] = backHeight + delta.Value;
                     changed = true;
                 }
-                // Обратное распространение: Fore известна → вычисляем Back
-                else if (globalHeights.TryGetValue(foreCode, out var foreHeight) &&
-                         !globalHeights.ContainsKey(backCode))
+                else if (heights.TryGetValue(foreCode, out var foreHeight) && !heights.ContainsKey(backCode))
                 {
-                    globalHeights[backCode] = foreHeight - delta.Value;
+                    heights[backCode] = foreHeight - delta.Value;
                     changed = true;
-                }
-                // Обе известны: проверяем согласованность и обновляем если нужно
-                else if (globalHeights.TryGetValue(backCode, out backHeight) &&
-                         globalHeights.TryGetValue(foreCode, out foreHeight))
-                {
-                    // Вычисляем ожидаемую высоту Fore по Back
-                    var expectedForeHeight = backHeight + delta.Value;
-
-                    // Если Fore не является репером И значение отличается, обновляем
-                    if (!_dataViewModel.HasKnownHeight(foreCode) &&
-                        Math.Abs(foreHeight - expectedForeHeight) > 1e-8)
-                    {
-                        globalHeights[foreCode] = expectedForeHeight;
-                        changed = true;
-                    }
                 }
             }
 
@@ -1015,7 +1011,9 @@ namespace Nivtropy.ViewModels
         /// Обновляет накопление разности плеч для каждого хода на основе TraverseRow
         /// Обновляет существующие LineSummary в DataViewModel.Runs
         /// </summary>
-        private void UpdateArmDifferenceAccumulation(List<IGrouping<string, TraverseRow>> traverseGroups)
+        private void UpdateArmDifferenceAccumulation(
+            List<IGrouping<string, TraverseRow>> traverseGroups,
+            Func<string, bool> isAnchor)
         {
             foreach (var group in traverseGroups)
             {
@@ -1065,11 +1063,11 @@ namespace Nivtropy.ViewModels
                 var knownPointsSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                 foreach (var row in rows)
                 {
-                    if (!string.IsNullOrWhiteSpace(row.BackCode) && _dataViewModel.HasKnownHeight(row.BackCode))
+                    if (!string.IsNullOrWhiteSpace(row.BackCode) && isAnchor(row.BackCode))
                     {
                         knownPointsSet.Add(row.BackCode);
                     }
-                    if (!string.IsNullOrWhiteSpace(row.ForeCode) && _dataViewModel.HasKnownHeight(row.ForeCode))
+                    if (!string.IsNullOrWhiteSpace(row.ForeCode) && isAnchor(row.ForeCode))
                     {
                         knownPointsSet.Add(row.ForeCode);
                     }
