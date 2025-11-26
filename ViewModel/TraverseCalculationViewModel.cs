@@ -843,34 +843,22 @@ namespace Nivtropy.ViewModels
 
         /// <summary>
         /// Рассчитывает высоты точек на основе известных высот и превышений
-        /// Логика нивелирования: H_fore = H_back + Δh, где Δh = Rb - Rf
-        /// Рассчитываются две версии: с поправкой (Z) и без поправки (Z0)
+        /// НОВЫЙ ПОДХОД: простой и понятный алгоритм
         ///
-        /// Для Z: используются известные высоты для замыкания хода
-        /// Для Z0: показывает чистое накопление превышений БЕЗ поправок
-        ///         Если есть известная высота в начале - используется как стартовая
-        ///         Если нет известных высот - начинается с условного нуля
-        ///
-        /// НОВОЕ: Поддержка установки высоты на любой точке (не только начальной)
-        /// Алгоритм распространяет высоты в обе стороны от известных точек
+        /// Для каждого хода:
+        /// - Массив точек: [A, B, C, D] с индексами
+        /// - Массив превышений: между точками
+        /// - Известные высоты: индекс → высота
+        /// - От каждой известной точки распространяем высоты в обе стороны
+        /// - Для циклических ходов: начальная и конечная точки РАЗНЫЕ (A и A*)
         /// </summary>
         private void CalculateHeights(List<TraverseRow> items)
         {
             if (items.Count == 0)
                 return;
 
-            // Группируем станции по ходам и рассчитываем высоты отдельно для каждого хода
-            var traverseGroups = items.GroupBy(r => r.LineName).ToList();
-
-            // Словари высот:
-            //  adjustedGlobal — общие высоты (Z) c возможной передачей через общие точки
-            //  rawKnownAnchors — только известные реперы для Z0, без переноса между ходами
-            var adjustedGlobal = new Dictionary<string, double>(_dataViewModel.KnownHeights, StringComparer.OrdinalIgnoreCase);
-            var rawKnownAnchors = new Dictionary<string, double>(_dataViewModel.KnownHeights, StringComparer.OrdinalIgnoreCase);
-            var rawResults = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
-
-            // Сбрасываем предыдущие значения, чтобы не смешивать данные разных пересчётов
-            foreach (var row in traverseGroups.SelectMany(g => g))
+            // Сбрасываем предыдущие значения
+            foreach (var row in items)
             {
                 row.BackHeight = null;
                 row.ForeHeight = null;
@@ -880,290 +868,190 @@ namespace Nivtropy.ViewModels
                 row.IsForeHeightKnown = false;
             }
 
-            // Рассчитываем Z0 с итерациями для передачи высот между ходами через общие точки
-            // Используем только известные реперы, но передаем вычисленные высоты между ходами
-            var rawGlobal = new Dictionary<string, double>(_dataViewModel.KnownHeights, StringComparer.OrdinalIgnoreCase);
-            int guard = 0;
-            bool changed = false;
+            // Группируем станции по ходам
+            var traverseGroups = items.GroupBy(r => r.LineName).ToList();
 
-            do
+            // Глобальные словари для передачи высот между ходами
+            var globalZ0 = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
+            var globalZ = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
+
+            // Итерации для передачи высот между ходами через общие точки
+            for (int iteration = 0; iteration < 10; iteration++)
             {
-                changed = false;
+                bool changed = false;
 
                 foreach (var traverseGroup in traverseGroups)
                 {
                     var traverseRows = traverseGroup.OrderBy(r => r.Index).ToList();
-                    // Z0: используем сырые превышения, но передаем высоты через общие точки
-                    var rawLocal = ComputeTraverseHeights(traverseRows, rawGlobal, useAdjustedDelta: false, seedAllKnownAnchors: false);
-                    changed |= MergeHeights(rawLocal, rawGlobal);
+
+                    // Рассчитываем Z0 (неуравненные)
+                    var localZ0 = CalculateTraverseHeights(traverseRows, globalZ0, useAdjusted: false);
+                    changed |= MergeHeights(localZ0, globalZ0);
+
+                    // Рассчитываем Z (уравненные)
+                    var localZ = CalculateTraverseHeights(traverseRows, globalZ, useAdjusted: true);
+                    changed |= MergeHeights(localZ, globalZ);
                 }
 
-                guard++;
-            } while (changed && guard < 5);
-
-            // Копируем результаты Z0
-            foreach (var kvp in rawGlobal)
-            {
-                rawResults[kvp.Key] = kvp.Value;
+                if (!changed)
+                    break;
             }
 
-            // Затем несколько итераций для Z, чтобы переносить высоты между ходами с общими точками
-            guard = 0;
-            changed = false;
-
-            do
+            // Записываем результаты обратно в TraverseRow
+            foreach (var row in items)
             {
-                changed = false;
-
-                foreach (var traverseGroup in traverseGroups)
+                if (!string.IsNullOrWhiteSpace(row.BackCode))
                 {
-                    var traverseRows = traverseGroup.OrderBy(r => r.Index).ToList();
-
-                    // Z: закрепляем ход на всех известных точках, используя уравнённые превышения
-                    var adjustedLocal = ComputeTraverseHeights(traverseRows, adjustedGlobal, useAdjustedDelta: true, seedAllKnownAnchors: true);
-                    changed |= MergeHeights(adjustedLocal, adjustedGlobal);
+                    if (globalZ.TryGetValue(row.BackCode, out var backZ))
+                    {
+                        row.BackHeight = backZ;
+                        row.IsBackHeightKnown = _dataViewModel.HasKnownHeight(row.BackCode);
+                    }
+                    if (globalZ0.TryGetValue(row.BackCode, out var backZ0))
+                    {
+                        row.BackHeightZ0 = backZ0;
+                    }
                 }
 
-                guard++;
-            } while (changed && guard < 5);
-
-            // Переносим рассчитанные значения в строки хода
-            foreach (var row in traverseGroups.SelectMany(g => g))
-            {
-                if (!string.IsNullOrWhiteSpace(row.BackCode) && adjustedGlobal.TryGetValue(row.BackCode, out var back))
+                if (!string.IsNullOrWhiteSpace(row.ForeCode))
                 {
-                    row.BackHeight = back;
-                    row.IsBackHeightKnown = _dataViewModel.HasKnownHeight(row.BackCode);
-                }
-
-                if (!string.IsNullOrWhiteSpace(row.ForeCode) && adjustedGlobal.TryGetValue(row.ForeCode, out var fore))
-                {
-                    row.ForeHeight = fore;
-                    row.IsForeHeightKnown = _dataViewModel.HasKnownHeight(row.ForeCode);
-                }
-
-                if (!string.IsNullOrWhiteSpace(row.BackCode) && rawResults.TryGetValue(row.BackCode, out var backZ0))
-                {
-                    row.BackHeightZ0 = backZ0;
-                }
-
-                if (!string.IsNullOrWhiteSpace(row.ForeCode) && rawResults.TryGetValue(row.ForeCode, out var foreZ0))
-                {
-                    row.ForeHeightZ0 = foreZ0;
+                    if (globalZ.TryGetValue(row.ForeCode, out var foreZ))
+                    {
+                        row.ForeHeight = foreZ;
+                        row.IsForeHeightKnown = _dataViewModel.HasKnownHeight(row.ForeCode);
+                    }
+                    if (globalZ0.TryGetValue(row.ForeCode, out var foreZ0))
+                    {
+                        row.ForeHeightZ0 = foreZ0;
+                    }
                 }
             }
         }
 
-        private Dictionary<string, double> ComputeTraverseHeights(
+        /// <summary>
+        /// Рассчитывает высоты для одного хода
+        /// Простой алгоритм: от каждой известной точки распространяем в обе стороны
+        /// </summary>
+        private Dictionary<string, double> CalculateTraverseHeights(
             List<TraverseRow> traverseRows,
             Dictionary<string, double> globalHeights,
-            bool useAdjustedDelta,
-            bool seedAllKnownAnchors)
+            bool useAdjusted)
         {
-            var localHeights = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
-            // Отслеживаем точки, которые были ЗАСЕЯНЫ (а не вычислены)
-            // Это нужно, чтобы не переписывать вычисленные значения в замкнутых ходах
-            var seededPoints = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            // Строим массивы точек и превышений
+            var pointCodes = new List<string>();
+            var deltaHeights = new List<double?>();
 
-            // Заполняем начальными известными высотами (полностью либо только первую доступную)
-            if (seedAllKnownAnchors)
+            // Первая точка (из виртуальной станции или первой реальной)
+            var firstRow = traverseRows.FirstOrDefault();
+            if (firstRow != null && !string.IsNullOrWhiteSpace(firstRow.BackCode))
             {
-                foreach (var row in traverseRows)
-                {
-                    TrySeed(row.BackCode);
-                    TrySeed(row.ForeCode);
-                }
-            }
-            else
-            {
-                // Только первое доступное начало (из глобальных или из списка известных)
-                var anchor = FindAnchor(traverseRows, globalHeights);
-                if (anchor.code != null)
-                {
-                    localHeights[anchor.code] = anchor.height;
-                    seededPoints.Add(anchor.code);
-                }
+                pointCodes.Add(firstRow.BackCode);
             }
 
-            // Если ничего не знаем, стартуем с условного нуля на первой точке
-            if (localHeights.Count == 0 && traverseRows.Count > 0 && !string.IsNullOrWhiteSpace(traverseRows[0].BackCode))
-            {
-                localHeights[traverseRows[0].BackCode] = 0.0;
-                seededPoints.Add(traverseRows[0].BackCode);
-            }
-
-            // Итеративно распространяем высоты в обе стороны
-            bool changed;
-            int guard = 0;
-
-            do
-            {
-                changed = false;
-
-                foreach (var row in traverseRows)
-                {
-                    if (TryGetDelta(row, useAdjustedDelta, out var delta) &&
-                        !string.IsNullOrWhiteSpace(row.BackCode) &&
-                        !string.IsNullOrWhiteSpace(row.ForeCode))
-                    {
-                        if (localHeights.TryGetValue(row.BackCode, out var backHeight) && !localHeights.ContainsKey(row.ForeCode))
-                        {
-                            localHeights[row.ForeCode] = backHeight + delta;
-                            // Это ВЫЧИСЛЕННАЯ точка, не добавляем в seededPoints
-                            changed = true;
-                        }
-                        else if (localHeights.TryGetValue(row.ForeCode, out var foreHeight) && !localHeights.ContainsKey(row.BackCode))
-                        {
-                            localHeights[row.BackCode] = foreHeight - delta;
-                            // Это ВЫЧИСЛЕННАЯ точка, не добавляем в seededPoints
-                            changed = true;
-                        }
-                        else if (seedAllKnownAnchors)
-                        {
-                            // ИСПРАВЛЕНО: закрепляем только ЗАСЕЯННЫЕ точки, не вычисленные
-                            // Вычисленные точки показывают реальное распространение высот и невязки в замкнутых ходах
-
-                            if (globalHeights.TryGetValue(row.BackCode, out var globalBack))
-                            {
-                                if (!localHeights.ContainsKey(row.BackCode))
-                                {
-                                    // Точка ещё не добавлена - засеиваем
-                                    localHeights[row.BackCode] = globalBack;
-                                    seededPoints.Add(row.BackCode);
-                                    changed = true;
-                                }
-                                else if (seededPoints.Contains(row.BackCode))
-                                {
-                                    // Точка была засеяна ранее - закрепляем глобальным значением
-                                    changed |= EnsureOverride(localHeights, row.BackCode, globalBack);
-                                }
-                                // Если точка была вычислена (в localHeights, но НЕ в seededPoints) - НЕ переписываем!
-                            }
-
-                            if (globalHeights.TryGetValue(row.ForeCode, out var globalFore))
-                            {
-                                if (!localHeights.ContainsKey(row.ForeCode))
-                                {
-                                    // Точка ещё не добавлена - засеиваем
-                                    localHeights[row.ForeCode] = globalFore;
-                                    seededPoints.Add(row.ForeCode);
-                                    changed = true;
-                                }
-                                else if (seededPoints.Contains(row.ForeCode))
-                                {
-                                    // Точка была засеяна ранее - закрепляем глобальным значением
-                                    changed |= EnsureOverride(localHeights, row.ForeCode, globalFore);
-                                }
-                                // Если точка была вычислена (в localHeights, но НЕ в seededPoints) - НЕ переписываем!
-                            }
-                        }
-                    }
-                }
-
-                guard++;
-            } while (changed && guard < traverseRows.Count * 2 + 4);
-
-            // ИСПРАВЛЕНИЕ: для замкнутых ходов пересчитываем конечную точку
-            // Это нужно, чтобы показать невязку (разницу между вычисленным и известным значением)
-            if (traverseRows.Count >= 2)
-            {
-                var firstVirtual = traverseRows.FirstOrDefault(r => r.IsVirtualStation);
-                var lastRegular = traverseRows.LastOrDefault(r => !r.IsVirtualStation);
-
-                if (firstVirtual != null && lastRegular != null &&
-                    !string.IsNullOrWhiteSpace(firstVirtual.BackCode) &&
-                    !string.IsNullOrWhiteSpace(lastRegular.ForeCode) &&
-                    string.Equals(firstVirtual.BackCode, lastRegular.ForeCode, StringComparison.OrdinalIgnoreCase))
-                {
-                    // Это замкнутый ход (начальная точка = конечная точка)
-                    // Пересчитываем конечную точку, даже если она была засеяна
-                    if (TryGetDelta(lastRegular, useAdjustedDelta, out var delta) &&
-                        localHeights.TryGetValue(lastRegular.BackCode, out var backHeight))
-                    {
-                        // ВАЖНО: перезаписываем значение конечной точки вычисленным
-                        // Это показывает реальную невязку в замкнутом ходе
-                        localHeights[lastRegular.ForeCode] = backHeight + delta;
-
-                        // Убираем конечную точку из seededPoints, так как она теперь вычислена
-                        seededPoints.Remove(lastRegular.ForeCode);
-                    }
-                }
-            }
-
-            return localHeights;
-
-            void TrySeed(string? code)
-            {
-                if (string.IsNullOrWhiteSpace(code))
-                    return;
-
-                if (localHeights.ContainsKey(code))
-                    return;
-
-                if (globalHeights.TryGetValue(code, out var existing))
-                {
-                    localHeights[code] = existing;
-                    seededPoints.Add(code);
-                }
-                else
-                {
-                    var known = _dataViewModel.GetKnownHeight(code);
-                    if (known.HasValue)
-                    {
-                        localHeights[code] = known.Value;
-                        seededPoints.Add(code);
-                    }
-                }
-            }
-        }
-
-        private static (string? code, double height) FindAnchor(List<TraverseRow> traverseRows, Dictionary<string, double> globalHeights)
-        {
-            // Ищем любую известную точку в ходе
+            // Остальные точки и превышения
             foreach (var row in traverseRows)
             {
-                if (!string.IsNullOrWhiteSpace(row.BackCode) && globalHeights.TryGetValue(row.BackCode, out var back))
-                {
-                    return (row.BackCode, back);
-                }
-                if (!string.IsNullOrWhiteSpace(row.ForeCode) && globalHeights.TryGetValue(row.ForeCode, out var fore))
-                {
-                    return (row.ForeCode, fore);
-                }
+                if (string.IsNullOrWhiteSpace(row.ForeCode))
+                    continue;
+
+                var delta = useAdjusted ? row.AdjustedDeltaH : row.DeltaH;
+                deltaHeights.Add(delta);
+                pointCodes.Add(row.ForeCode);
             }
 
-            // Ничего не нашли
-            return (null, 0);
-        }
+            int n = pointCodes.Count;
+            var heights = new double?[n];
 
-        private static bool EnsureOverride(Dictionary<string, double> target, string code, double value)
-        {
-            if (!target.TryGetValue(code, out var current) || Math.Abs(current - value) > 1e-8)
+            // Находим известные высоты в этом ходе
+            var knownIndices = new Dictionary<int, double>();
+
+            for (int i = 0; i < n; i++)
             {
-                target[code] = value;
-                return true;
+                var code = pointCodes[i];
+
+                // Сначала проверяем глобальные высоты (из других ходов)
+                if (globalHeights.TryGetValue(code, out var globalHeight))
+                {
+                    knownIndices[i] = globalHeight;
+                }
+                // Затем реперы
+                else if (_dataViewModel.HasKnownHeight(code))
+                {
+                    var knownHeight = _dataViewModel.GetKnownHeight(code);
+                    if (knownHeight.HasValue)
+                    {
+                        knownIndices[i] = knownHeight.Value;
+                    }
+                }
             }
 
-            return false;
+            // Если нет известных высот, стартуем с 0
+            if (knownIndices.Count == 0 && n > 0)
+            {
+                knownIndices[0] = 0.0;
+            }
+
+            // От каждой известной точки распространяем высоты
+            foreach (var (index, knownHeight) in knownIndices)
+            {
+                heights[index] = knownHeight;
+
+                // Распространяем вперед (i → i+1)
+                for (int i = index; i < n - 1; i++)
+                {
+                    if (heights[i].HasValue && deltaHeights[i].HasValue)
+                    {
+                        // Если следующая точка уже известна (репер), не перезаписываем
+                        if (!knownIndices.ContainsKey(i + 1))
+                        {
+                            heights[i + 1] = heights[i].Value + deltaHeights[i].Value;
+                        }
+                    }
+                }
+
+                // Распространяем назад (i ← i-1)
+                for (int i = index; i > 0; i--)
+                {
+                    if (heights[i].HasValue && deltaHeights[i - 1].HasValue)
+                    {
+                        // Если предыдущая точка уже известна (репер), не перезаписываем
+                        if (!knownIndices.ContainsKey(i - 1))
+                        {
+                            heights[i - 1] = heights[i].Value - deltaHeights[i - 1].Value;
+                        }
+                    }
+                }
+            }
+
+            // Собираем результаты
+            var result = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
+            for (int i = 0; i < n; i++)
+            {
+                if (heights[i].HasValue)
+                {
+                    result[pointCodes[i]] = heights[i].Value;
+                }
+            }
+
+            return result;
         }
 
+        /// <summary>
+        /// Объединяет высоты, обновляя существующие значения
+        /// </summary>
         private static bool MergeHeights(Dictionary<string, double> source, Dictionary<string, double> destination)
         {
-            var changed = false;
+            bool changed = false;
 
             foreach (var kvp in source)
             {
-                // ИСПРАВЛЕНО: обновляем существующие значения, если они изменились
-                // Это критично для пересчета смежных ходов с общими точками
                 if (!destination.TryGetValue(kvp.Key, out var existingValue))
                 {
-                    // Новая точка - добавляем
                     destination[kvp.Key] = kvp.Value;
                     changed = true;
                 }
                 else if (Math.Abs(existingValue - kvp.Value) > 1e-8)
                 {
-                    // Существующая точка с изменившимся значением - обновляем
                     destination[kvp.Key] = kvp.Value;
                     changed = true;
                 }
@@ -1172,18 +1060,6 @@ namespace Nivtropy.ViewModels
             return changed;
         }
 
-        private static bool TryGetDelta(TraverseRow row, bool useAdjusted, out double delta)
-        {
-            var source = useAdjusted ? row.AdjustedDeltaH : row.DeltaH;
-            if (source.HasValue)
-            {
-                delta = source.Value;
-                return true;
-            }
-
-            delta = 0;
-            return false;
-        }
 
         /// <summary>
         /// Обновляет накопление разности плеч для каждого хода на основе TraverseRow
