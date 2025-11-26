@@ -535,7 +535,9 @@ namespace Nivtropy.ViewModels
             var traverseGroups = items.GroupBy(r => r.LineName).ToList();
 
             // Доступные высоты точек: сначала известные вручную
-            var availableHeights = new Dictionary<string, double>(_dataViewModel.KnownHeights,
+            var adjustedHeights = new Dictionary<string, double>(_dataViewModel.KnownHeights,
+                StringComparer.OrdinalIgnoreCase);
+            var rawHeights = new Dictionary<string, double>(_dataViewModel.KnownHeights,
                 StringComparer.OrdinalIgnoreCase);
 
             var processedGroups = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -551,8 +553,8 @@ namespace Nivtropy.ViewModels
 
                     var groupItems = group.ToList();
                     bool hasAnchor = groupItems.Any(r =>
-                        (!string.IsNullOrWhiteSpace(r.BackCode) && availableHeights.ContainsKey(r.BackCode!)) ||
-                        (!string.IsNullOrWhiteSpace(r.ForeCode) && availableHeights.ContainsKey(r.ForeCode!)));
+                        (!string.IsNullOrWhiteSpace(r.BackCode) && adjustedHeights.ContainsKey(r.BackCode!)) ||
+                        (!string.IsNullOrWhiteSpace(r.ForeCode) && adjustedHeights.ContainsKey(r.ForeCode!)));
 
                     if (!hasAnchor && iteration < traverseGroups.Count - 1)
                         continue;
@@ -565,13 +567,14 @@ namespace Nivtropy.ViewModels
                             .FirstOrDefault(c => !string.IsNullOrWhiteSpace(c));
                         if (!string.IsNullOrWhiteSpace(firstCode))
                         {
-                            availableHeights[firstCode!] = 0.0;
+                            adjustedHeights[firstCode!] = 0.0;
+                            rawHeights[firstCode!] = 0.0;
                             hasAnchor = true;
                         }
                     }
 
-                    CalculateCorrections(groupItems, availableHeights.ContainsKey);
-                    CalculateHeightsForRun(groupItems, availableHeights);
+                    CalculateCorrections(groupItems, adjustedHeights.ContainsKey);
+                    CalculateHeightsForRun(groupItems, adjustedHeights, rawHeights);
                     processedGroups.Add(group.Key);
                     progress = true;
                 }
@@ -581,7 +584,7 @@ namespace Nivtropy.ViewModels
             }
 
             // Обновляем накопление разности плеч для каждого хода
-            UpdateArmDifferenceAccumulation(traverseGroups, availableHeights.ContainsKey);
+            UpdateArmDifferenceAccumulation(traverseGroups, adjustedHeights.ContainsKey);
 
             foreach (var row in items)
             {
@@ -908,7 +911,10 @@ namespace Nivtropy.ViewModels
         /// Рассчитывает высоты точек внутри конкретного хода и добавляет их в словарь доступных высот
         /// с учётом локального уравнивания и уже пересчитанных смежных ходов.
         /// </summary>
-        private void CalculateHeightsForRun(List<TraverseRow> items, Dictionary<string, double> availableHeights)
+        private void CalculateHeightsForRun(
+            List<TraverseRow> items,
+            Dictionary<string, double> adjustedHeights,
+            Dictionary<string, double> rawHeights)
         {
             if (items.Count == 0)
                 return;
@@ -924,8 +930,8 @@ namespace Nivtropy.ViewModels
                 row.IsForeHeightKnown = false;
             }
 
-            var adjusted = new Dictionary<string, double>(availableHeights, StringComparer.OrdinalIgnoreCase);
-            var raw = new Dictionary<string, double>(availableHeights, StringComparer.OrdinalIgnoreCase);
+            var adjusted = new Dictionary<string, double>(adjustedHeights, StringComparer.OrdinalIgnoreCase);
+            var raw = new Dictionary<string, double>(rawHeights, StringComparer.OrdinalIgnoreCase);
 
             for (int iteration = 0; iteration < 20; iteration++)
             {
@@ -943,7 +949,7 @@ namespace Nivtropy.ViewModels
                     if (adjusted.TryGetValue(row.BackCode, out var backZ))
                     {
                         row.BackHeight = backZ;
-                        row.IsBackHeightKnown = availableHeights.ContainsKey(row.BackCode);
+                        row.IsBackHeightKnown = adjustedHeights.ContainsKey(row.BackCode);
                     }
                     if (raw.TryGetValue(row.BackCode, out var backZ0))
                     {
@@ -956,7 +962,7 @@ namespace Nivtropy.ViewModels
                     if (adjusted.TryGetValue(row.ForeCode, out var foreZ))
                     {
                         row.ForeHeight = foreZ;
-                        row.IsForeHeightKnown = availableHeights.ContainsKey(row.ForeCode);
+                        row.IsForeHeightKnown = adjustedHeights.ContainsKey(row.ForeCode);
                     }
                     if (raw.TryGetValue(row.ForeCode, out var foreZ0))
                     {
@@ -967,7 +973,12 @@ namespace Nivtropy.ViewModels
 
             foreach (var kvp in adjusted)
             {
-                availableHeights[kvp.Key] = kvp.Value;
+                adjustedHeights[kvp.Key] = kvp.Value;
+            }
+
+            foreach (var kvp in raw)
+            {
+                rawHeights[kvp.Key] = kvp.Value;
             }
         }
 
