@@ -1150,13 +1150,13 @@ namespace Nivtropy.ViewModels
                 var backHeight = row.BackHeightZ0 ?? GetRunHeight(row.BackCode);
                 var foreHeight = row.ForeHeightZ0 ?? GetRunHeight(row.ForeCode);
 
-                if (backHeight.HasValue && !(foreIsAnchor && row.ForeHeightZ0.HasValue))
+                if (backHeight.HasValue)
                 {
                     var computedFore = backHeight.Value + delta.Value;
                     row.ForeHeightZ0 = computedFore;
                     RecordRunHeight(row.ForeCode, computedFore);
                 }
-                else if (foreHeight.HasValue && !(backIsAnchor && row.BackHeightZ0.HasValue))
+                else if (foreHeight.HasValue)
                 {
                     var computedBack = foreHeight.Value - delta.Value;
                     row.BackHeightZ0 = computedBack;
