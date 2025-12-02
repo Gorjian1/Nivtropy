@@ -511,7 +511,10 @@ namespace Nivtropy.ViewModels
         {
             _benchmarks.Clear();
 
-            foreach (var kvp in _dataViewModel.KnownHeights.OrderBy(k => k.Key))
+            foreach (var kvp in _dataViewModel.KnownHeights
+                             .OrderBy(k => ParsePointCode(k.Key).isNumeric ? 0 : 1)
+                             .ThenBy(k => ParsePointCode(k.Key).number)
+                             .ThenBy(k => k.Key, StringComparer.OrdinalIgnoreCase))
             {
                 _benchmarks.Add(new BenchmarkItem(kvp.Key, kvp.Value));
             }
@@ -522,6 +525,10 @@ namespace Nivtropy.ViewModels
             if (e.PropertyName == nameof(DataViewModel.SelectedRun))
             {
                 OnPropertyChanged(nameof(SelectedRun));
+                UpdateRows();
+            }
+            else if (e.PropertyName == nameof(DataViewModel.SharedPointStates))
+            {
                 UpdateRows();
             }
         }
