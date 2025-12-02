@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace Nivtropy.Models
 {
@@ -28,6 +30,7 @@ namespace Nivtropy.Models
             TotalDistanceFore = totalDistanceFore;
             ArmDifferenceAccumulation = armDifferenceAccumulation;
             KnownPointsCount = knownPointsCount;
+            Closures = Array.Empty<double>();
         }
 
         public int Index { get; }
@@ -79,6 +82,23 @@ namespace Nivtropy.Models
         /// Нужна ли кнопка локального уравнивания (больше 1 известной точки)
         /// </summary>
         public bool NeedsLocalAdjustment => KnownPointsCount > 1;
+
+        /// <summary>
+        /// Невязки, рассчитанные для хода (по секциям при локальном уравнивании)
+        /// </summary>
+        public IReadOnlyList<double> Closures { get; private set; }
+
+        /// <summary>
+        /// Человекочитаемое представление невязок (через запятую)
+        /// </summary>
+        public string ClosuresDisplay => Closures.Count > 0
+            ? string.Join(", ", Closures.Select(c => c.ToString("+0.0000;-0.0000;0.0000")))
+            : "—";
+
+        public void SetClosures(IEnumerable<double> values)
+        {
+            Closures = values?.ToArray() ?? Array.Empty<double>();
+        }
 
         private static string FormatPoint(string? target, string? station)
         {

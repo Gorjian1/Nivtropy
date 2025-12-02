@@ -93,6 +93,8 @@ namespace Nivtropy.ViewModels
                     StationLength = traverseRow.StationLength_m,
                     DeltaH = traverseRow.DeltaH,
                     Correction = traverseRow.Correction,
+                    BaselineCorrection = traverseRow.BaselineCorrection,
+                    CorrectionMode = traverseRow.CorrectionMode,
                     AdjustedDeltaH = traverseRow.AdjustedDeltaH
                 });
 

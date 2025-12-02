@@ -70,6 +70,16 @@ namespace Nivtropy.Models
         public double? Correction { get; set; }
 
         /// <summary>
+        /// Базовая поправка (по всему ходу без локального уравнивания)
+        /// </summary>
+        public double? BaselineCorrection { get; set; }
+
+        /// <summary>
+        /// Режим отображения поправки
+        /// </summary>
+        public CorrectionMode CorrectionMode { get; set; } = CorrectionMode.None;
+
+        /// <summary>
         /// Исправленное превышение (Δh + поправка), м
         /// </summary>
         public double? AdjustedDeltaH { get; set; }
@@ -94,7 +104,26 @@ namespace Nivtropy.Models
         /// <summary>
         /// Отображаемая поправка
         /// </summary>
-        public string CorrectionDisplay => Correction.HasValue ? Correction.Value.ToString("+0.0000;-0.0000;0.0000") : string.Empty;
+        public string CorrectionDisplay
+        {
+            get
+            {
+                return CorrectionMode switch
+                {
+                    CorrectionMode.None => string.Empty,
+                    CorrectionMode.Single => Correction.HasValue
+                        ? Correction.Value.ToString("+0.0000;-0.0000;0.0000")
+                        : string.Empty,
+                    CorrectionMode.Local => (BaselineCorrection.HasValue && Correction.HasValue)
+                        ? string.Format(
+                            System.Globalization.CultureInfo.InvariantCulture,
+                            "{0} / {1}",
+                            BaselineCorrection.Value.ToString("+0.0000;-0.0000;0.0000"),
+                            Correction.Value.ToString("+0.0000;-0.0000;0.0000")),
+                    _ => string.Empty
+                };
+            }
+        }
 
         /// <summary>
         /// Отображаемое исправленное превышение

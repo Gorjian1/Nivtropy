@@ -84,6 +84,16 @@ namespace Nivtropy.Models
         public double? Correction { get; set; }
 
         /// <summary>
+        /// Базовая поправка (как если бы уравнивание выполнялось по всему ходу без локальных секций)
+        /// </summary>
+        public double? BaselineCorrection { get; set; }
+
+        /// <summary>
+        /// Режим отображения поправки
+        /// </summary>
+        public CorrectionMode CorrectionMode { get; set; } = CorrectionMode.None;
+
+        /// <summary>
         /// Исправленное превышение (с учётом поправки)
         /// </summary>
         public double? AdjustedDeltaH => DeltaH.HasValue && Correction.HasValue
@@ -149,5 +159,12 @@ namespace Nivtropy.Models
                 }
             }
         }
+    }
+
+    public enum CorrectionMode
+    {
+        None,
+        Single,
+        Local
     }
 }
