@@ -16,20 +16,32 @@ namespace Nivtropy.Converters
                 var traverseRows = group.Items.OfType<TraverseRow>().ToList();
                 if (traverseRows.Count > 0)
                 {
-                    return traverseRows
+                    var summary = traverseRows.First().LineSummary;
+                    if (summary?.Closures.Count > 0)
+                        return summary.ClosuresDisplay;
+
+                    var fallback = traverseRows
                         .Where(r => r.DeltaH.HasValue)
                         .Sum(r => r.DeltaH!.Value);
+
+                    return fallback.ToString("+0.0000;-0.0000;0.0000");
                 }
 
                 var journalRows = group.Items.OfType<JournalRow>().ToList();
                 if (journalRows.Count > 0)
                 {
-                    return journalRows
+                    var summary = journalRows.First().LineSummary;
+                    if (summary?.Closures.Count > 0)
+                        return summary.ClosuresDisplay;
+
+                    var fallback = journalRows
                         .Where(r => r.RowType == JournalRowType.Elevation && r.DeltaH.HasValue)
                         .Sum(r => r.DeltaH!.Value);
+
+                    return fallback.ToString("+0.0000;-0.0000;0.0000");
                 }
 
-                return null;
+                return "—";
             }
 
             return null;
