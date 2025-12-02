@@ -247,11 +247,11 @@
                                         <TextBlock Text="{Binding Name}" FontWeight="SemiBold" Foreground="#202020" />
                                         <TextBlock Text=" • Станций: " Margin="12,0,0,0" Foreground="#707070" />
                                         <TextBlock Text="{Binding ItemCount, Converter={StaticResource JournalStationCountConverter}}" FontWeight="SemiBold" Foreground="#202020" />
-                                        <TextBlock Text=" • ΣΔh: " Margin="12,0,0,0" Foreground="#707070" />
-                                        <TextBlock Text="{Binding Converter={StaticResource GroupClosureConverter}, StringFormat=+0.0000;-0.0000;0.0000}"
-                                                   FontWeight="SemiBold"
-                                                   Foreground="#0078D4" />
-                                        <TextBlock Text=" м" Foreground="#707070" />
+                                            <TextBlock Text=" • ΣΔh: " Margin="12,0,0,0" Foreground="#707070" />
+                                            <TextBlock Text="{Binding Items[0].LineSummary.SectionClosuresDisplay}"
+                                                       FontWeight="SemiBold"
+                                                       Foreground="#0078D4" />
+                                            <TextBlock Text=" м" Foreground="#707070" />
                                         <TextBlock Text=" • Длина: " Margin="12,0,0,0" Foreground="#707070" />
                                         <TextBlock Text="{Binding Items[0].LineSummary.TotalAverageLength, StringFormat=0.00}" FontWeight="Bold" Foreground="#0078D4" />
                                         <TextBlock Text=" м" Foreground="#707070" />

@@ -711,6 +711,8 @@ namespace Nivtropy.ViewModels
             var anchorsCount = CountAnchors(items, isAnchor);
             var hasIntermediateAnchors = anchorsCount > 1;
 
+            var sectionClosures = new List<double>();
+
             if (lineSummary != null)
             {
                 lineSummary.KnownPointsCount = anchorsCount;
@@ -719,13 +721,20 @@ namespace Nivtropy.ViewModels
             if (hasIntermediateAnchors || (lineSummary?.UseLocalAdjustment ?? false))
             {
                 // Локальное уравнивание: разбиваем на секции между известными точками
-                CalculateCorrectionsWithSections(items, isAnchor);
+                sectionClosures.AddRange(CalculateCorrectionsWithSections(items, isAnchor));
             }
             else
             {
                 // Обычное уравнивание: по всему ходу
-                CalculateCorrectionsForSection(items);
+                var closure = CalculateCorrectionsForSection(items);
+                if (closure.HasValue)
+                {
+                    sectionClosures.Add(closure.Value);
+                }
             }
+
+            lineSummary?.SetSectionClosures(sectionClosures);
+        }
         }
 
         private static int CountAnchors(IEnumerable<TraverseRow> items, Func<string, bool> isAnchor)
@@ -751,66 +760,85 @@ namespace Nivtropy.ViewModels
         /// <summary>
         /// Локальное уравнивание: разбивает ход на секции и уравнивает каждую отдельно
         /// </summary>
-        private void CalculateCorrectionsWithSections(List<TraverseRow> items, Func<string, bool> isAnchor)
+        private List<double> CalculateCorrectionsWithSections(List<TraverseRow> items, Func<string, bool> isAnchor)
         {
             if (items.Count == 0)
-                return;
+                return new List<double>();
 
-            // Находим индексы известных точек
-            var knownPointIndices = new List<int>();
+            var sectionClosures = new List<double>();
+            var boundaries = CollectAnchorBoundaries(items, isAnchor);
+
+            if (boundaries.Count < 2)
+            {
+                var closure = CalculateCorrectionsForSection(items);
+                if (closure.HasValue)
+                {
+                    sectionClosures.Add(closure.Value);
+                }
+                return sectionClosures;
+            }
+
+            // Разбиваем на секции между известными точками
+            for (int i = 0; i < boundaries.Count - 1; i++)
+            {
+                int startIdx = boundaries[i];
+                int endIdx = boundaries[i + 1];
+
+                if (endIdx <= startIdx)
+                    continue;
+
+                var sectionRows = items.Skip(startIdx).Take(endIdx - startIdx).ToList();
+
+                if (sectionRows.Count > 0)
+                {
+                    var closure = CalculateCorrectionsForSection(sectionRows);
+                    if (closure.HasValue)
+                    {
+                        sectionClosures.Add(closure.Value);
+                    }
+                }
+            }
+
+            return sectionClosures;
+        }
+
+        /// <summary>
+        /// Собирает границы секций по известным точкам (индексы станций) с учётом закрытых ходов.
+        /// </summary>
+        private static List<int> CollectAnchorBoundaries(List<TraverseRow> items, Func<string, bool> isAnchor)
+        {
+            var boundaries = new HashSet<int>();
 
             for (int i = 0; i < items.Count; i++)
             {
                 var row = items[i];
 
-                // Проверяем заднюю точку
-                if (!string.IsNullOrWhiteSpace(row.BackCode) && isAnchor(row.BackCode!))
+                if (!string.IsNullOrWhiteSpace(row.BackCode) && isAnchor(row.BackCode))
                 {
-                    if (!knownPointIndices.Contains(i))
-                        knownPointIndices.Add(i);
+                    boundaries.Add(i);
                 }
 
-                // Проверяем переднюю точку
-                if (!string.IsNullOrWhiteSpace(row.ForeCode) && isAnchor(row.ForeCode!))
+                if (!string.IsNullOrWhiteSpace(row.ForeCode) && isAnchor(row.ForeCode))
                 {
                     // ForeCode станции i соответствует BackCode станции i+1
-                    if (i < items.Count - 1 && !knownPointIndices.Contains(i + 1))
-                        knownPointIndices.Add(i + 1);
+                    boundaries.Add(Math.Min(i + 1, items.Count));
                 }
             }
 
-            knownPointIndices.Sort();
-
-            if (knownPointIndices.Count < 2)
-            {
-                // Недостаточно известных точек для секций, используем обычное уравнивание
-                CalculateCorrectionsForSection(items);
-                return;
-            }
-
-            // Разбиваем на секции между известными точками
-            for (int i = 0; i < knownPointIndices.Count - 1; i++)
-            {
-                int startIdx = knownPointIndices[i];
-                int endIdx = knownPointIndices[i + 1];
-
-                // Секция включает станции от startIdx до endIdx (не включая startIdx, т.к. это виртуальная станция начала секции)
-                var sectionRows = items.Skip(startIdx).Take(endIdx - startIdx).ToList();
-
-                if (sectionRows.Count > 0)
-                {
-                    CalculateCorrectionsForSection(sectionRows);
-                }
-            }
+            return boundaries
+                .Where(idx => idx >= 0 && idx <= items.Count)
+                .Distinct()
+                .OrderBy(idx => idx)
+                .ToList();
         }
 
         /// <summary>
         /// Рассчитывает поправки для одной секции хода (или всего хода)
         /// </summary>
-        private void CalculateCorrectionsForSection(List<TraverseRow> items)
+        private double? CalculateCorrectionsForSection(List<TraverseRow> items)
         {
             if (items.Count == 0)
-                return;
+                return null;
 
             // Вычисляем невязку для данной секции
             var sign = MethodOrientationSign;
@@ -820,7 +848,7 @@ namespace Nivtropy.ViewModels
 
             var adjustableRows = items.Where(r => r.DeltaH.HasValue).ToList();
             if (adjustableRows.Count == 0)
-                return;
+                return sectionClosure;
 
             // Вычисляем общую длину секции (среднее расстояние для каждой станции)
             double totalDistance = 0;
@@ -841,7 +869,7 @@ namespace Nivtropy.ViewModels
                     allocations.Add(new CorrectionAllocation(row, correctionPerStation));
                 }
                 ApplyRoundedCorrections(allocations);
-                return;
+                return sectionClosure;
             }
 
             // Распределяем невязку пропорционально длинам
@@ -853,6 +881,8 @@ namespace Nivtropy.ViewModels
             }
 
             ApplyRoundedCorrections(allocations);
+
+            return sectionClosure;
         }
 
         private const double CorrectionRoundingStep = 0.0001;

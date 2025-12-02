@@ -1,4 +1,7 @@
 using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.Linq;
 
 namespace Nivtropy.Models
 {
@@ -66,6 +69,12 @@ namespace Nivtropy.Models
         public int KnownPointsCount { get; set; }
 
         /// <summary>
+        /// Невязки по секциям при локальном уравнивании (или одна невязка по всему ходу)
+        /// </summary>
+        public IReadOnlyList<double> SectionClosures => _sectionClosures;
+        private readonly List<double> _sectionClosures = new();
+
+        /// <summary>
         /// Флаг превышения допуска накопления разности плеч
         /// </summary>
         public bool IsArmDifferenceAccumulationExceeded { get; set; }
@@ -79,6 +88,23 @@ namespace Nivtropy.Models
         /// Нужна ли кнопка локального уравнивания (больше 1 известной точки)
         /// </summary>
         public bool NeedsLocalAdjustment => KnownPointsCount > 1;
+
+        /// <summary>
+        /// Текстовый вывод невязок для шапки таблицы
+        /// </summary>
+        public string SectionClosuresDisplay =>
+            _sectionClosures.Count == 0
+                ? "—"
+                : string.Join(", ", _sectionClosures.Select(v => v.ToString("+0.0000;-0.0000;0.0000", CultureInfo.InvariantCulture)));
+
+        /// <summary>
+        /// Обновляет список невязок секций.
+        /// </summary>
+        public void SetSectionClosures(IEnumerable<double> closures)
+        {
+            _sectionClosures.Clear();
+            _sectionClosures.AddRange(closures);
+        }
 
         private static string FormatPoint(string? target, string? station)
         {
