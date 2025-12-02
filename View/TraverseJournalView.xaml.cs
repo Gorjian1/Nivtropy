@@ -17,6 +17,7 @@ namespace Nivtropy.Views
     {
         private System.Collections.Generic.List<TraverseRow>? _currentTraverseRows;
         private TraverseCalculationViewModel? _currentViewModel;
+        private ProfileStatistics? _currentStatistics;
 
         private static Color _savedProfileColor = Color.FromRgb(0x19, 0x76, 0xD2);
         private static Color _savedProfileZ0Color = Color.FromRgb(0x80, 0x80, 0x80);
@@ -77,28 +78,41 @@ namespace Nivtropy.Views
 
                     ProfileTitleText.Text = $"Профиль хода: {traverseName}";
 
-                    if (!_savedMinHeight.HasValue || !_savedMaxHeight.HasValue)
+                    // Сбрасываем настройки масштаба для нового профиля (автомасштаб)
+                    _manualMinHeight = null;
+                    _manualMaxHeight = null;
+
+                    // Вычисляем автоматический масштаб для текущего хода
+                    var heights = new System.Collections.Generic.List<double>();
+
+                    if (_showZ)
                     {
-                        var heights = traverseRows
+                        heights.AddRange(traverseRows
                             .Select(r => r.IsVirtualStation ? r.BackHeight : r.ForeHeight)
                             .Where(h => h.HasValue)
-                            .Select(h => h!.Value)
-                            .ToList();
+                            .Select(h => h!.Value));
+                    }
 
-                        if (heights.Any())
-                        {
-                            MinHeightTextBox.Text = (_savedMinHeight ?? heights.Min()).ToString("F2");
-                            MaxHeightTextBox.Text = (_savedMaxHeight ?? heights.Max()).ToString("F2");
-                        }
-                    }
-                    else
+                    if (_showZ0)
                     {
-                        MinHeightTextBox.Text = _savedMinHeight.Value.ToString("F2");
-                        MaxHeightTextBox.Text = _savedMaxHeight.Value.ToString("F2");
+                        heights.AddRange(traverseRows
+                            .Select(r => r.IsVirtualStation ? r.BackHeightZ0 : r.ForeHeightZ0)
+                            .Where(h => h.HasValue)
+                            .Select(h => h!.Value));
                     }
+
+                    if (heights.Any())
+                    {
+                        MinHeightTextBox.Text = heights.Min().ToString("F2");
+                        MaxHeightTextBox.Text = heights.Max().ToString("F2");
+                    }
+
+                    // Вычисляем статистику и обнаруживаем аномалии
+                    _currentStatistics = CalculateStatistics(traverseRows);
 
                     TraverseDetailsPopup.IsOpen = true;
                     DrawProportionalProfile(traverseRows);
+                    UpdateStatisticsPanel();
                 }
             }
         }
@@ -264,6 +278,51 @@ namespace Nivtropy.Views
                              sharedPoints.Contains(point.pointCode),
                              knownHeightPoints.Contains(point.pointCode),
                              profileBrush);
+                }
+            }
+
+            // Визуализация аномалий (красные кружки)
+            if (_currentStatistics != null && _currentStatistics.HasOutliers)
+            {
+                var outlierStations = _currentStatistics.Outliers.Select(o => o.StationIndex).ToHashSet();
+
+                for (int i = 0; i < rows.Count; i++)
+                {
+                    if (outlierStations.Contains(rows[i].Index))
+                    {
+                        var distance = 0.0;
+                        for (int j = 0; j < i; j++)
+                        {
+                            distance += rows[j].StationLength_m ?? 0;
+                        }
+
+                        var height = rows[i].IsVirtualStation ? rows[i].BackHeight : rows[i].ForeHeight;
+                        if (height.HasValue)
+                        {
+                            var x = margin + (distance / totalDistance) * plotWidth;
+                            var y = canvasHeight - margin - ((height.Value - minHeight) / heightRange * plotHeight);
+
+                            // Находим все аномалии для этой станции
+                            var stationOutliers = _currentStatistics.Outliers.Where(o => o.StationIndex == rows[i].Index).ToList();
+                            var maxSeverity = stationOutliers.Max(o => o.Severity);
+                            var outlierDescriptions = string.Join("\n", stationOutliers.Select(o => o.Description));
+
+                            // Рисуем индикатор аномалии
+                            var indicatorColor = maxSeverity >= 3 ? Colors.Red : (maxSeverity >= 2 ? Colors.OrangeRed : Colors.Orange);
+                            var outerCircle = new Ellipse
+                            {
+                                Width = 16,
+                                Height = 16,
+                                Stroke = new SolidColorBrush(indicatorColor),
+                                StrokeThickness = 2,
+                                Fill = Brushes.Transparent,
+                                ToolTip = $"⚠ Аномалия на станции {rows[i].Index}\n{outlierDescriptions}"
+                            };
+                            Canvas.SetLeft(outerCircle, x - 8);
+                            Canvas.SetTop(outerCircle, y - 8);
+                            ProfileCanvas.Children.Add(outerCircle);
+                        }
+                    }
                 }
             }
 
@@ -655,6 +714,176 @@ namespace Nivtropy.Views
             }
         }
 
+        /// <summary>
+        /// Вычисляет статистику и обнаруживает аномалии в данных хода
+        /// </summary>
+        private ProfileStatistics CalculateStatistics(System.Collections.Generic.List<TraverseRow> rows, double sensitivitySigma = 2.5)
+        {
+            var stats = new ProfileStatistics
+            {
+                StationCount = rows.Count
+            };
+
+            if (rows.Count < 2)
+                return stats;
+
+            // Собираем данные
+            var heights = new System.Collections.Generic.List<double>();
+            var deltaHs = new System.Collections.Generic.List<double>();
+            var stationLengths = new System.Collections.Generic.List<double>();
+            var armDifferences = new System.Collections.Generic.List<double>();
+
+            foreach (var row in rows)
+            {
+                var height = row.IsVirtualStation ? row.BackHeight : row.ForeHeight;
+                if (height.HasValue) heights.Add(height.Value);
+
+                if (row.DeltaH.HasValue) deltaHs.Add(row.DeltaH.Value);
+                if (row.StationLength_m.HasValue) stationLengths.Add(row.StationLength_m.Value);
+                if (row.ArmDifference_m.HasValue) armDifferences.Add(row.ArmDifference_m.Value);
+            }
+
+            // Статистика высот
+            if (heights.Count > 0)
+            {
+                stats.MinHeight = heights.Min();
+                stats.MaxHeight = heights.Max();
+                stats.MeanHeight = heights.Average();
+                stats.StdDevHeight = CalculateStdDev(heights, stats.MeanHeight);
+            }
+
+            // Статистика превышений
+            if (deltaHs.Count > 0)
+            {
+                stats.MinDeltaH = deltaHs.Min();
+                stats.MaxDeltaH = deltaHs.Max();
+                stats.MeanDeltaH = deltaHs.Average();
+                stats.StdDevDeltaH = CalculateStdDev(deltaHs, stats.MeanDeltaH);
+                stats.MaxAbsDeltaH = deltaHs.Max(Math.Abs);
+            }
+
+            // Статистика длин станций
+            if (stationLengths.Count > 0)
+            {
+                stats.MinStationLength = stationLengths.Min();
+                stats.MaxStationLength = stationLengths.Max();
+                stats.MeanStationLength = stationLengths.Average();
+                stats.StdDevStationLength = CalculateStdDev(stationLengths, stats.MeanStationLength);
+                stats.TotalLength = stationLengths.Sum();
+            }
+
+            // Статистика разности плеч
+            if (armDifferences.Count > 0)
+            {
+                stats.MinArmDifference = armDifferences.Min();
+                stats.MaxArmDifference = armDifferences.Max();
+                stats.MeanArmDifference = armDifferences.Average();
+                stats.StdDevArmDifference = CalculateStdDev(armDifferences, stats.MeanArmDifference);
+            }
+
+            // Поиск аномалий
+            DetectOutliers(rows, stats, sensitivitySigma);
+
+            return stats;
+        }
+
+        /// <summary>
+        /// Вычисляет стандартное отклонение
+        /// </summary>
+        private double CalculateStdDev(System.Collections.Generic.List<double> values, double mean)
+        {
+            if (values.Count < 2) return 0;
+            var sumSquares = values.Sum(v => Math.Pow(v - mean, 2));
+            return Math.Sqrt(sumSquares / (values.Count - 1));
+        }
+
+        /// <summary>
+        /// Обнаруживает аномалии (выбросы) в данных
+        /// </summary>
+        private void DetectOutliers(System.Collections.Generic.List<TraverseRow> rows, ProfileStatistics stats, double sensitivitySigma)
+        {
+            // 1. Резкие перепады превышений (анализ последовательных разностей)
+            for (int i = 1; i < rows.Count; i++)
+            {
+                var prevDeltaH = rows[i - 1].DeltaH;
+                var currDeltaH = rows[i].DeltaH;
+
+                if (prevDeltaH.HasValue && currDeltaH.HasValue)
+                {
+                    var diff = Math.Abs(currDeltaH.Value - prevDeltaH.Value);
+                    var threshold = sensitivitySigma * stats.StdDevDeltaH;
+
+                    if (threshold > 0.001 && diff > threshold)
+                    {
+                        var deviation = diff / stats.StdDevDeltaH;
+                        stats.Outliers.Add(new OutlierPoint
+                        {
+                            StationIndex = rows[i].Index,
+                            PointCode = rows[i].PointCode ?? "—",
+                            Value = currDeltaH.Value,
+                            ExpectedValue = prevDeltaH.Value,
+                            DeviationInSigma = deviation,
+                            Type = OutlierType.HeightJump,
+                            Description = $"Резкий перепад: Δh = {diff:F4} м ({deviation:F1}σ)",
+                            Severity = deviation > 4 ? 3 : (deviation > 3 ? 2 : 1)
+                        });
+                    }
+                }
+            }
+
+            // 2. Аномальные длины станций
+            if (stats.StdDevStationLength > 0.001)
+            {
+                for (int i = 0; i < rows.Count; i++)
+                {
+                    var length = rows[i].StationLength_m;
+                    if (length.HasValue)
+                    {
+                        var diff = Math.Abs(length.Value - stats.MeanStationLength);
+                        var deviation = diff / stats.StdDevStationLength;
+
+                        if (deviation > sensitivitySigma)
+                        {
+                            stats.Outliers.Add(new OutlierPoint
+                            {
+                                StationIndex = rows[i].Index,
+                                PointCode = rows[i].PointCode ?? "—",
+                                Value = length.Value,
+                                ExpectedValue = stats.MeanStationLength,
+                                DeviationInSigma = deviation,
+                                Type = OutlierType.StationLength,
+                                Description = $"Аномальная длина: {length.Value:F2} м ({deviation:F1}σ)",
+                                Severity = deviation > 4 ? 2 : 1
+                            });
+                        }
+                    }
+                }
+            }
+
+            // 3. Превышение разности плеч (если есть допуск из класса нивелирования)
+            for (int i = 0; i < rows.Count; i++)
+            {
+                if (rows[i].IsArmDifferenceExceeded)
+                {
+                    var armDiff = rows[i].ArmDifference_m;
+                    if (armDiff.HasValue)
+                    {
+                        stats.Outliers.Add(new OutlierPoint
+                        {
+                            StationIndex = rows[i].Index,
+                            PointCode = rows[i].PointCode ?? "—",
+                            Value = Math.Abs(armDiff.Value),
+                            ExpectedValue = 0,
+                            DeviationInSigma = 0,
+                            Type = OutlierType.ArmDifference,
+                            Description = $"Превышена разность плеч: {Math.Abs(armDiff.Value):F2} м",
+                            Severity = 2
+                        });
+                    }
+                }
+            }
+        }
+
         private void UpdateLegendVisibility()
         {
             if (LegendZItem != null)
@@ -671,6 +900,58 @@ namespace Nivtropy.Views
 
             if (LegendZ0Line != null)
                 LegendZ0Line.Fill = new SolidColorBrush(_profileZ0Color);
+        }
+
+        /// <summary>
+        /// Обновляет панель статистики
+        /// </summary>
+        private void UpdateStatisticsPanel()
+        {
+            if (_currentStatistics == null) return;
+
+            var stats = _currentStatistics;
+
+            // Обновляем текстовые значения
+            if (StatsMinHeight != null) StatsMinHeight.Text = stats.MinHeight.ToString("F2");
+            if (StatsMaxHeight != null) StatsMaxHeight.Text = stats.MaxHeight.ToString("F2");
+            if (StatsMeanHeight != null) StatsMeanHeight.Text = stats.MeanHeight.ToString("F2");
+            if (StatsStdDevHeight != null) StatsStdDevHeight.Text = stats.StdDevHeight.ToString("F3");
+
+            if (StatsMaxDeltaH != null) StatsMaxDeltaH.Text = stats.MaxAbsDeltaH.ToString("F4");
+            if (StatsMeanDeltaH != null) StatsMeanDeltaH.Text = stats.MeanDeltaH.ToString("F4");
+
+            if (StatsMeanLength != null) StatsMeanLength.Text = stats.MeanStationLength.ToString("F2");
+            if (StatsTotalLength != null) StatsTotalLength.Text = stats.TotalLength.ToString("F2");
+
+            // Обновляем панель аномалий
+            if (OutliersPanel != null && StatsOutliersCount != null && OutliersList != null)
+            {
+                if (stats.HasOutliers)
+                {
+                    OutliersPanel.Visibility = Visibility.Visible;
+                    StatsOutliersCount.Text = stats.TotalOutliers.ToString();
+
+                    // Ограничиваем количество отображаемых аномалий (максимум 5)
+                    var displayOutliers = stats.Outliers.OrderByDescending(o => o.Severity).ThenByDescending(o => o.DeviationInSigma).Take(5).ToList();
+                    OutliersList.ItemsSource = displayOutliers;
+
+                    // Меняем цвет панели в зависимости от серьезности
+                    if (stats.HasCriticalOutliers)
+                    {
+                        OutliersPanel.Background = new SolidColorBrush(Color.FromRgb(0xFF, 0xE5, 0xE5)); // Красноватый
+                        OutliersPanel.BorderBrush = new SolidColorBrush(Color.FromRgb(0xFF, 0x44, 0x36));
+                    }
+                    else
+                    {
+                        OutliersPanel.Background = new SolidColorBrush(Color.FromRgb(0xFF, 0xF3, 0xCD)); // Желтоватый
+                        OutliersPanel.BorderBrush = new SolidColorBrush(Color.FromRgb(0xFF, 0xC1, 0x07));
+                    }
+                }
+                else
+                {
+                    OutliersPanel.Visibility = Visibility.Collapsed;
+                }
+            }
         }
     }
 }

@@ -627,6 +627,73 @@
                                     ClipToBounds="True"
                                     SizeChanged="ProfileCanvas_SizeChanged"/>
 
+                            <!-- Панель статистики в левом верхнем углу -->
+                            <Border x:Name="StatisticsBorder"
+                                    HorizontalAlignment="Left"
+                                    VerticalAlignment="Top"
+                                    Background="#F0FFFFFF"
+                                    BorderBrush="#FFCCCCCC"
+                                    BorderThickness="1"
+                                    CornerRadius="3"
+                                    Padding="10,8"
+                                    Margin="20,20"
+                                    MinWidth="220">
+                                <Border.Effect>
+                                    <DropShadowEffect Color="Black" Opacity="0.15" BlurRadius="4" ShadowDepth="1"/>
+                                </Border.Effect>
+                                <StackPanel>
+                                    <TextBlock Text="📊 Статистика хода" FontSize="10" FontWeight="SemiBold" Margin="0,0,0,6" Foreground="#505050"/>
+
+                                    <!-- Высоты -->
+                                    <TextBlock FontSize="9" Foreground="#606060" Margin="0,2,0,0">
+                                        <Run Text="Высоты:  min="/><Run x:Name="StatsMinHeight" FontWeight="SemiBold" Text="—"/>
+                                        <Run Text="  max="/><Run x:Name="StatsMaxHeight" FontWeight="SemiBold" Text="—"/>
+                                    </TextBlock>
+                                    <TextBlock FontSize="9" Foreground="#606060" Margin="0,1,0,0">
+                                        <Run Text="             μ="/><Run x:Name="StatsMeanHeight" FontWeight="SemiBold" Text="—"/>
+                                        <Run Text="  σ="/><Run x:Name="StatsStdDevHeight" FontWeight="SemiBold" Text="—"/>
+                                    </TextBlock>
+
+                                    <!-- Превышения -->
+                                    <TextBlock FontSize="9" Foreground="#606060" Margin="0,4,0,0">
+                                        <Run Text="Превыш: max="/><Run x:Name="StatsMaxDeltaH" FontWeight="SemiBold" Text="—"/>
+                                        <Run Text="  μ="/><Run x:Name="StatsMeanDeltaH" FontWeight="SemiBold" Text="—"/>
+                                    </TextBlock>
+
+                                    <!-- Станции -->
+                                    <TextBlock FontSize="9" Foreground="#606060" Margin="0,4,0,0">
+                                        <Run Text="Станции: μ="/><Run x:Name="StatsMeanLength" FontWeight="SemiBold" Text="—"/>
+                                        <Run Text="  Σ="/><Run x:Name="StatsTotalLength" FontWeight="SemiBold" Text="—"/>
+                                    </TextBlock>
+
+                                    <!-- Аномалии -->
+                                    <Border x:Name="OutliersPanel"
+                                            Background="#FFFFF3CD"
+                                            BorderBrush="#FFFFC107"
+                                            BorderThickness="1"
+                                            CornerRadius="2"
+                                            Padding="6,4"
+                                            Margin="0,6,0,0"
+                                            Visibility="Collapsed">
+                                        <StackPanel>
+                                            <TextBlock FontSize="9" FontWeight="SemiBold" Foreground="#FF856404">
+                                                <Run Text="⚠ Аномалий: "/><Run x:Name="StatsOutliersCount" Text="0"/>
+                                            </TextBlock>
+                                            <ItemsControl x:Name="OutliersList" Margin="0,3,0,0">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <TextBlock FontSize="8" Foreground="#FF856404" TextWrapping="Wrap" Margin="0,1">
+                                                            <Run Text="• Ст. "/><Run Text="{Binding StationIndex}"/>
+                                                            <Run Text=": "/><Run Text="{Binding Description}"/>
+                                                        </TextBlock>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </StackPanel>
+                                    </Border>
+                                </StackPanel>
+                            </Border>
+
                             <!-- Легенда в правом верхнем углу -->
                             <Border x:Name="LegendBorder"
                                     HorizontalAlignment="Right"
