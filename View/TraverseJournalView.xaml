@@ -575,8 +575,8 @@
             <Border Background="White"
                     BorderBrush="#FF90CAF9"
                     BorderThickness="1"
-                    Width="700"
-                    Height="500">
+                    Width="1000"
+                    Height="700">
                 <Border.Effect>
                     <DropShadowEffect Color="Black" Opacity="0.5" BlurRadius="20" ShadowDepth="0"/>
                 </Border.Effect>
@@ -621,48 +621,179 @@
 
                     <!-- Canvas для рисования профиля -->
                     <Border Grid.Row="1" Padding="12" Background="#FFFAFAFA">
-                        <Canvas x:Name="ProfileCanvas"
-                                Background="White"
-                                ClipToBounds="True"
-                                SizeChanged="ProfileCanvas_SizeChanged"/>
+                        <Grid>
+                            <Canvas x:Name="ProfileCanvas"
+                                    Background="White"
+                                    ClipToBounds="True"
+                                    SizeChanged="ProfileCanvas_SizeChanged"/>
+
+                            <!-- Легенда в правом верхнем углу -->
+                            <Border x:Name="LegendBorder"
+                                    HorizontalAlignment="Right"
+                                    VerticalAlignment="Top"
+                                    Background="#F0FFFFFF"
+                                    BorderBrush="#FFCCCCCC"
+                                    BorderThickness="1"
+                                    CornerRadius="3"
+                                    Padding="8,6"
+                                    Margin="20,20">
+                                <Border.Effect>
+                                    <DropShadowEffect Color="Black" Opacity="0.15" BlurRadius="4" ShadowDepth="1"/>
+                                </Border.Effect>
+                                <StackPanel>
+                                    <TextBlock Text="Легенда" FontSize="10" FontWeight="SemiBold" Margin="0,0,0,4" Foreground="#505050"/>
+
+                                    <!-- Линия Z -->
+                                    <StackPanel x:Name="LegendZItem" Orientation="Horizontal" Margin="0,2">
+                                        <Rectangle x:Name="LegendZLine" Width="24" Height="3" Fill="#005A9E" VerticalAlignment="Center"/>
+                                        <TextBlock Text="Z (скорр.)" FontSize="10" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                                    </StackPanel>
+
+                                    <!-- Линия Z0 -->
+                                    <StackPanel x:Name="LegendZ0Item" Orientation="Horizontal" Margin="0,2">
+                                        <Rectangle x:Name="LegendZ0Line" Width="24" Height="3" Fill="#808080" VerticalAlignment="Center">
+                                            <Rectangle.StrokeDashArray>3 2</Rectangle.StrokeDashArray>
+                                        </Rectangle>
+                                        <TextBlock Text="Z₀ (исходн.)" FontSize="10" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </StackPanel>
+                            </Border>
+                        </Grid>
                     </Border>
 
                     <!-- Панель настроек под профилем -->
-                    <Border Grid.Row="2" Background="#FFF5F5F5" BorderBrush="#FFE0E0E0" BorderThickness="0,1,0,0" Padding="12,8">
-                        <StackPanel>
-                            <TextBlock Text="Настройки отображения" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,6" Foreground="#707070"/>
-                            <Grid>
+                    <Border Grid.Row="2" Background="#FFF5F5F5" BorderBrush="#FFE0E0E0" BorderThickness="0,1,0,0" Padding="12,10">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="8"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="8"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <!-- Заголовок -->
+                            <TextBlock Grid.Row="0" Text="Настройки отображения" FontSize="11" FontWeight="SemiBold" Foreground="#707070"/>
+
+                            <!-- Первая строка: отображение графиков -->
+                            <Grid Grid.Row="2">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="16"/>
+                                    <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
 
-                                <!-- Цвет линии -->
-                                <TextBlock Grid.Column="0" Text="Цвет:" VerticalAlignment="Center" FontSize="11" Margin="0,0,8,0"/>
-                                <ComboBox x:Name="ProfileColorComboBox" Grid.Column="1" SelectedIndex="0" Margin="0,0,12,0" FontSize="11"
+                                <!-- Чекбокс Z -->
+                                <CheckBox x:Name="ShowZCheckBox"
+                                          Grid.Column="0"
+                                          Content="Показать Z (скорректированные)"
+                                          IsChecked="True"
+                                          FontSize="11"
+                                          VerticalAlignment="Center"
+                                          Margin="0,0,12,0"
+                                          Checked="ShowZCheckBox_Changed"
+                                          Unchecked="ShowZCheckBox_Changed"/>
+
+                                <!-- Цвет Z -->
+                                <ComboBox x:Name="ProfileColorComboBox"
+                                          Grid.Column="1"
+                                          SelectedIndex="0"
+                                          Width="110"
+                                          FontSize="11"
+                                          VerticalAlignment="Center"
+                                          IsEnabled="{Binding ElementName=ShowZCheckBox, Path=IsChecked}"
                                           SelectionChanged="ProfileColorComboBox_SelectionChanged">
                                     <ComboBoxItem Content="Синий" Tag="#005A9E"/>
                                     <ComboBoxItem Content="Зелёный" Tag="#107C10"/>
                                     <ComboBoxItem Content="Оранжевый" Tag="#D83B01"/>
                                     <ComboBoxItem Content="Красный" Tag="#FFF44336"/>
+                                    <ComboBoxItem Content="Фиолетовый" Tag="#8764B8"/>
                                 </ComboBox>
 
+                                <!-- Чекбокс Z0 -->
+                                <CheckBox x:Name="ShowZ0CheckBox"
+                                          Grid.Column="3"
+                                          Content="Показать Z₀ (исходные)"
+                                          IsChecked="True"
+                                          FontSize="11"
+                                          VerticalAlignment="Center"
+                                          Margin="0,0,12,0"
+                                          Checked="ShowZ0CheckBox_Changed"
+                                          Unchecked="ShowZ0CheckBox_Changed"/>
+
+                                <!-- Цвет Z0 -->
+                                <ComboBox x:Name="ProfileZ0ColorComboBox"
+                                          Grid.Column="4"
+                                          SelectedIndex="0"
+                                          Width="110"
+                                          FontSize="11"
+                                          VerticalAlignment="Center"
+                                          IsEnabled="{Binding ElementName=ShowZ0CheckBox, Path=IsChecked}"
+                                          SelectionChanged="ProfileZ0ColorComboBox_SelectionChanged">
+                                    <ComboBoxItem Content="Серый" Tag="#808080"/>
+                                    <ComboBoxItem Content="Голубой" Tag="#00B7C3"/>
+                                    <ComboBoxItem Content="Коричневый" Tag="#8B4513"/>
+                                    <ComboBoxItem Content="Розовый" Tag="#FF69B4"/>
+                                </ComboBox>
+                            </Grid>
+
+                            <!-- Вторая строка: настройки масштаба -->
+                            <Grid Grid.Row="4">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="16"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="16"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+
                                 <!-- Мин высота -->
-                                <TextBlock Grid.Column="2" Text="Мин:" VerticalAlignment="Center" FontSize="11" Margin="0,0,4,0"/>
-                                <TextBox x:Name="MinHeightTextBox" Grid.Column="3" Width="60" Margin="0,0,12,0" FontSize="11"
-                                         TextChanged="HeightLimitTextBox_TextChanged" VerticalContentAlignment="Center"/>
+                                <TextBlock Grid.Column="0" Text="Мин высота:" VerticalAlignment="Center" FontSize="11" Margin="0,0,6,0"/>
+                                <TextBox x:Name="MinHeightTextBox"
+                                         Grid.Column="1"
+                                         Width="70"
+                                         FontSize="11"
+                                         VerticalContentAlignment="Center"
+                                         TextChanged="HeightLimitTextBox_TextChanged"/>
 
                                 <!-- Макс высота -->
-                                <StackPanel Grid.Column="4" Orientation="Horizontal">
-                                    <TextBlock Text="Макс:" VerticalAlignment="Center" FontSize="11" Margin="0,0,4,0"/>
-                                    <TextBox x:Name="MaxHeightTextBox" Width="60" FontSize="11"
-                                             TextChanged="HeightLimitTextBox_TextChanged" VerticalContentAlignment="Center"/>
-                                </StackPanel>
+                                <TextBlock Grid.Column="3" Text="Макс высота:" VerticalAlignment="Center" FontSize="11" Margin="0,0,6,0"/>
+                                <TextBox x:Name="MaxHeightTextBox"
+                                         Grid.Column="4"
+                                         Width="70"
+                                         FontSize="11"
+                                         VerticalContentAlignment="Center"
+                                         TextChanged="HeightLimitTextBox_TextChanged"/>
+
+                                <!-- Кнопка авто -->
+                                <Button Grid.Column="6"
+                                        Content="Авто"
+                                        FontSize="11"
+                                        Padding="12,4"
+                                        Click="AutoScaleButton_Click"
+                                        ToolTip="Автоматический масштаб">
+                                    <Button.Style>
+                                        <Style TargetType="Button">
+                                            <Setter Property="Background" Value="#FFE3F2FD"/>
+                                            <Setter Property="Foreground" Value="#005A9E"/>
+                                            <Setter Property="BorderBrush" Value="#FF90CAF9"/>
+                                            <Setter Property="BorderThickness" Value="1"/>
+                                            <Setter Property="Cursor" Value="Hand"/>
+                                            <Style.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter Property="Background" Value="#FF90CAF9"/>
+                                                </Trigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Button.Style>
+                                </Button>
                             </Grid>
-                        </StackPanel>
+                        </Grid>
                     </Border>
                 </Grid>
             </Border>

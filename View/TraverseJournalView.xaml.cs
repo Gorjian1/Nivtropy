@@ -19,13 +19,20 @@ namespace Nivtropy.Views
         private TraverseCalculationViewModel? _currentViewModel;
 
         private static Color _savedProfileColor = Color.FromRgb(0x19, 0x76, 0xD2);
+        private static Color _savedProfileZ0Color = Color.FromRgb(0x80, 0x80, 0x80);
         private static int _savedColorIndex = 0;
+        private static int _savedZ0ColorIndex = 0;
         private static double? _savedMinHeight;
         private static double? _savedMaxHeight;
+        private static bool _savedShowZ = true;
+        private static bool _savedShowZ0 = true;
 
         private Color _profileColor;
+        private Color _profileZ0Color;
         private double? _manualMinHeight;
         private double? _manualMaxHeight;
+        private bool _showZ = true;
+        private bool _showZ0 = true;
 
         public TraverseJournalView()
         {
@@ -36,13 +43,24 @@ namespace Nivtropy.Views
             Focusable = true;
 
             _profileColor = _savedProfileColor;
+            _profileZ0Color = _savedProfileZ0Color;
             _manualMinHeight = _savedMinHeight;
             _manualMaxHeight = _savedMaxHeight;
+            _showZ = _savedShowZ;
+            _showZ0 = _savedShowZ0;
 
             Loaded += (s, e) =>
             {
                 if (ProfileColorComboBox != null)
                     ProfileColorComboBox.SelectedIndex = _savedColorIndex;
+                if (ProfileZ0ColorComboBox != null)
+                    ProfileZ0ColorComboBox.SelectedIndex = _savedZ0ColorIndex;
+                if (ShowZCheckBox != null)
+                    ShowZCheckBox.IsChecked = _savedShowZ;
+                if (ShowZ0CheckBox != null)
+                    ShowZ0CheckBox.IsChecked = _savedShowZ0;
+
+                UpdateLegendVisibility();
             };
         }
 
@@ -118,32 +136,48 @@ namespace Nivtropy.Views
             if (canvasWidth < 10 || canvasHeight < 10)
                 return;
 
-            var points = new System.Collections.Generic.List<(double height, double distance, string pointCode, int index)>();
+            // Собираем точки для Z и Z0
+            var pointsZ = new System.Collections.Generic.List<(double height, double distance, string pointCode, int index)>();
+            var pointsZ0 = new System.Collections.Generic.List<(double height, double distance, string pointCode, int index)>();
             double cumulativeDistance = 0;
 
             for (int i = 0; i < rows.Count; i++)
             {
                 var row = rows[i];
-                var height = row.IsVirtualStation ? row.BackHeight : row.ForeHeight;
+                var heightZ = row.IsVirtualStation ? row.BackHeight : row.ForeHeight;
+                var heightZ0 = row.IsVirtualStation ? row.BackHeightZ0 : row.ForeHeightZ0;
                 var pointCode = row.PointCode ?? "";
 
-                if (height.HasValue)
+                if (heightZ.HasValue && _showZ)
                 {
-                    points.Add((height.Value, cumulativeDistance, pointCode, i + 1));
-                    cumulativeDistance += row.StationLength_m ?? 0;
+                    pointsZ.Add((heightZ.Value, cumulativeDistance, pointCode, i + 1));
                 }
+
+                if (heightZ0.HasValue && _showZ0)
+                {
+                    pointsZ0.Add((heightZ0.Value, cumulativeDistance, pointCode, i + 1));
+                }
+
+                cumulativeDistance += row.StationLength_m ?? 0;
             }
 
-            if (points.Count < 2)
+            if (pointsZ.Count < 2 && pointsZ0.Count < 2)
                 return;
 
-            var minHeight = _manualMinHeight ?? points.Min(p => p.height);
-            var maxHeight = _manualMaxHeight ?? points.Max(p => p.height);
+            // Определяем диапазон высот для масштабирования
+            var allHeights = new System.Collections.Generic.List<double>();
+            if (_showZ && pointsZ.Any())
+                allHeights.AddRange(pointsZ.Select(p => p.height));
+            if (_showZ0 && pointsZ0.Any())
+                allHeights.AddRange(pointsZ0.Select(p => p.height));
+
+            var minHeight = _manualMinHeight ?? allHeights.Min();
+            var maxHeight = _manualMaxHeight ?? allHeights.Max();
             var heightRange = maxHeight - minHeight;
             if (heightRange < 0.001)
                 heightRange = 1.0;
 
-            var totalDistance = points[^1].distance;
+            var totalDistance = cumulativeDistance;
             if (totalDistance < 0.001)
                 totalDistance = 1.0;
 
@@ -152,9 +186,6 @@ namespace Nivtropy.Views
             var plotHeight = canvasHeight - 2 * margin;
 
             DrawGrid(canvasWidth, canvasHeight, margin, plotWidth, plotHeight, minHeight, maxHeight, totalDistance);
-
-            var allPointCodes = points.Select(p => p.pointCode).ToList();
-            var sharedPoints = allPointCodes.GroupBy(p => p).Where(g => g.Count() > 1).Select(g => g.Key).ToHashSet();
 
             var knownHeightPoints = new System.Collections.Generic.HashSet<string>();
             if (_currentViewModel != null)
@@ -165,38 +196,78 @@ namespace Nivtropy.Views
                 }
             }
 
-            var profileBrush = new SolidColorBrush(_profileColor);
-
-            for (int i = 0; i < points.Count - 1; i++)
+            // Рисуем линию Z0 (пунктиром)
+            if (_showZ0 && pointsZ0.Count >= 2)
             {
-                var x1 = margin + (points[i].distance / totalDistance) * plotWidth;
-                var y1 = canvasHeight - margin - ((points[i].height - minHeight) / heightRange * plotHeight);
-                var x2 = margin + (points[i + 1].distance / totalDistance) * plotWidth;
-                var y2 = canvasHeight - margin - ((points[i + 1].height - minHeight) / heightRange * plotHeight);
+                var profileZ0Brush = new SolidColorBrush(_profileZ0Color);
 
-                var line = new Line
+                for (int i = 0; i < pointsZ0.Count - 1; i++)
                 {
-                    X1 = x1,
-                    Y1 = y1,
-                    X2 = x2,
-                    Y2 = y2,
-                    Stroke = profileBrush,
-                    StrokeThickness = 2.5
-                };
-                ProfileCanvas.Children.Add(line);
+                    var x1 = margin + (pointsZ0[i].distance / totalDistance) * plotWidth;
+                    var y1 = canvasHeight - margin - ((pointsZ0[i].height - minHeight) / heightRange * plotHeight);
+                    var x2 = margin + (pointsZ0[i + 1].distance / totalDistance) * plotWidth;
+                    var y2 = canvasHeight - margin - ((pointsZ0[i + 1].height - minHeight) / heightRange * plotHeight);
 
-                DrawPoint(x1, y1, points[i].pointCode, points[i].index, points[i].height,
-                         sharedPoints.Contains(points[i].pointCode),
-                         knownHeightPoints.Contains(points[i].pointCode),
-                         profileBrush);
+                    var line = new Line
+                    {
+                        X1 = x1,
+                        Y1 = y1,
+                        X2 = x2,
+                        Y2 = y2,
+                        Stroke = profileZ0Brush,
+                        StrokeThickness = 2.0,
+                        StrokeDashArray = new DoubleCollection { 5, 3 }
+                    };
+                    ProfileCanvas.Children.Add(line);
+                }
             }
 
-            var lastX = margin + (points[^1].distance / totalDistance) * plotWidth;
-            var lastY = canvasHeight - margin - ((points[^1].height - minHeight) / heightRange * plotHeight);
-            DrawPoint(lastX, lastY, points[^1].pointCode, points[^1].index, points[^1].height,
-                     sharedPoints.Contains(points[^1].pointCode),
-                     knownHeightPoints.Contains(points[^1].pointCode),
-                     profileBrush);
+            // Рисуем линию Z (сплошной)
+            if (_showZ && pointsZ.Count >= 2)
+            {
+                var profileBrush = new SolidColorBrush(_profileColor);
+
+                for (int i = 0; i < pointsZ.Count - 1; i++)
+                {
+                    var x1 = margin + (pointsZ[i].distance / totalDistance) * plotWidth;
+                    var y1 = canvasHeight - margin - ((pointsZ[i].height - minHeight) / heightRange * plotHeight);
+                    var x2 = margin + (pointsZ[i + 1].distance / totalDistance) * plotWidth;
+                    var y2 = canvasHeight - margin - ((pointsZ[i + 1].height - minHeight) / heightRange * plotHeight);
+
+                    var line = new Line
+                    {
+                        X1 = x1,
+                        Y1 = y1,
+                        X2 = x2,
+                        Y2 = y2,
+                        Stroke = profileBrush,
+                        StrokeThickness = 2.5
+                    };
+                    ProfileCanvas.Children.Add(line);
+                }
+            }
+
+            // Рисуем точки (используем Z если доступен, иначе Z0)
+            var displayPoints = _showZ && pointsZ.Any() ? pointsZ : pointsZ0;
+            if (displayPoints.Any())
+            {
+                var allPointCodes = displayPoints.Select(p => p.pointCode).ToList();
+                var sharedPoints = allPointCodes.GroupBy(p => p).Where(g => g.Count() > 1).Select(g => g.Key).ToHashSet();
+                var profileBrush = new SolidColorBrush(_showZ ? _profileColor : _profileZ0Color);
+
+                foreach (var point in displayPoints)
+                {
+                    var x = margin + (point.distance / totalDistance) * plotWidth;
+                    var y = canvasHeight - margin - ((point.height - minHeight) / heightRange * plotHeight);
+
+                    DrawPoint(x, y, point.pointCode, point.index, point.height,
+                             sharedPoints.Contains(point.pointCode),
+                             knownHeightPoints.Contains(point.pointCode),
+                             profileBrush);
+                }
+            }
+
+            UpdateLegendColors();
         }
 
         private void DrawGrid(double canvasWidth, double canvasHeight, double margin,
@@ -432,6 +503,8 @@ namespace Nivtropy.Views
                 _savedProfileColor = _profileColor;
                 _savedColorIndex = ProfileColorComboBox.SelectedIndex;
 
+                UpdateLegendColors();
+
                 if (_currentTraverseRows != null)
                     DrawProportionalProfile(_currentTraverseRows);
             }
@@ -508,6 +581,96 @@ namespace Nivtropy.Views
 
                 e.Handled = true;
             }
+        }
+
+        private void ShowZCheckBox_Changed(object sender, RoutedEventArgs e)
+        {
+            _showZ = ShowZCheckBox?.IsChecked ?? true;
+            _savedShowZ = _showZ;
+
+            UpdateLegendVisibility();
+
+            if (_currentTraverseRows != null)
+                DrawProportionalProfile(_currentTraverseRows);
+        }
+
+        private void ShowZ0CheckBox_Changed(object sender, RoutedEventArgs e)
+        {
+            _showZ0 = ShowZ0CheckBox?.IsChecked ?? true;
+            _savedShowZ0 = _showZ0;
+
+            UpdateLegendVisibility();
+
+            if (_currentTraverseRows != null)
+                DrawProportionalProfile(_currentTraverseRows);
+        }
+
+        private void ProfileZ0ColorComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (ProfileZ0ColorComboBox.SelectedItem is ComboBoxItem item && item.Tag is string colorHex)
+            {
+                _profileZ0Color = (Color)ColorConverter.ConvertFromString(colorHex);
+                _savedProfileZ0Color = _profileZ0Color;
+                _savedZ0ColorIndex = ProfileZ0ColorComboBox.SelectedIndex;
+
+                UpdateLegendColors();
+
+                if (_currentTraverseRows != null)
+                    DrawProportionalProfile(_currentTraverseRows);
+            }
+        }
+
+        private void AutoScaleButton_Click(object sender, RoutedEventArgs e)
+        {
+            _manualMinHeight = null;
+            _manualMaxHeight = null;
+            _savedMinHeight = null;
+            _savedMaxHeight = null;
+
+            if (_currentTraverseRows != null && _currentTraverseRows.Any())
+            {
+                var heights = new System.Collections.Generic.List<double>();
+
+                if (_showZ)
+                {
+                    heights.AddRange(_currentTraverseRows
+                        .Select(r => r.IsVirtualStation ? r.BackHeight : r.ForeHeight)
+                        .Where(h => h.HasValue)
+                        .Select(h => h!.Value));
+                }
+
+                if (_showZ0)
+                {
+                    heights.AddRange(_currentTraverseRows
+                        .Select(r => r.IsVirtualStation ? r.BackHeightZ0 : r.ForeHeightZ0)
+                        .Where(h => h.HasValue)
+                        .Select(h => h!.Value));
+                }
+
+                if (heights.Any())
+                {
+                    MinHeightTextBox.Text = heights.Min().ToString("F2");
+                    MaxHeightTextBox.Text = heights.Max().ToString("F2");
+                }
+            }
+        }
+
+        private void UpdateLegendVisibility()
+        {
+            if (LegendZItem != null)
+                LegendZItem.Visibility = _showZ ? Visibility.Visible : Visibility.Collapsed;
+
+            if (LegendZ0Item != null)
+                LegendZ0Item.Visibility = _showZ0 ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        private void UpdateLegendColors()
+        {
+            if (LegendZLine != null)
+                LegendZLine.Fill = new SolidColorBrush(_profileColor);
+
+            if (LegendZ0Line != null)
+                LegendZ0Line.Fill = new SolidColorBrush(_profileZ0Color);
         }
     }
 }
