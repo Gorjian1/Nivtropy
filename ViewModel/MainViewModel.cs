@@ -12,7 +12,6 @@ namespace Nivtropy.ViewModels
     public class MainViewModel : INotifyPropertyChanged
     {
         private readonly DataViewControl _dataViewControl;
-        private readonly TraverseCalculationView _calculationView;
         private readonly TraverseJournalView _journalView;
         private readonly TraverseDesignView _designView;
         private readonly SettingsView _settingsView;
@@ -30,7 +29,6 @@ namespace Nivtropy.ViewModels
             DataGeneratorViewModel = new DataGeneratorViewModel();
 
             _dataViewControl = new DataViewControl { DataContext = DataViewModel };
-            _calculationView = new TraverseCalculationView { DataContext = CalculationViewModel };
             _journalView = new TraverseJournalView { DataContext = JournalViewModel };
             _designView = new TraverseDesignView { DataContext = DataGeneratorViewModel };
             _settingsView = new SettingsView { DataContext = SettingsViewModel };
@@ -85,10 +83,9 @@ namespace Nivtropy.ViewModels
             CurrentView = SelectedRibbonIndex switch
             {
                 0 => _dataViewControl,
-                1 => _calculationView,
-                2 => _journalView,
-                3 => _designView,
-                4 => _settingsView,
+                1 => _journalView,
+                2 => _designView,
+                3 => _settingsView,
                 _ => _dataViewControl
             };
         }

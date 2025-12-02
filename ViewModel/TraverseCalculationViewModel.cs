@@ -20,6 +20,7 @@ namespace Nivtropy.ViewModels
         private readonly ObservableCollection<TraverseRow> _rows = new();
         private readonly ObservableCollection<PointItem> _availablePoints = new();
         private readonly ObservableCollection<BenchmarkItem> _benchmarks = new();
+        private readonly Dictionary<string, List<double>> _lineClosureSegments = new(StringComparer.OrdinalIgnoreCase);
 
         private bool _isUpdating = false; // Флаг для подавления обновлений
 
@@ -48,6 +49,7 @@ namespace Nivtropy.ViewModels
         private double? _closure;
         private double? _allowableClosure;
         private string _closureVerdict = "Нет данных для расчёта.";
+        private string _closureSummaryText = "—";
         private double _totalBackDistance;
         private double _totalForeDistance;
         private double _totalAverageDistance;
@@ -159,6 +161,16 @@ namespace Nivtropy.ViewModels
                     OnPropertyChanged(nameof(IsClosureWithinTolerance));
                 }
             }
+        }
+
+        /// <summary>
+        /// Текстовое представление невязок для отображения в шапке.
+        /// Включает все секции при локальном уравнивании.
+        /// </summary>
+        public string ClosureSummaryText
+        {
+            get => _closureSummaryText;
+            private set => SetField(ref _closureSummaryText, value);
         }
 
         public double? ClosureAbsolute => Closure.HasValue ? Math.Abs(Closure.Value) : null;
@@ -512,6 +524,7 @@ namespace Nivtropy.ViewModels
         private void UpdateRows()
         {
             _rows.Clear();
+            _lineClosureSegments.Clear();
 
             var records = _dataViewModel.Records;
 
@@ -520,6 +533,7 @@ namespace Nivtropy.ViewModels
                 Closure = null;
                 AllowableClosure = null;
                 ClosureVerdict = "Нет данных для расчёта.";
+                ClosureSummaryText = "—";
                 StationsCount = 0;
                 TotalBackDistance = 0;
                 TotalForeDistance = 0;
@@ -573,7 +587,8 @@ namespace Nivtropy.ViewModels
                         }
                     }
 
-                    CalculateCorrections(groupItems, availableAdjustedHeights.ContainsKey);
+                    var closures = CalculateCorrections(groupItems, availableAdjustedHeights.ContainsKey);
+                    _lineClosureSegments[group.Key] = closures;
                     CalculateHeightsForRun(groupItems, availableAdjustedHeights, availableRawHeights);
                     processedGroups.Add(group.Key);
                     progress = true;
@@ -612,6 +627,7 @@ namespace Nivtropy.ViewModels
             if (StationsCount == 0)
             {
                 Closure = null;
+                ClosureSummaryText = "—";
                 return;
             }
 
@@ -623,6 +639,26 @@ namespace Nivtropy.ViewModels
                 .Sum(r => r.DeltaH!.Value * sign);
 
             Closure = orientedClosure;
+
+            UpdateClosureSummaryText(sign);
+        }
+
+        private void UpdateClosureSummaryText(double sign)
+        {
+            var allClosures = _lineClosureSegments
+                .SelectMany(kvp => kvp.Value)
+                .Select(c => c * sign)
+                .ToList();
+
+            if (allClosures.Count == 0)
+            {
+                ClosureSummaryText = "—";
+                return;
+            }
+
+            ClosureSummaryText = string.Join(
+                ", ",
+                allClosures.Select(c => c.ToString("+0.0000;-0.0000;0.0000")));
         }
 
         private void UpdateTolerance()
@@ -701,10 +737,10 @@ namespace Nivtropy.ViewModels
         /// 2. Локальное уравнивание - ход разбивается на секции между известными точками,
         ///    и каждая секция уравнивается отдельно
         /// </summary>
-        private void CalculateCorrections(List<TraverseRow> items, Func<string, bool> isAnchor)
+        private List<double> CalculateCorrections(List<TraverseRow> items, Func<string, bool> isAnchor)
         {
             if (items.Count == 0)
-                return;
+                return new List<double>();
 
             // Проверяем, нужно ли локальное уравнивание
             var lineSummary = items.FirstOrDefault()?.LineSummary;
@@ -719,13 +755,12 @@ namespace Nivtropy.ViewModels
             if (hasIntermediateAnchors || (lineSummary?.UseLocalAdjustment ?? false))
             {
                 // Локальное уравнивание: разбиваем на секции между известными точками
-                CalculateCorrectionsWithSections(items, isAnchor);
+                return CalculateCorrectionsWithSections(items, isAnchor);
             }
-            else
-            {
-                // Обычное уравнивание: по всему ходу
-                CalculateCorrectionsForSection(items);
-            }
+
+            // Обычное уравнивание: по всему ходу
+            var closure = CalculateCorrectionsForSection(items);
+            return closure.HasValue ? new List<double> { closure.Value } : new List<double>();
         }
 
         private static int CountAnchors(IEnumerable<TraverseRow> items, Func<string, bool> isAnchor)
@@ -751,10 +786,12 @@ namespace Nivtropy.ViewModels
         /// <summary>
         /// Локальное уравнивание: разбивает ход на секции и уравнивает каждую отдельно
         /// </summary>
-        private void CalculateCorrectionsWithSections(List<TraverseRow> items, Func<string, bool> isAnchor)
+        private List<double> CalculateCorrectionsWithSections(List<TraverseRow> items, Func<string, bool> isAnchor)
         {
             if (items.Count == 0)
-                return;
+                return new List<double>();
+
+            var sectionClosures = new List<double>();
 
             // Находим индексы известных точек
             var knownPointIndices = new List<int>();
@@ -784,8 +821,10 @@ namespace Nivtropy.ViewModels
             if (knownPointIndices.Count < 2)
             {
                 // Недостаточно известных точек для секций, используем обычное уравнивание
-                CalculateCorrectionsForSection(items);
-                return;
+                var fallbackClosure = CalculateCorrectionsForSection(items);
+                return fallbackClosure.HasValue
+                    ? new List<double> { fallbackClosure.Value }
+                    : sectionClosures;
             }
 
             // Разбиваем на секции между известными точками
@@ -799,18 +838,24 @@ namespace Nivtropy.ViewModels
 
                 if (sectionRows.Count > 0)
                 {
-                    CalculateCorrectionsForSection(sectionRows);
+                    var closure = CalculateCorrectionsForSection(sectionRows);
+                    if (closure.HasValue)
+                    {
+                        sectionClosures.Add(closure.Value);
+                    }
                 }
             }
+
+            return sectionClosures;
         }
 
         /// <summary>
         /// Рассчитывает поправки для одной секции хода (или всего хода)
         /// </summary>
-        private void CalculateCorrectionsForSection(List<TraverseRow> items)
+        private double? CalculateCorrectionsForSection(List<TraverseRow> items)
         {
             if (items.Count == 0)
-                return;
+                return null;
 
             // Вычисляем невязку для данной секции
             var sign = MethodOrientationSign;
@@ -820,7 +865,7 @@ namespace Nivtropy.ViewModels
 
             var adjustableRows = items.Where(r => r.DeltaH.HasValue).ToList();
             if (adjustableRows.Count == 0)
-                return;
+                return sectionClosure;
 
             // Вычисляем общую длину секции (среднее расстояние для каждой станции)
             double totalDistance = 0;
@@ -841,7 +886,7 @@ namespace Nivtropy.ViewModels
                     allocations.Add(new CorrectionAllocation(row, correctionPerStation));
                 }
                 ApplyRoundedCorrections(allocations);
-                return;
+                return sectionClosure;
             }
 
             // Распределяем невязку пропорционально длинам
@@ -853,6 +898,7 @@ namespace Nivtropy.ViewModels
             }
 
             ApplyRoundedCorrections(allocations);
+            return sectionClosure;
         }
 
         private const double CorrectionRoundingStep = 0.0001;

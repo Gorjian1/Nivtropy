@@ -64,7 +64,7 @@
 
             <TextBlock Text="&#xE81D;" FontFamily="Segoe MDL2 Assets" FontSize="14" VerticalAlignment="Center" Foreground="#D83B01" />
             <TextBlock Text="ΣΔh:" FontWeight="SemiBold" VerticalAlignment="Center" Margin="4,0,0,0" />
-            <TextBlock Text="{Binding Calculation.Closure, StringFormat=+0.0000;-0.0000;0.0000}" Margin="4,0,4,0" VerticalAlignment="Center" FontWeight="SemiBold">
+            <TextBlock Text="{Binding Calculation.ClosureSummaryText}" Margin="4,0,4,0" VerticalAlignment="Center" FontWeight="SemiBold">
                 <TextBlock.Style>
                     <Style TargetType="TextBlock">
                         <Style.Triggers>
