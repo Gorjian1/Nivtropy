@@ -30,12 +30,6 @@
                     </ToolBar>
                 </ToolBarTray>
             </TabItem>
-
-            <TabItem Header="Расчёты">
-                <ToolBarTray>
-                </ToolBarTray>
-            </TabItem>
-
             <TabItem Header="Журнал">
                 <ToolBarTray>
                     <ToolBar>

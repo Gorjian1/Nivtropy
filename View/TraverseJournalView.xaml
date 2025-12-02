@@ -197,29 +197,21 @@
                                             </Button.Template>
                                         </Button>
 
-                                        <Button x:Name="LocalAdjustmentButton"
+                                        <Button x:Name="SharedPointsButton"
                                                 Width="24" Height="24"
                                                 Margin="0,0,8,0"
                                                 Padding="0"
                                                 BorderThickness="0"
                                                 Cursor="Hand"
                                                 Tag="{Binding Items[0].LineSummary}"
-                                                Click="ToggleLocalAdjustment_Click">
+                                                Click="ShowSharedPoints_Click">
                                             <Button.Style>
                                                 <Style TargetType="Button">
                                                     <Setter Property="Visibility" Value="Collapsed" />
                                                     <Setter Property="Background" Value="#8A8A8A" />
                                                     <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding Items[0].LineSummary.NeedsLocalAdjustment}" Value="True">
+                                                        <DataTrigger Binding="{Binding Items[0].LineSummary.HasSharedPoints}" Value="True">
                                                             <Setter Property="Visibility" Value="Visible" />
-                                                        </DataTrigger>
-                                                        <DataTrigger Binding="{Binding Items[0].LineSummary.UseLocalAdjustment}" Value="True">
-                                                            <Setter Property="Background" Value="#107C10" />
-                                                            <Setter Property="ToolTip" Value="Локальное уравнивание ВКЛЮЧЕНО. Нажмите для отключения" />
-                                                        </DataTrigger>
-                                                        <DataTrigger Binding="{Binding Items[0].LineSummary.UseLocalAdjustment}" Value="False">
-                                                            <Setter Property="Background" Value="#8A8A8A" />
-                                                            <Setter Property="ToolTip" Value="Локальное уравнивание выключено. Нажмите для включения" />
                                                         </DataTrigger>
                                                         <Trigger Property="IsMouseOver" Value="True">
                                                             <Setter Property="Opacity" Value="0.8" />
@@ -248,7 +240,7 @@
                                         <TextBlock Text=" • Станций: " Margin="12,0,0,0" Foreground="#707070" />
                                         <TextBlock Text="{Binding ItemCount, Converter={StaticResource JournalStationCountConverter}}" FontWeight="SemiBold" Foreground="#202020" />
                                         <TextBlock Text=" • ΣΔh: " Margin="12,0,0,0" Foreground="#707070" />
-                                        <TextBlock Text="{Binding Converter={StaticResource GroupClosureConverter}, StringFormat=+0.0000;-0.0000;0.0000}"
+                                        <TextBlock Text="{Binding Converter={StaticResource GroupClosureConverter}}"
                                                    FontWeight="SemiBold"
                                                    Foreground="#0078D4" />
                                         <TextBlock Text=" м" Foreground="#707070" />
@@ -372,7 +364,7 @@
                         </DataGridTextColumn.HeaderTemplate>
                     </DataGridTextColumn>
 
-                    <DataGridTextColumn Binding="{Binding Correction, StringFormat=+0.0000;-0.0000;0.0000}" Width="*">
+                    <DataGridTextColumn Binding="{Binding CorrectionDisplay}" Width="*">
                         <DataGridTextColumn.HeaderTemplate>
                             <DataTemplate>
                                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
@@ -522,6 +514,58 @@
                 </DataGrid.Columns>
             </DataGrid>
         </Border>
+
+        <Popup x:Name="SharedPointsPopup"
+               Placement="Bottom"
+               StaysOpen="False"
+               AllowsTransparency="True">
+            <Border Background="White"
+                    BorderBrush="#FFB0B0B0"
+                    BorderThickness="1"
+                    CornerRadius="3"
+                    MinWidth="280">
+                <Border.Effect>
+                    <DropShadowEffect Color="Black" Opacity="0.3" BlurRadius="10" ShadowDepth="2" />
+                </Border.Effect>
+                <StackPanel>
+                    <TextBlock Text="Общие точки"
+                               FontWeight="SemiBold"
+                               Padding="8,6,8,4" />
+                    <Separator />
+                    <ScrollViewer MaxHeight="240" VerticalScrollBarVisibility="Auto">
+                        <ItemsControl x:Name="SharedPointsList">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border BorderBrush="#FFE0E0E0" BorderThickness="0,0,0,1" Padding="8,6">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <CheckBox Grid.Column="0"
+                                                      IsChecked="{Binding IsEnabled, Mode=TwoWay}"
+                                                      Content="{Binding Code}"
+                                                      VerticalAlignment="Center" />
+                                            <TextBlock Grid.Column="1"
+                                                       Text="{Binding RunsDisplay}"
+                                                       Margin="8,0,0,0"
+                                                       VerticalAlignment="Center"
+                                                       Foreground="#707070" />
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                    <TextBlock x:Name="SharedPointsEmptyText"
+                               Text="Нет общих точек"
+                               Padding="12"
+                               HorizontalAlignment="Center"
+                               Foreground="#707070"
+                               Visibility="Collapsed" />
+                </StackPanel>
+            </Border>
+        </Popup>
 
         <!-- Popup для профиля хода -->
         <Popup x:Name="TraverseDetailsPopup"

@@ -46,19 +46,6 @@ namespace Nivtropy.Views
             };
         }
 
-        private void ToggleLocalAdjustment_Click(object sender, RoutedEventArgs e)
-        {
-            if (sender is Button button && button.Tag is LineSummary lineSummary && DataContext is TraverseJournalViewModel viewModel)
-            {
-                lineSummary.UseLocalAdjustment = !lineSummary.UseLocalAdjustment;
-
-                var calculationViewModel = viewModel.Calculation;
-                var selectedRun = calculationViewModel.SelectedRun;
-                calculationViewModel.SelectedRun = null;
-                calculationViewModel.SelectedRun = selectedRun;
-            }
-        }
-
         private void ShowTraverseDetails_Click(object sender, RoutedEventArgs e)
         {
             if (sender is Button button && button.Tag is string traverseName && DataContext is TraverseJournalViewModel viewModel)
@@ -95,6 +82,20 @@ namespace Nivtropy.Views
                     TraverseDetailsPopup.IsOpen = true;
                     DrawProportionalProfile(traverseRows);
                 }
+            }
+        }
+
+        private void ShowSharedPoints_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button button && button.Tag is LineSummary lineSummary && DataContext is TraverseJournalViewModel viewModel)
+            {
+                var sharedItems = viewModel.Calculation.GetSharedPointsForRun(lineSummary);
+
+                SharedPointsList.ItemsSource = sharedItems;
+                SharedPointsEmptyText.Visibility = sharedItems.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+
+                SharedPointsPopup.PlacementTarget = button;
+                SharedPointsPopup.IsOpen = true;
             }
         }
 
