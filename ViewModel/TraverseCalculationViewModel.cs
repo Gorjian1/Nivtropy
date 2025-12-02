@@ -706,31 +706,64 @@ namespace Nivtropy.ViewModels
             if (items.Count == 0)
                 return;
 
-            var closures = new List<double>();
+            ResetCorrections(items);
 
-            // Проверяем, нужно ли локальное уравнивание
+            var closures = new List<double>();
             var lineSummary = items.FirstOrDefault()?.LineSummary;
-            var anchorsCount = CountAnchors(items, isAnchor);
-            var hasIntermediateAnchors = anchorsCount > 1;
+            var anchorPoints = CollectAnchorPoints(items, isAnchor);
+            var distinctAnchorCount = anchorPoints
+                .Select(a => a.Code)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Count();
 
             if (lineSummary != null)
             {
-                lineSummary.KnownPointsCount = anchorsCount;
+                lineSummary.KnownPointsCount = distinctAnchorCount;
             }
 
-            if (hasIntermediateAnchors || (lineSummary?.UseLocalAdjustment ?? false))
+            var closureMode = DetermineClosureMode(items, isAnchor, anchorPoints, lineSummary);
+
+            switch (closureMode)
             {
-                // Локальное уравнивание: разбиваем на секции между известными точками
-                CalculateCorrectionsWithSections(items, isAnchor, closures);
-            }
-            else
-            {
-                // Обычное уравнивание: по всему ходу
-                var closure = CalculateCorrectionsForSection(items);
-                if (closure.HasValue)
-                {
-                    closures.Add(closure.Value);
-                }
+                case TraverseClosureMode.Open:
+                    break;
+
+                case TraverseClosureMode.Simple:
+                    {
+                        var closure = CalculateCorrectionsForSection(
+                            items,
+                            (row, value) =>
+                            {
+                                row.Correction = value;
+                                row.BaselineCorrection = value;
+                                row.CorrectionMode = CorrectionDisplayMode.Single;
+                            });
+
+                        if (closure.HasValue)
+                        {
+                            closures.Add(closure.Value);
+                        }
+                        break;
+                    }
+
+                case TraverseClosureMode.Local:
+                    {
+                        // Базовая поправка для наглядности — как если бы уравнивали весь ход целиком
+                        CalculateCorrectionsForSection(items, (row, value) => row.BaselineCorrection = value);
+
+                        // Фактическое локальное уравнивание по секциям
+                        CalculateCorrectionsWithSections(
+                            items,
+                            anchorPoints,
+                            closures,
+                            (row, value) =>
+                            {
+                                row.Correction = value;
+                                row.CorrectionMode = CorrectionDisplayMode.Local;
+                            });
+
+                        break;
+                    }
             }
 
             if (lineSummary != null)
@@ -748,24 +781,70 @@ namespace Nivtropy.ViewModels
             }
         }
 
-        private static int CountAnchors(IEnumerable<TraverseRow> items, Func<string, bool> isAnchor)
+        private static void ResetCorrections(List<TraverseRow> items)
         {
-            var anchors = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
             foreach (var row in items)
             {
+                row.Correction = null;
+                row.BaselineCorrection = null;
+                row.CorrectionMode = CorrectionDisplayMode.None;
+            }
+        }
+
+        private static List<(int Index, string Code)> CollectAnchorPoints(List<TraverseRow> items, Func<string, bool> isAnchor)
+        {
+            var knownPoints = new List<(int Index, string Code)>();
+
+            for (int i = 0; i < items.Count; i++)
+            {
+                var row = items[i];
+
                 if (!string.IsNullOrWhiteSpace(row.BackCode) && isAnchor(row.BackCode))
                 {
-                    anchors.Add(row.BackCode);
+                    if (knownPoints.All(p => p.Index != i))
+                        knownPoints.Add((i, row.BackCode));
                 }
 
                 if (!string.IsNullOrWhiteSpace(row.ForeCode) && isAnchor(row.ForeCode))
                 {
-                    anchors.Add(row.ForeCode);
+                    if (i < items.Count - 1 && knownPoints.All(p => p.Index != i + 1))
+                        knownPoints.Add((i + 1, row.ForeCode));
                 }
             }
 
-            return anchors.Count;
+            return knownPoints.OrderBy(p => p.Index).ToList();
+        }
+
+        private TraverseClosureMode DetermineClosureMode(
+            List<TraverseRow> items,
+            Func<string, bool> isAnchor,
+            List<(int Index, string Code)> anchorPoints,
+            LineSummary? lineSummary)
+        {
+            var startCode = items.FirstOrDefault()?.BackCode ?? items.FirstOrDefault()?.ForeCode;
+            var endCode = items.LastOrDefault()?.ForeCode ?? items.LastOrDefault()?.BackCode;
+
+            bool startKnown = !string.IsNullOrWhiteSpace(startCode) && isAnchor(startCode!);
+            bool endKnown = !string.IsNullOrWhiteSpace(endCode) && isAnchor(endCode!);
+            bool closesByLoop = startKnown
+                && !string.IsNullOrWhiteSpace(endCode)
+                && string.Equals(startCode, endCode, StringComparison.OrdinalIgnoreCase);
+
+            bool isClosed = startKnown && (endKnown || closesByLoop);
+            if (!isClosed)
+            {
+                return TraverseClosureMode.Open;
+            }
+
+            var distinctAnchorCount = anchorPoints
+                .Select(a => a.Code)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Count();
+
+            if (distinctAnchorCount > 1 || (lineSummary?.UseLocalAdjustment ?? false))
+                return TraverseClosureMode.Local;
+
+            return TraverseClosureMode.Simple;
         }
 
         /// <summary>
@@ -773,43 +852,17 @@ namespace Nivtropy.ViewModels
         /// </summary>
         private void CalculateCorrectionsWithSections(
             List<TraverseRow> items,
-            Func<string, bool> isAnchor,
-            List<double> closures)
+            List<(int Index, string Code)> knownPoints,
+            List<double> closures,
+            Action<TraverseRow, double>? applyCorrection)
         {
             if (items.Count == 0)
                 return;
 
-            // Находим индексы известных точек
-            var knownPoints = new List<(int Index, string Code)>();
-
-            for (int i = 0; i < items.Count; i++)
-            {
-                var row = items[i];
-
-                // Проверяем заднюю точку
-                if (!string.IsNullOrWhiteSpace(row.BackCode) && isAnchor(row.BackCode!))
-                {
-                    if (knownPoints.All(p => p.Index != i))
-                        knownPoints.Add((i, row.BackCode!));
-                }
-
-                // Проверяем переднюю точку
-                if (!string.IsNullOrWhiteSpace(row.ForeCode) && isAnchor(row.ForeCode!))
-                {
-                    // ForeCode станции i соответствует BackCode станции i+1
-                    if (i < items.Count - 1 && knownPoints.All(p => p.Index != i + 1))
-                        knownPoints.Add((i + 1, row.ForeCode!));
-                }
-            }
-
-            knownPoints = knownPoints
-                .OrderBy(p => p.Index)
-                .ToList();
-
             if (knownPoints.Count < 2)
             {
                 // Недостаточно известных точек для секций, используем обычное уравнивание
-                var closure = CalculateCorrectionsForSection(items);
+                var closure = CalculateCorrectionsForSection(items, applyCorrection);
                 if (closure.HasValue)
                     closures.Add(closure.Value);
                 return;
@@ -826,7 +879,7 @@ namespace Nivtropy.ViewModels
 
                 if (sectionRows.Count > 0)
                 {
-                    var closure = CalculateCorrectionsForSection(sectionRows);
+                    var closure = CalculateCorrectionsForSection(sectionRows, applyCorrection);
                     if (closure.HasValue)
                         closures.Add(closure.Value);
                 }
@@ -844,7 +897,7 @@ namespace Nivtropy.ViewModels
                 var wrapSection = items.Skip(lastAnchor.Index).ToList();
                 if (wrapSection.Count > 0)
                 {
-                    var closure = CalculateCorrectionsForSection(wrapSection);
+                    var closure = CalculateCorrectionsForSection(wrapSection, applyCorrection);
                     if (closure.HasValue)
                         closures.Add(closure.Value);
                 }
@@ -854,7 +907,9 @@ namespace Nivtropy.ViewModels
         /// <summary>
         /// Рассчитывает поправки для одной секции хода (или всего хода)
         /// </summary>
-        private double? CalculateCorrectionsForSection(List<TraverseRow> items)
+        private double? CalculateCorrectionsForSection(
+            List<TraverseRow> items,
+            Action<TraverseRow, double>? applyCorrection = null)
         {
             if (items.Count == 0)
                 return null;
@@ -887,7 +942,7 @@ namespace Nivtropy.ViewModels
                 {
                     allocations.Add(new CorrectionAllocation(row, correctionPerStation));
                 }
-                ApplyRoundedCorrections(allocations);
+                ApplyRoundedCorrections(allocations, applyCorrection);
                 return sectionClosure;
             }
 
@@ -899,17 +954,21 @@ namespace Nivtropy.ViewModels
                 allocations.Add(new CorrectionAllocation(row, correctionFactor * avgDistance));
             }
 
-            ApplyRoundedCorrections(allocations);
+            ApplyRoundedCorrections(allocations, applyCorrection);
 
             return sectionClosure;
         }
 
         private const double CorrectionRoundingStep = 0.0001;
 
-        private static void ApplyRoundedCorrections(List<CorrectionAllocation> allocations)
+        private static void ApplyRoundedCorrections(
+            List<CorrectionAllocation> allocations,
+            Action<TraverseRow, double>? applyCorrection)
         {
             if (allocations.Count == 0)
                 return;
+
+            applyCorrection ??= (row, value) => row.Correction = value;
 
             foreach (var allocation in allocations)
             {
@@ -938,7 +997,7 @@ namespace Nivtropy.ViewModels
 
             foreach (var allocation in allocations)
             {
-                allocation.Row.Correction = allocation.Rounded;
+                applyCorrection(allocation.Row, allocation.Rounded);
             }
         }
 
@@ -954,6 +1013,13 @@ namespace Nivtropy.ViewModels
             public TraverseRow Row { get; }
             public double Raw { get; }
             public double Rounded { get; set; }
+        }
+
+        private enum TraverseClosureMode
+        {
+            Open,
+            Simple,
+            Local
         }
 
         /// <summary>

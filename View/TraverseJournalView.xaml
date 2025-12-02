@@ -372,7 +372,7 @@
                         </DataGridTextColumn.HeaderTemplate>
                     </DataGridTextColumn>
 
-                    <DataGridTextColumn Binding="{Binding Correction, StringFormat=+0.0000;-0.0000;0.0000}" Width="*">
+                    <DataGridTextColumn Binding="{Binding CorrectionDisplay}" Width="*">
                         <DataGridTextColumn.HeaderTemplate>
                             <DataTemplate>
                                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
