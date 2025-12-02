@@ -20,6 +20,9 @@ namespace Nivtropy.ViewModels
         // Словарь известных высот точек: ключ - код точки, значение - высота
         private readonly Dictionary<string, double> _knownHeights = new(StringComparer.OrdinalIgnoreCase);
 
+        // Состояние общих точек: включен/выключен обмен
+        private readonly Dictionary<string, bool> _sharedPointStates = new(StringComparer.OrdinalIgnoreCase);
+
         // События для оптимизации массовых обновлений
         public event EventHandler? BeginBatchUpdate;
         public event EventHandler? EndBatchUpdate;
@@ -140,6 +143,28 @@ namespace Nivtropy.ViewModels
         /// Словарь всех известных высот (только для чтения)
         /// </summary>
         public IReadOnlyDictionary<string, double> KnownHeights => _knownHeights;
+
+        /// <summary>
+        /// Состояние общих точек (для управления обменом высот между ходами)
+        /// </summary>
+        public IReadOnlyDictionary<string, bool> SharedPointStates => _sharedPointStates;
+
+        public bool IsSharedPointEnabled(string? pointCode)
+        {
+            if (string.IsNullOrWhiteSpace(pointCode))
+                return true;
+
+            return !_sharedPointStates.TryGetValue(pointCode.Trim(), out var enabled) || enabled;
+        }
+
+        public void SetSharedPointEnabled(string? pointCode, bool isEnabled)
+        {
+            if (string.IsNullOrWhiteSpace(pointCode))
+                return;
+
+            _sharedPointStates[pointCode.Trim()] = isEnabled;
+            OnPropertyChanged(nameof(SharedPointStates));
+        }
 
         private void AnnotateRuns(IList<MeasurementRecord> records)
         {

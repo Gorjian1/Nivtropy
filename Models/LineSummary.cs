@@ -31,6 +31,7 @@ namespace Nivtropy.Models
             ArmDifferenceAccumulation = armDifferenceAccumulation;
             KnownPointsCount = knownPointsCount;
             Closures = Array.Empty<double>();
+            SharedPointCodes = Array.Empty<string>();
         }
 
         public int Index { get; }
@@ -84,6 +85,23 @@ namespace Nivtropy.Models
         public bool NeedsLocalAdjustment => KnownPointsCount > 1;
 
         /// <summary>
+        /// Общие точки с другими ходами
+        /// </summary>
+        public IReadOnlyList<string> SharedPointCodes { get; private set; }
+
+        /// <summary>
+        /// Есть ли общие точки, которые можно синхронизировать
+        /// </summary>
+        public bool HasSharedPoints => SharedPointCodes.Count > 0;
+
+        /// <summary>
+        /// Человекочитаемое представление общих точек (через запятую)
+        /// </summary>
+        public string SharedPointsDisplay => SharedPointCodes.Count > 0
+            ? string.Join(", ", SharedPointCodes)
+            : "—";
+
+        /// <summary>
         /// Невязки, рассчитанные для хода (по секциям при локальном уравнивании)
         /// </summary>
         public IReadOnlyList<double> Closures { get; private set; }
@@ -98,6 +116,11 @@ namespace Nivtropy.Models
         public void SetClosures(IEnumerable<double> values)
         {
             Closures = values?.ToArray() ?? Array.Empty<double>();
+        }
+
+        public void SetSharedPoints(IEnumerable<string> codes)
+        {
+            SharedPointCodes = codes?.Where(c => !string.IsNullOrWhiteSpace(c)).ToArray() ?? Array.Empty<string>();
         }
 
         private static string FormatPoint(string? target, string? station)

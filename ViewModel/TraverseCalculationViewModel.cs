@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
+using System.Globalization;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Windows.Input;
@@ -20,6 +21,9 @@ namespace Nivtropy.ViewModels
         private readonly ObservableCollection<TraverseRow> _rows = new();
         private readonly ObservableCollection<PointItem> _availablePoints = new();
         private readonly ObservableCollection<BenchmarkItem> _benchmarks = new();
+        private readonly ObservableCollection<SharedPointLinkItem> _sharedPoints = new();
+        private readonly Dictionary<string, SharedPointLinkItem> _sharedPointLookup = new(StringComparer.OrdinalIgnoreCase);
+        private Dictionary<int, List<string>> _sharedPointsByRun = new();
 
         private bool _isUpdating = false; // Флаг для подавления обновлений
 
@@ -95,6 +99,7 @@ namespace Nivtropy.ViewModels
         public ObservableCollection<LineSummary> Runs => _dataViewModel.Runs;
         public ObservableCollection<PointItem> AvailablePoints => _availablePoints;
         public ObservableCollection<BenchmarkItem> Benchmarks => _benchmarks;
+        public ObservableCollection<SharedPointLinkItem> SharedPoints => _sharedPoints;
         public SettingsViewModel Settings => _settingsViewModel;
 
         public LevelingMethodOption[] Methods => _methods;
@@ -475,16 +480,28 @@ namespace Nivtropy.ViewModels
                 }
             }
 
-            // Сортируем по индексу хода, затем по коду точки
+            // Сортируем по индексу хода, затем по естественному порядку кода (числовой/алфавитный)
             var sortedPoints = pointsDict.Values
                 .OrderBy(p => p.LineIndex)
-                .ThenBy(p => p.Code)
+                .ThenBy(p => ParsePointCode(p.Code).isNumeric ? 0 : 1)
+                .ThenBy(p => ParsePointCode(p.Code).number)
+                .ThenBy(p => p.Code, StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
             foreach (var point in sortedPoints)
             {
                 _availablePoints.Add(point);
             }
+        }
+
+        private static (bool isNumeric, double number) ParsePointCode(string code)
+        {
+            if (double.TryParse(code, NumberStyles.Any, CultureInfo.InvariantCulture, out var value))
+            {
+                return (true, value);
+            }
+
+            return (false, double.NaN);
         }
 
         /// <summary>
@@ -494,7 +511,10 @@ namespace Nivtropy.ViewModels
         {
             _benchmarks.Clear();
 
-            foreach (var kvp in _dataViewModel.KnownHeights.OrderBy(k => k.Key))
+            foreach (var kvp in _dataViewModel.KnownHeights
+                             .OrderBy(k => ParsePointCode(k.Key).isNumeric ? 0 : 1)
+                             .ThenBy(k => ParsePointCode(k.Key).number)
+                             .ThenBy(k => k.Key, StringComparer.OrdinalIgnoreCase))
             {
                 _benchmarks.Add(new BenchmarkItem(kvp.Key, kvp.Value));
             }
@@ -505,6 +525,10 @@ namespace Nivtropy.ViewModels
             if (e.PropertyName == nameof(DataViewModel.SelectedRun))
             {
                 OnPropertyChanged(nameof(SelectedRun));
+                UpdateRows();
+            }
+            else if (e.PropertyName == nameof(DataViewModel.SharedPointStates))
+            {
                 UpdateRows();
             }
         }
@@ -534,11 +558,15 @@ namespace Nivtropy.ViewModels
             // Группируем станции по ходам для корректного расчета поправок
             var traverseGroups = items.GroupBy(r => r.LineName).ToList();
 
+            UpdateSharedPointsMetadata(traverseGroups);
+
             // Доступные высоты точек: сначала известные вручную
             var availableAdjustedHeights = new Dictionary<string, double>(_dataViewModel.KnownHeights,
                 StringComparer.OrdinalIgnoreCase);
             var availableRawHeights = new Dictionary<string, double>(_dataViewModel.KnownHeights,
                 StringComparer.OrdinalIgnoreCase);
+
+            bool AnchorChecker(string code) => IsAnchorAllowed(code, availableAdjustedHeights.ContainsKey);
 
             var processedGroups = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
@@ -553,8 +581,8 @@ namespace Nivtropy.ViewModels
 
                     var groupItems = group.ToList();
                     bool hasAnchor = groupItems.Any(r =>
-                        (!string.IsNullOrWhiteSpace(r.BackCode) && availableAdjustedHeights.ContainsKey(r.BackCode!)) ||
-                        (!string.IsNullOrWhiteSpace(r.ForeCode) && availableAdjustedHeights.ContainsKey(r.ForeCode!)));
+                        (!string.IsNullOrWhiteSpace(r.BackCode) && AnchorChecker(r.BackCode!)) ||
+                        (!string.IsNullOrWhiteSpace(r.ForeCode) && AnchorChecker(r.ForeCode!)));
 
                     if (!hasAnchor && iteration < traverseGroups.Count - 1)
                         continue;
@@ -573,7 +601,7 @@ namespace Nivtropy.ViewModels
                         }
                     }
 
-                    CalculateCorrections(groupItems, availableAdjustedHeights.ContainsKey);
+                    CalculateCorrections(groupItems, AnchorChecker);
                     CalculateHeightsForRun(groupItems, availableAdjustedHeights, availableRawHeights);
                     processedGroups.Add(group.Key);
                     progress = true;
@@ -584,7 +612,7 @@ namespace Nivtropy.ViewModels
             }
 
             // Обновляем накопление разности плеч для каждого хода
-            UpdateArmDifferenceAccumulation(traverseGroups, availableAdjustedHeights.ContainsKey);
+            UpdateArmDifferenceAccumulation(traverseGroups, AnchorChecker);
 
             foreach (var row in items)
             {
@@ -677,6 +705,106 @@ namespace Nivtropy.ViewModels
             ClosureVerdict = details.Count > 0
                 ? string.Join(" ", new[] { verdict }.Concat(details))
                 : verdict;
+        }
+
+        private bool IsAnchorAllowed(string? code, Func<string, bool> contains)
+        {
+            if (string.IsNullOrWhiteSpace(code))
+                return false;
+
+            return contains(code) && (_dataViewModel.HasKnownHeight(code) || _dataViewModel.IsSharedPointEnabled(code));
+        }
+
+        private bool AllowPropagation(string code)
+        {
+            return _dataViewModel.HasKnownHeight(code) || _dataViewModel.IsSharedPointEnabled(code);
+        }
+
+        private void UpdateSharedPointsMetadata(List<IGrouping<string, TraverseRow>> traverseGroups)
+        {
+            var usage = new Dictionary<string, HashSet<int>>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var group in traverseGroups)
+            {
+                var runIndex = group.FirstOrDefault()?.LineSummary?.Index ?? 0;
+                if (runIndex == 0)
+                    continue;
+
+                foreach (var code in group
+                             .SelectMany(r => new[] { r.BackCode, r.ForeCode })
+                             .Where(c => !string.IsNullOrWhiteSpace(c))
+                             .Select(c => c!))
+                {
+                    if (!usage.TryGetValue(code, out var set))
+                    {
+                        set = new HashSet<int>();
+                        usage[code] = set;
+                    }
+
+                    set.Add(runIndex);
+                }
+            }
+
+            var sharedCodes = usage
+                .Where(kvp => kvp.Value.Count > 1)
+                .ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
+
+            _sharedPointsByRun = sharedCodes
+                .SelectMany(kvp => kvp.Value.Select(run => (run, kvp.Key)))
+                .GroupBy(x => x.run)
+                .ToDictionary(
+                    g => g.Key,
+                    g => g.Select(x => x.Key)
+                        .OrderBy(code => code, StringComparer.OrdinalIgnoreCase)
+                        .ToList());
+
+            var codesToRemove = _sharedPointLookup.Keys.Where(code => !sharedCodes.ContainsKey(code)).ToList();
+            foreach (var code in codesToRemove)
+            {
+                if (_sharedPointLookup.TryGetValue(code, out var item))
+                {
+                    _sharedPoints.Remove(item);
+                    _sharedPointLookup.Remove(code);
+                }
+            }
+
+            foreach (var kvp in sharedCodes)
+            {
+                if (!_sharedPointLookup.TryGetValue(kvp.Key, out var item))
+                {
+                    var enabled = _dataViewModel.IsSharedPointEnabled(kvp.Key);
+                    item = new SharedPointLinkItem(kvp.Key, enabled, (code, state) => _dataViewModel.SetSharedPointEnabled(code, state));
+                    _sharedPointLookup[kvp.Key] = item;
+                    _sharedPoints.Add(item);
+                }
+
+                item.SetRunIndexes(kvp.Value);
+            }
+
+            var ordered = _sharedPoints
+                .OrderBy(p => ParsePointCode(p.Code).isNumeric ? 0 : 1)
+                .ThenBy(p => ParsePointCode(p.Code).number)
+                .ThenBy(p => p.Code, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            _sharedPoints.Clear();
+            foreach (var item in ordered)
+            {
+                _sharedPoints.Add(item);
+            }
+        }
+
+        public List<SharedPointLinkItem> GetSharedPointsForRun(LineSummary? run)
+        {
+            if (run == null)
+                return new List<SharedPointLinkItem>();
+
+            return _sharedPoints
+                .Where(p => p.IsUsedInRun(run.Index))
+                .OrderBy(p => ParsePointCode(p.Code).isNumeric ? 0 : 1)
+                .ThenBy(p => ParsePointCode(p.Code).number)
+                .ThenBy(p => p.Code, StringComparer.OrdinalIgnoreCase)
+                .ToList();
         }
 
         private double? TryCalculateTolerance(IToleranceOption? option)
@@ -1063,13 +1191,13 @@ namespace Nivtropy.ViewModels
                 if (!string.IsNullOrWhiteSpace(row.BackCode) && adjusted.TryGetValue(row.BackCode, out var backZ))
                 {
                     row.BackHeight = backZ;
-                    row.IsBackHeightKnown = availableAdjustedHeights.ContainsKey(row.BackCode);
+                    row.IsBackHeightKnown = IsAnchorAllowed(row.BackCode, availableAdjustedHeights.ContainsKey);
                 }
 
                 if (!string.IsNullOrWhiteSpace(row.ForeCode) && adjusted.TryGetValue(row.ForeCode, out var foreZ))
                 {
                     row.ForeHeight = foreZ;
-                    row.IsForeHeightKnown = availableAdjustedHeights.ContainsKey(row.ForeCode);
+                    row.IsForeHeightKnown = IsAnchorAllowed(row.ForeCode, availableAdjustedHeights.ContainsKey);
                 }
             }
 
@@ -1176,12 +1304,18 @@ namespace Nivtropy.ViewModels
 
             foreach (var kvp in adjusted)
             {
-                availableAdjustedHeights[kvp.Key] = kvp.Value;
+                if (AllowPropagation(kvp.Key))
+                {
+                    availableAdjustedHeights[kvp.Key] = kvp.Value;
+                }
             }
 
             foreach (var kvp in raw)
             {
-                availableRawHeights[kvp.Key] = kvp.Value;
+                if (AllowPropagation(kvp.Key))
+                {
+                    availableRawHeights[kvp.Key] = kvp.Value;
+                }
             }
         }
 
@@ -1301,6 +1435,15 @@ namespace Nivtropy.ViewModels
                     totalDistanceFore,
                     accumulation,
                     knownPointsCount);
+
+                if (_sharedPointsByRun.TryGetValue(newSummary.Index, out var sharedCodesForRun))
+                {
+                    newSummary.SetSharedPoints(sharedCodesForRun);
+                }
+                else
+                {
+                    newSummary.SetSharedPoints(Array.Empty<string>());
+                }
 
                 // Сохраняем состояние UseLocalAdjustment
                 newSummary.UseLocalAdjustment = existingSummary.UseLocalAdjustment;
