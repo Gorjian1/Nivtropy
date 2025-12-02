@@ -807,8 +807,9 @@ namespace Nivtropy.ViewModels
 
                 if (!string.IsNullOrWhiteSpace(row.ForeCode) && isAnchor(row.ForeCode))
                 {
-                    if (i < items.Count - 1 && knownPoints.All(p => p.Index != i + 1))
-                        knownPoints.Add((i + 1, row.ForeCode));
+                    var anchorIndex = Math.Min(i + 1, items.Count);
+                    if (knownPoints.All(p => p.Index != anchorIndex))
+                        knownPoints.Add((anchorIndex, row.ForeCode));
                 }
             }
 
@@ -892,7 +893,7 @@ namespace Nivtropy.ViewModels
 
             if (!string.IsNullOrWhiteSpace(firstAnchor.Code)
                 && string.Equals(firstAnchor.Code, lastAnchor.Code, StringComparison.OrdinalIgnoreCase)
-                && lastAnchor.Index < items.Count - 1)
+                && lastAnchor.Index < items.Count)
             {
                 var wrapSection = items.Skip(lastAnchor.Index).ToList();
                 if (wrapSection.Count > 0)
