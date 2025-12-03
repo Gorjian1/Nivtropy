@@ -1152,6 +1152,19 @@ namespace Nivtropy.ViewModels
             public double Rounded { get; set; }
         }
 
+        private sealed class AliasKeyComparer : IEqualityComparer<(TraverseRow row, bool isBack)>
+        {
+            public bool Equals((TraverseRow row, bool isBack) x, (TraverseRow row, bool isBack) y)
+            {
+                return ReferenceEquals(x.row, y.row) && x.isBack == y.isBack;
+            }
+
+            public int GetHashCode((TraverseRow row, bool isBack) obj)
+            {
+                return HashCode.Combine(obj.row, obj.isBack);
+            }
+        }
+
         private enum TraverseClosureMode
         {
             Open,
@@ -1181,6 +1194,75 @@ namespace Nivtropy.ViewModels
                 row.ForeHeightZ0 = null;
                 row.IsBackHeightKnown = false;
                 row.IsForeHeightKnown = false;
+            }
+
+            // Карта соответствия "код → визит" для повторяющихся точек внутри хода
+            var aliasByRowSide = new Dictionary<(TraverseRow row, bool isBack), string>(
+                new AliasKeyComparer());
+            var aliasToOriginal = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            var occurrenceCount = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+
+            string? previousForeCode = null;
+            string? previousForeAlias = null;
+
+            string RegisterAlias(string code, bool reusePrevious)
+            {
+                if (IsAnchorAllowed(code, availableAdjustedHeights.ContainsKey))
+                {
+                    aliasToOriginal[code] = code;
+                    return code;
+                }
+
+                if (reusePrevious && previousForeAlias != null &&
+                    string.Equals(previousForeCode, code, StringComparison.OrdinalIgnoreCase))
+                {
+                    aliasToOriginal[previousForeAlias] = code;
+                    return previousForeAlias;
+                }
+
+                var next = occurrenceCount.TryGetValue(code, out var count) ? count + 1 : 1;
+                occurrenceCount[code] = next;
+
+                var alias = next == 1 ? code : $"{code} ({next})";
+                aliasToOriginal[alias] = code;
+                return alias;
+            }
+
+            foreach (var row in items)
+            {
+                if (!string.IsNullOrWhiteSpace(row.BackCode))
+                {
+                    var alias = RegisterAlias(
+                        row.BackCode!,
+                        reusePrevious: previousForeAlias != null &&
+                                      string.Equals(previousForeCode, row.BackCode, StringComparison.OrdinalIgnoreCase));
+                    aliasByRowSide[(row, true)] = alias;
+                }
+
+                if (!string.IsNullOrWhiteSpace(row.ForeCode))
+                {
+                    var alias = RegisterAlias(row.ForeCode!, reusePrevious: false);
+                    aliasByRowSide[(row, false)] = alias;
+
+                    previousForeCode = row.ForeCode;
+                    previousForeAlias = alias;
+                }
+                else
+                {
+                    previousForeCode = null;
+                    previousForeAlias = null;
+                }
+            }
+
+            string? AliasFor(TraverseRow row, bool isBack)
+            {
+                return aliasByRowSide.TryGetValue((row, isBack), out var value) ? value : null;
+            }
+
+            bool IsCopyAlias(string alias)
+            {
+                return aliasToOriginal.TryGetValue(alias, out var original)
+                    && !string.Equals(alias, original, StringComparison.OrdinalIgnoreCase);
             }
 
             var adjusted = new Dictionary<string, double>(availableAdjustedHeights, StringComparer.OrdinalIgnoreCase);
@@ -1225,8 +1307,8 @@ namespace Nivtropy.ViewModels
 
             for (int iteration = 0; iteration < 20; iteration++)
             {
-                bool changedRaw = PropagateHeightsWithinRun(items, raw, useAdjusted: false);
-                bool changedAdjusted = PropagateHeightsWithinRun(items, adjusted, useAdjusted: true);
+                bool changedRaw = PropagateHeightsWithinRun(items, raw, useAdjusted: false, AliasFor);
+                bool changedAdjusted = PropagateHeightsWithinRun(items, adjusted, useAdjusted: true, AliasFor);
 
                 if (!changedRaw && !changedAdjusted)
                     break;
@@ -1234,13 +1316,15 @@ namespace Nivtropy.ViewModels
 
             foreach (var row in items)
             {
-                if (!string.IsNullOrWhiteSpace(row.BackCode) && adjusted.TryGetValue(row.BackCode, out var backZ))
+                var backAlias = AliasFor(row, isBack: true);
+                if (!string.IsNullOrWhiteSpace(backAlias) && adjusted.TryGetValue(backAlias!, out var backZ))
                 {
                     row.BackHeight = backZ;
                     row.IsBackHeightKnown = IsAnchorAllowed(row.BackCode, availableAdjustedHeights.ContainsKey);
                 }
 
-                if (!string.IsNullOrWhiteSpace(row.ForeCode) && adjusted.TryGetValue(row.ForeCode, out var foreZ))
+                var foreAlias = AliasFor(row, isBack: false);
+                if (!string.IsNullOrWhiteSpace(foreAlias) && adjusted.TryGetValue(foreAlias!, out var foreZ))
                 {
                     row.ForeHeight = foreZ;
                     row.IsForeHeightKnown = IsAnchorAllowed(row.ForeCode, availableAdjustedHeights.ContainsKey);
@@ -1249,48 +1333,51 @@ namespace Nivtropy.ViewModels
 
             var runRawHeights = new Dictionary<string, List<double>>(StringComparer.OrdinalIgnoreCase);
 
-            double? GetRunHeight(string? code)
+            double? GetRunHeight(string? alias)
             {
-                if (string.IsNullOrWhiteSpace(code))
+                if (string.IsNullOrWhiteSpace(alias))
                     return null;
 
-                if (runRawHeights.TryGetValue(code, out var history) && history.Count > 0)
+                if (runRawHeights.TryGetValue(alias, out var history) && history.Count > 0)
                 {
                     return history[^1];
                 }
 
-                return raw.TryGetValue(code, out var value) ? value : null;
+                return raw.TryGetValue(alias, out var value) ? value : null;
             }
 
-            bool HasRunHistory(string? code)
+            bool HasRunHistory(string? alias)
             {
-                return !string.IsNullOrWhiteSpace(code)
-                    && runRawHeights.TryGetValue(code, out var history)
+                return !string.IsNullOrWhiteSpace(alias)
+                    && runRawHeights.TryGetValue(alias!, out var history)
                     && history.Count > 0;
             }
 
-            void RecordRunHeight(string? code, double value)
+            void RecordRunHeight(string? alias, double value)
             {
-                if (string.IsNullOrWhiteSpace(code))
+                if (string.IsNullOrWhiteSpace(alias))
                     return;
 
-                if (!runRawHeights.TryGetValue(code, out var history))
+                if (!runRawHeights.TryGetValue(alias!, out var history))
                 {
                     history = new List<double>();
-                    runRawHeights[code] = history;
+                    runRawHeights[alias!] = history;
                 }
 
                 history.Add(value);
 
-                if (!raw.ContainsKey(code) && !availableRawHeights.ContainsKey(code))
+                if (!raw.ContainsKey(alias!) && !availableRawHeights.ContainsKey(alias!))
                 {
-                    raw[code] = value;
+                    raw[alias!] = value;
                 }
             }
 
             foreach (var row in items)
             {
                 var delta = row.DeltaH;
+
+                var backAlias = AliasFor(row, isBack: true);
+                var foreAlias = AliasFor(row, isBack: false);
 
                 bool backIsAnchor = !string.IsNullOrWhiteSpace(row.BackCode)
                     && (_dataViewModel.HasKnownHeight(row.BackCode) ||
@@ -1304,57 +1391,57 @@ namespace Nivtropy.ViewModels
                 // Подхватываем текущее известное значение (якорь или полученное ранее в этом ходе)
                 if (row.BackHeightZ0 == null)
                 {
-                    var existingBack = GetRunHeight(row.BackCode);
+                    var existingBack = GetRunHeight(backAlias);
                     if (existingBack.HasValue)
                     {
                         row.BackHeightZ0 = existingBack;
-                        RecordRunHeight(row.BackCode, existingBack.Value);
+                        RecordRunHeight(backAlias, existingBack.Value);
                     }
                 }
 
                 if (row.ForeHeightZ0 == null)
                 {
-                    var existingFore = GetRunHeight(row.ForeCode);
+                    var existingFore = GetRunHeight(foreAlias);
                     if (existingFore.HasValue)
                     {
                         row.ForeHeightZ0 = existingFore;
-                        RecordRunHeight(row.ForeCode, existingFore.Value);
+                        RecordRunHeight(foreAlias, existingFore.Value);
                     }
                 }
 
                 if (!delta.HasValue)
                     continue;
 
-                var backHeight = row.BackHeightZ0 ?? GetRunHeight(row.BackCode);
-                var foreHeight = row.ForeHeightZ0 ?? GetRunHeight(row.ForeCode);
+                var backHeight = row.BackHeightZ0 ?? GetRunHeight(backAlias);
+                var foreHeight = row.ForeHeightZ0 ?? GetRunHeight(foreAlias);
 
                 if (backHeight.HasValue)
                 {
                     var computedFore = backHeight.Value + delta.Value;
                     row.ForeHeightZ0 = computedFore;
-                    RecordRunHeight(row.ForeCode, computedFore);
+                    RecordRunHeight(foreAlias, computedFore);
                 }
                 else if (foreHeight.HasValue)
                 {
                     var computedBack = foreHeight.Value - delta.Value;
                     row.BackHeightZ0 = computedBack;
-                    RecordRunHeight(row.BackCode, computedBack);
+                    RecordRunHeight(backAlias, computedBack);
                 }
 
                 // Если обе стороны уже имели значения до расчёта, фиксируем их для повторных точек
-                if (backHeight.HasValue && !HasRunHistory(row.BackCode))
+                if (backHeight.HasValue && !HasRunHistory(backAlias))
                 {
-                    RecordRunHeight(row.BackCode, backHeight.Value);
+                    RecordRunHeight(backAlias, backHeight.Value);
                 }
-                if (foreHeight.HasValue && !HasRunHistory(row.ForeCode))
+                if (foreHeight.HasValue && !HasRunHistory(foreAlias))
                 {
-                    RecordRunHeight(row.ForeCode, foreHeight.Value);
+                    RecordRunHeight(foreAlias, foreHeight.Value);
                 }
             }
 
             foreach (var kvp in adjusted)
             {
-                if (AllowPropagation(kvp.Key))
+                if (!IsCopyAlias(kvp.Key) && AllowPropagation(kvp.Key))
                 {
                     availableAdjustedHeights[kvp.Key] = kvp.Value;
                 }
@@ -1362,7 +1449,7 @@ namespace Nivtropy.ViewModels
 
             foreach (var kvp in raw)
             {
-                if (AllowPropagation(kvp.Key))
+                if (!IsCopyAlias(kvp.Key) && AllowPropagation(kvp.Key))
                 {
                     availableRawHeights[kvp.Key] = kvp.Value;
                 }
@@ -1372,7 +1459,8 @@ namespace Nivtropy.ViewModels
         private static bool PropagateHeightsWithinRun(
             List<TraverseRow> sections,
             Dictionary<string, double> heights,
-            bool useAdjusted)
+            bool useAdjusted,
+            Func<TraverseRow, bool, string?> aliasSelector)
         {
             bool changed = false;
 
@@ -1382,8 +1470,8 @@ namespace Nivtropy.ViewModels
                 if (!delta.HasValue)
                     continue;
 
-                var backCode = section.BackCode;
-                var foreCode = section.ForeCode;
+                var backCode = aliasSelector(section, true);
+                var foreCode = aliasSelector(section, false);
 
                 if (string.IsNullOrWhiteSpace(backCode) || string.IsNullOrWhiteSpace(foreCode))
                     continue;
