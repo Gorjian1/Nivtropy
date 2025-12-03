@@ -560,7 +560,7 @@ namespace Nivtropy.ViewModels
             // Группируем станции по ходам для корректного расчета поправок
             var traverseGroups = items.GroupBy(r => r.LineName).ToList();
 
-            UpdateSharedPointsMetadata(traverseGroups);
+            UpdateSharedPointsMetadata(_dataViewModel.Records);
 
             // Доступные высоты точек: сначала известные вручную
             var availableAdjustedHeights = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
@@ -727,29 +727,30 @@ namespace Nivtropy.ViewModels
             return _dataViewModel.HasKnownHeight(code) || _dataViewModel.IsSharedPointEnabled(code);
         }
 
-        private void UpdateSharedPointsMetadata(List<IGrouping<string, TraverseRow>> traverseGroups)
+        private void UpdateSharedPointsMetadata(IReadOnlyCollection<MeasurementRecord> records)
         {
             var usage = new Dictionary<string, HashSet<int>>(StringComparer.OrdinalIgnoreCase);
 
-            foreach (var group in traverseGroups)
+            void AddUsage(string? code, int runIndex)
             {
-                var runIndex = group.FirstOrDefault()?.LineSummary?.Index ?? 0;
-                if (runIndex == 0)
-                    continue;
+                if (runIndex == 0 || string.IsNullOrWhiteSpace(code))
+                    return;
 
-                foreach (var code in group
-                             .SelectMany(r => new[] { r.BackCode, r.ForeCode })
-                             .Where(c => !string.IsNullOrWhiteSpace(c))
-                             .Select(c => c!))
+                var trimmed = code.Trim();
+                if (!usage.TryGetValue(trimmed, out var set))
                 {
-                    if (!usage.TryGetValue(code, out var set))
-                    {
-                        set = new HashSet<int>();
-                        usage[code] = set;
-                    }
-
-                    set.Add(runIndex);
+                    set = new HashSet<int>();
+                    usage[trimmed] = set;
                 }
+
+                set.Add(runIndex);
+            }
+
+            foreach (var record in records)
+            {
+                var runIndex = record.LineSummary?.Index ?? 0;
+                AddUsage(record.Target, runIndex);
+                AddUsage(record.StationCode, runIndex);
             }
 
             var sharedCodes = usage
@@ -1185,6 +1186,29 @@ namespace Nivtropy.ViewModels
             var adjusted = new Dictionary<string, double>(availableAdjustedHeights, StringComparer.OrdinalIgnoreCase);
             var raw = new Dictionary<string, double>(availableRawHeights, StringComparer.OrdinalIgnoreCase);
 
+            var occurrenceByCode = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            string? GetCalcCode(string? code)
+            {
+                if (string.IsNullOrWhiteSpace(code))
+                    return null;
+
+                var trimmed = code.Trim();
+                var isAnchor = AllowPropagation(trimmed);
+
+                occurrenceByCode.TryGetValue(trimmed, out var count);
+                count++;
+                occurrenceByCode[trimmed] = count;
+
+                if (count == 1 || isAnchor)
+                    return trimmed;
+
+                return $"{trimmed}#{count}";
+            }
+
+            var calcSections = items
+                .Select(row => new HeightCalcRow(row, GetCalcCode(row.BackCode), GetCalcCode(row.ForeCode)))
+                .ToList();
+
             // Вспомогательная функция для поиска высоты с учётом отвязки
             bool TryGetHeightForRun(Dictionary<string, double> dict, string? pointCode, out double height)
             {
@@ -1205,7 +1229,7 @@ namespace Nivtropy.ViewModels
             }
 
             // Обновляем локальные словари с учётом отвязанных точек
-            var pointsInRun = items.SelectMany(r => new[] { r.BackCode, r.ForeCode })
+            var pointsInRun = calcSections.SelectMany(r => new[] { r.BackCalcCode, r.ForeCalcCode })
                 .Where(c => !string.IsNullOrWhiteSpace(c))
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToList();
@@ -1224,22 +1248,24 @@ namespace Nivtropy.ViewModels
 
             for (int iteration = 0; iteration < 20; iteration++)
             {
-                bool changedRaw = PropagateHeightsWithinRun(items, raw, useAdjusted: false);
-                bool changedAdjusted = PropagateHeightsWithinRun(items, adjusted, useAdjusted: true);
+                bool changedRaw = PropagateHeightsWithinRun(calcSections, raw, useAdjusted: false);
+                bool changedAdjusted = PropagateHeightsWithinRun(calcSections, adjusted, useAdjusted: true);
 
                 if (!changedRaw && !changedAdjusted)
                     break;
             }
 
-            foreach (var row in items)
+            foreach (var calc in calcSections)
             {
-                if (!string.IsNullOrWhiteSpace(row.BackCode) && adjusted.TryGetValue(row.BackCode, out var backZ))
+                var row = calc.Row;
+
+                if (!string.IsNullOrWhiteSpace(calc.BackCalcCode) && adjusted.TryGetValue(calc.BackCalcCode, out var backZ))
                 {
                     row.BackHeight = backZ;
                     row.IsBackHeightKnown = IsAnchorAllowed(row.BackCode, availableAdjustedHeights.ContainsKey);
                 }
 
-                if (!string.IsNullOrWhiteSpace(row.ForeCode) && adjusted.TryGetValue(row.ForeCode, out var foreZ))
+                if (!string.IsNullOrWhiteSpace(calc.ForeCalcCode) && adjusted.TryGetValue(calc.ForeCalcCode, out var foreZ))
                 {
                     row.ForeHeight = foreZ;
                     row.IsForeHeightKnown = IsAnchorAllowed(row.ForeCode, availableAdjustedHeights.ContainsKey);
@@ -1287,8 +1313,9 @@ namespace Nivtropy.ViewModels
                 }
             }
 
-            foreach (var row in items)
+            foreach (var calc in calcSections)
             {
+                var row = calc.Row;
                 var delta = row.DeltaH;
 
                 bool backIsAnchor = !string.IsNullOrWhiteSpace(row.BackCode)
@@ -1303,51 +1330,51 @@ namespace Nivtropy.ViewModels
                 // Подхватываем текущее известное значение (якорь или полученное ранее в этом ходе)
                 if (row.BackHeightZ0 == null)
                 {
-                    var existingBack = GetRunHeight(row.BackCode);
+                    var existingBack = GetRunHeight(calc.BackCalcCode);
                     if (existingBack.HasValue)
                     {
                         row.BackHeightZ0 = existingBack;
-                        RecordRunHeight(row.BackCode, existingBack.Value);
+                        RecordRunHeight(calc.BackCalcCode, existingBack.Value);
                     }
                 }
 
                 if (row.ForeHeightZ0 == null)
                 {
-                    var existingFore = GetRunHeight(row.ForeCode);
+                    var existingFore = GetRunHeight(calc.ForeCalcCode);
                     if (existingFore.HasValue)
                     {
                         row.ForeHeightZ0 = existingFore;
-                        RecordRunHeight(row.ForeCode, existingFore.Value);
+                        RecordRunHeight(calc.ForeCalcCode, existingFore.Value);
                     }
                 }
 
                 if (!delta.HasValue)
                     continue;
 
-                var backHeight = row.BackHeightZ0 ?? GetRunHeight(row.BackCode);
-                var foreHeight = row.ForeHeightZ0 ?? GetRunHeight(row.ForeCode);
+                var backHeight = row.BackHeightZ0 ?? GetRunHeight(calc.BackCalcCode);
+                var foreHeight = row.ForeHeightZ0 ?? GetRunHeight(calc.ForeCalcCode);
 
                 if (backHeight.HasValue)
                 {
                     var computedFore = backHeight.Value + delta.Value;
                     row.ForeHeightZ0 = computedFore;
-                    RecordRunHeight(row.ForeCode, computedFore);
+                    RecordRunHeight(calc.ForeCalcCode, computedFore);
                 }
                 else if (foreHeight.HasValue)
                 {
                     var computedBack = foreHeight.Value - delta.Value;
                     row.BackHeightZ0 = computedBack;
-                    RecordRunHeight(row.BackCode, computedBack);
+                    RecordRunHeight(calc.BackCalcCode, computedBack);
                 }
 
                 // Если обе стороны уже имели значения до расчёта, фиксируем их для повторных точек
-                if (backHeight.HasValue && !HasRunHistory(row.BackCode))
+                if (backHeight.HasValue && !HasRunHistory(calc.BackCalcCode))
                 {
-                    RecordRunHeight(row.BackCode, backHeight.Value);
+                    RecordRunHeight(calc.BackCalcCode, backHeight.Value);
                 }
-                if (foreHeight.HasValue && !HasRunHistory(row.ForeCode))
+                if (foreHeight.HasValue && !HasRunHistory(calc.ForeCalcCode))
                 {
-                    RecordRunHeight(row.ForeCode, foreHeight.Value);
+                    RecordRunHeight(calc.ForeCalcCode, foreHeight.Value);
                 }
             }
 
@@ -1369,7 +1396,7 @@ namespace Nivtropy.ViewModels
         }
 
         private static bool PropagateHeightsWithinRun(
-            List<TraverseRow> sections,
+            List<HeightCalcRow> sections,
             Dictionary<string, double> heights,
             bool useAdjusted)
         {
@@ -1377,12 +1404,12 @@ namespace Nivtropy.ViewModels
 
             foreach (var section in sections)
             {
-                var delta = useAdjusted ? section.AdjustedDeltaH : section.DeltaH;
+                var delta = useAdjusted ? section.Row.AdjustedDeltaH : section.Row.DeltaH;
                 if (!delta.HasValue)
                     continue;
 
-                var backCode = section.BackCode;
-                var foreCode = section.ForeCode;
+                var backCode = section.BackCalcCode;
+                var foreCode = section.ForeCalcCode;
 
                 if (string.IsNullOrWhiteSpace(backCode) || string.IsNullOrWhiteSpace(foreCode))
                     continue;
@@ -1401,6 +1428,8 @@ namespace Nivtropy.ViewModels
 
             return changed;
         }
+
+        private sealed record HeightCalcRow(TraverseRow Row, string? BackCalcCode, string? ForeCalcCode);
 
 
 
