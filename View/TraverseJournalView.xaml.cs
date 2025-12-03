@@ -62,8 +62,6 @@ namespace Nivtropy.Views
                     ShowZCheckBox.IsChecked = _savedShowZ;
                 if (ShowZ0CheckBox != null)
                     ShowZ0CheckBox.IsChecked = _savedShowZ0;
-
-                UpdateLegendVisibility();
             };
         }
 
@@ -391,8 +389,6 @@ namespace Nivtropy.Views
                     }
                 }
             }
-
-            UpdateLegendColors();
         }
 
         private void DrawGrid(double canvasWidth, double canvasHeight, double margin,
@@ -628,8 +624,6 @@ namespace Nivtropy.Views
                 _savedProfileColor = _profileColor;
                 _savedColorIndex = ProfileColorComboBox.SelectedIndex;
 
-                UpdateLegendColors();
-
                 if (_currentTraverseRows != null)
                     DrawProportionalProfile(_currentTraverseRows);
             }
@@ -713,8 +707,6 @@ namespace Nivtropy.Views
             _showZ = ShowZCheckBox?.IsChecked ?? true;
             _savedShowZ = _showZ;
 
-            UpdateLegendVisibility();
-
             if (_currentTraverseRows != null)
                 DrawProportionalProfile(_currentTraverseRows);
         }
@@ -723,8 +715,6 @@ namespace Nivtropy.Views
         {
             _showZ0 = ShowZ0CheckBox?.IsChecked ?? true;
             _savedShowZ0 = _showZ0;
-
-            UpdateLegendVisibility();
 
             if (_currentTraverseRows != null)
                 DrawProportionalProfile(_currentTraverseRows);
@@ -737,8 +727,6 @@ namespace Nivtropy.Views
                 _profileZ0Color = (Color)ColorConverter.ConvertFromString(colorHex);
                 _savedProfileZ0Color = _profileZ0Color;
                 _savedZ0ColorIndex = ProfileZ0ColorComboBox.SelectedIndex;
-
-                UpdateLegendColors();
 
                 if (_currentTraverseRows != null)
                     DrawProportionalProfile(_currentTraverseRows);
@@ -975,24 +963,6 @@ namespace Nivtropy.Views
                     }
                 }
             }
-        }
-
-        private void UpdateLegendVisibility()
-        {
-            if (LegendZItem != null)
-                LegendZItem.Visibility = _showZ ? Visibility.Visible : Visibility.Collapsed;
-
-            if (LegendZ0Item != null)
-                LegendZ0Item.Visibility = _showZ0 ? Visibility.Visible : Visibility.Collapsed;
-        }
-
-        private void UpdateLegendColors()
-        {
-            if (LegendZLine != null)
-                LegendZLine.Fill = new SolidColorBrush(_profileColor);
-
-            if (LegendZ0Line != null)
-                LegendZ0Line.Fill = new SolidColorBrush(_profileZ0Color);
         }
 
         /// <summary>
