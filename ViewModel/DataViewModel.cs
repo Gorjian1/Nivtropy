@@ -17,6 +17,10 @@ namespace Nivtropy.ViewModels
         public ObservableCollection<MeasurementRecord> Records { get; } = new();
         public ObservableCollection<LineSummary> Runs { get; } = new();
 
+        // Служебные версии для отслеживания изменений данных
+        public int RecordsVersion { get; private set; }
+        public int KnownHeightsVersion { get; private set; }
+
         // Словарь известных высот точек: ключ - код точки, значение - высота
         private readonly Dictionary<string, double> _knownHeights = new(StringComparer.OrdinalIgnoreCase);
 
@@ -63,6 +67,23 @@ namespace Nivtropy.ViewModels
             return true;
         }
 
+        public DataViewModel()
+        {
+            Records.CollectionChanged += (_, __) => IncrementRecordsVersion();
+        }
+
+        private void IncrementRecordsVersion()
+        {
+            RecordsVersion++;
+            OnPropertyChanged(nameof(RecordsVersion));
+        }
+
+        private void IncrementKnownHeightsVersion()
+        {
+            KnownHeightsVersion++;
+            OnPropertyChanged(nameof(KnownHeightsVersion));
+        }
+
         public void LoadFromFile(string path)
         {
             SourcePath = path;
@@ -74,6 +95,7 @@ namespace Nivtropy.ViewModels
             {
                 Records.Clear();
                 _knownHeights.Clear();
+                IncrementKnownHeightsVersion();
 
                 var parser = new DatParser();
                 var parsed = parser.Parse(path).ToList();
@@ -103,6 +125,7 @@ namespace Nivtropy.ViewModels
 
             _knownHeights[pointCode.Trim()] = height;
             OnPropertyChanged(nameof(KnownHeights));
+            IncrementKnownHeightsVersion();
         }
 
         /// <summary>
@@ -126,6 +149,7 @@ namespace Nivtropy.ViewModels
 
             _knownHeights.Remove(pointCode.Trim());
             OnPropertyChanged(nameof(KnownHeights));
+            IncrementKnownHeightsVersion();
         }
 
         /// <summary>

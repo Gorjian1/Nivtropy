@@ -23,7 +23,12 @@ namespace Nivtropy.ViewModels
         private readonly ObservableCollection<BenchmarkItem> _benchmarks = new();
         private readonly ObservableCollection<SharedPointLinkItem> _sharedPoints = new();
         private readonly Dictionary<string, SharedPointLinkItem> _sharedPointLookup = new(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, double> _availableAdjustedHeightsCache = new(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, double> _availableRawHeightsCache = new(StringComparer.OrdinalIgnoreCase);
         private Dictionary<int, List<string>> _sharedPointsByRun = new();
+
+        private List<TraverseRow>? _cachedTraverseRows;
+        private int _cachedRecordsVersion = -1;
 
         private bool _isUpdating = false; // Флаг для подавления обновлений
 
@@ -533,15 +538,56 @@ namespace Nivtropy.ViewModels
             {
                 UpdateRows();
             }
+            else if (e.PropertyName == nameof(DataViewModel.KnownHeights) ||
+                     e.PropertyName == nameof(DataViewModel.KnownHeightsVersion))
+            {
+                UpdateRows();
+            }
+        }
+
+        private List<TraverseRow> GetTraverseRows()
+        {
+            if (_cachedTraverseRows == null || _cachedRecordsVersion != _dataViewModel.RecordsVersion)
+            {
+                _cachedTraverseRows = TraverseBuilder.Build(_dataViewModel.Records);
+                _cachedRecordsVersion = _dataViewModel.RecordsVersion;
+            }
+
+            return _cachedTraverseRows;
+        }
+
+        private static void ResetCalculatedState(IEnumerable<TraverseRow> items)
+        {
+            var seenSummaries = new HashSet<LineSummary>();
+
+            foreach (var row in items)
+            {
+                row.BackHeight = null;
+                row.ForeHeight = null;
+                row.BackHeightZ0 = null;
+                row.ForeHeightZ0 = null;
+                row.IsBackHeightKnown = false;
+                row.IsForeHeightKnown = false;
+                row.Correction = null;
+                row.BaselineCorrection = null;
+                row.CorrectionMode = CorrectionDisplayMode.None;
+                row.IsArmDifferenceExceeded = false;
+
+                if (row.LineSummary != null && seenSummaries.Add(row.LineSummary))
+                {
+                    row.LineSummary.SetClosures(Array.Empty<double>());
+                    row.LineSummary.IsArmDifferenceAccumulationExceeded = false;
+                }
+            }
         }
 
         private void UpdateRows()
         {
             _rows.Clear();
 
-            var records = _dataViewModel.Records;
+            var items = GetTraverseRows();
 
-            if (records.Count == 0)
+            if (items.Count == 0)
             {
                 Closure = null;
                 AllowableClosure = null;
@@ -555,7 +601,7 @@ namespace Nivtropy.ViewModels
                 return;
             }
 
-            var items = TraverseBuilder.Build(records);
+            ResetCalculatedState(items);
 
             // Группируем станции по ходам для корректного расчета поправок
             var traverseGroups = items.GroupBy(r => r.LineName).ToList();
@@ -563,17 +609,17 @@ namespace Nivtropy.ViewModels
             UpdateSharedPointsMetadata(_dataViewModel.Records);
 
             // Доступные высоты точек: сначала известные вручную
-            var availableAdjustedHeights = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
-            var availableRawHeights = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
+            _availableAdjustedHeightsCache.Clear();
+            _availableRawHeightsCache.Clear();
 
             // Добавляем все известные высоты, включая точки с суффиксами ходов
             foreach (var kvp in _dataViewModel.KnownHeights)
             {
-                availableAdjustedHeights[kvp.Key] = kvp.Value;
-                availableRawHeights[kvp.Key] = kvp.Value;
+                _availableAdjustedHeightsCache[kvp.Key] = kvp.Value;
+                _availableRawHeightsCache[kvp.Key] = kvp.Value;
             }
 
-            bool AnchorChecker(string code) => IsAnchorAllowed(code, availableAdjustedHeights.ContainsKey);
+            bool AnchorChecker(string code) => IsAnchorAllowed(code, _availableAdjustedHeightsCache.ContainsKey);
 
             var processedGroups = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
@@ -602,14 +648,14 @@ namespace Nivtropy.ViewModels
                             .FirstOrDefault(c => !string.IsNullOrWhiteSpace(c));
                         if (!string.IsNullOrWhiteSpace(firstCode))
                         {
-                            availableAdjustedHeights[firstCode!] = 0.0;
-                            availableRawHeights[firstCode!] = 0.0;
+                            _availableAdjustedHeightsCache[firstCode!] = 0.0;
+                            _availableRawHeightsCache[firstCode!] = 0.0;
                             hasAnchor = true;
                         }
                     }
 
                     CalculateCorrections(groupItems, AnchorChecker);
-                    CalculateHeightsForRun(groupItems, availableAdjustedHeights, availableRawHeights, group.Key);
+                    CalculateHeightsForRun(groupItems, _availableAdjustedHeightsCache, _availableRawHeightsCache, group.Key);
                     processedGroups.Add(group.Key);
                     progress = true;
                 }
