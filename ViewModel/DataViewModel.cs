@@ -162,8 +162,89 @@ namespace Nivtropy.ViewModels
             if (string.IsNullOrWhiteSpace(pointCode))
                 return;
 
-            _sharedPointStates[pointCode.Trim()] = isEnabled;
+            var code = pointCode.Trim();
+            var wasEnabled = IsSharedPointEnabled(code);
+
+            _sharedPointStates[code] = isEnabled;
+
+            // Если точка отвязывается (была связана, стала отвязанной)
+            if (wasEnabled && !isEnabled)
+            {
+                CreateDisconnectedPointCopies(code);
+            }
+
             OnPropertyChanged(nameof(SharedPointStates));
+        }
+
+        /// <summary>
+        /// Создаёт копии точки для каждого хода при отвязке
+        /// </summary>
+        private void CreateDisconnectedPointCopies(string pointCode)
+        {
+            // Находим все ходы где используется эта точка
+            var runsWithPoint = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var record in Records)
+            {
+                if (string.Equals(record.BackCode, pointCode, StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(record.ForeCode, pointCode, StringComparison.OrdinalIgnoreCase))
+                {
+                    if (!string.IsNullOrWhiteSpace(record.LineName))
+                        runsWithPoint.Add(record.LineName);
+                }
+            }
+
+            // Получаем текущую высоту точки (если есть)
+            var existingHeight = GetKnownHeight(pointCode);
+
+            // Создаём копию для каждого хода
+            foreach (var runName in runsWithPoint)
+            {
+                var pointCodeWithRun = GetPointCodeForRun(pointCode, runName);
+
+                // Если для первого хода есть высота - копируем её
+                // Для остальных создаём без высоты
+                if (existingHeight.HasValue && !HasKnownHeight(pointCodeWithRun))
+                {
+                    // Копируем высоту только для первой встреченной копии
+                    if (runsWithPoint.First() == runName)
+                    {
+                        SetKnownHeight(pointCodeWithRun, existingHeight.Value);
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Получает код точки с суффиксом хода
+        /// </summary>
+        public string GetPointCodeForRun(string pointCode, string runName)
+        {
+            return $"{pointCode} ({runName})";
+        }
+
+        /// <summary>
+        /// Получает известную высоту точки с учётом отвязки
+        /// Если точка отвязана - ищет версию с суффиксом хода
+        /// </summary>
+        public double? GetKnownHeightForRun(string pointCode, string? runName)
+        {
+            if (string.IsNullOrWhiteSpace(pointCode))
+                return null;
+
+            var code = pointCode.Trim();
+
+            // Если точка отвязана и указан ход - ищем версию с суффиксом
+            if (!IsSharedPointEnabled(code) && !string.IsNullOrWhiteSpace(runName))
+            {
+                var codeWithRun = GetPointCodeForRun(code, runName);
+                var heightWithRun = GetKnownHeight(codeWithRun);
+                if (heightWithRun.HasValue)
+                    return heightWithRun;
+            }
+
+            // Иначе возвращаем обычную высоту
+            return GetKnownHeight(code);
         }
 
         private void AnnotateRuns(IList<MeasurementRecord> records)

@@ -563,10 +563,15 @@ namespace Nivtropy.ViewModels
             UpdateSharedPointsMetadata(traverseGroups);
 
             // Доступные высоты точек: сначала известные вручную
-            var availableAdjustedHeights = new Dictionary<string, double>(_dataViewModel.KnownHeights,
-                StringComparer.OrdinalIgnoreCase);
-            var availableRawHeights = new Dictionary<string, double>(_dataViewModel.KnownHeights,
-                StringComparer.OrdinalIgnoreCase);
+            var availableAdjustedHeights = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
+            var availableRawHeights = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
+
+            // Добавляем все известные высоты, включая точки с суффиксами ходов
+            foreach (var kvp in _dataViewModel.KnownHeights)
+            {
+                availableAdjustedHeights[kvp.Key] = kvp.Value;
+                availableRawHeights[kvp.Key] = kvp.Value;
+            }
 
             bool AnchorChecker(string code) => IsAnchorAllowed(code, availableAdjustedHeights.ContainsKey);
 
@@ -604,7 +609,7 @@ namespace Nivtropy.ViewModels
                     }
 
                     CalculateCorrections(groupItems, AnchorChecker);
-                    CalculateHeightsForRun(groupItems, availableAdjustedHeights, availableRawHeights);
+                    CalculateHeightsForRun(groupItems, availableAdjustedHeights, availableRawHeights, group.Key);
                     processedGroups.Add(group.Key);
                     progress = true;
                 }
@@ -1160,7 +1165,8 @@ namespace Nivtropy.ViewModels
         private void CalculateHeightsForRun(
             List<TraverseRow> items,
             Dictionary<string, double> availableAdjustedHeights,
-            Dictionary<string, double> availableRawHeights)
+            Dictionary<string, double> availableRawHeights,
+            string runName)
         {
             if (items.Count == 0)
                 return;
@@ -1178,6 +1184,43 @@ namespace Nivtropy.ViewModels
 
             var adjusted = new Dictionary<string, double>(availableAdjustedHeights, StringComparer.OrdinalIgnoreCase);
             var raw = new Dictionary<string, double>(availableRawHeights, StringComparer.OrdinalIgnoreCase);
+
+            // Вспомогательная функция для поиска высоты с учётом отвязки
+            bool TryGetHeightForRun(Dictionary<string, double> dict, string? pointCode, out double height)
+            {
+                height = 0;
+                if (string.IsNullOrWhiteSpace(pointCode))
+                    return false;
+
+                // Если точка отвязана - ищем версию с суффиксом хода
+                if (!_dataViewModel.IsSharedPointEnabled(pointCode))
+                {
+                    var codeWithRun = _dataViewModel.GetPointCodeForRun(pointCode, runName);
+                    if (dict.TryGetValue(codeWithRun, out height))
+                        return true;
+                }
+
+                // Иначе ищем обычную точку
+                return dict.TryGetValue(pointCode, out height);
+            }
+
+            // Обновляем локальные словари с учётом отвязанных точек
+            var pointsInRun = items.SelectMany(r => new[] { r.BackCode, r.ForeCode })
+                .Where(c => !string.IsNullOrWhiteSpace(c))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            foreach (var pointCode in pointsInRun)
+            {
+                if (!_dataViewModel.IsSharedPointEnabled(pointCode!))
+                {
+                    var codeWithRun = _dataViewModel.GetPointCodeForRun(pointCode!, runName);
+                    if (availableAdjustedHeights.TryGetValue(codeWithRun, out var adjValue))
+                        adjusted[pointCode!] = adjValue;
+                    if (availableRawHeights.TryGetValue(codeWithRun, out var rawValue))
+                        raw[pointCode!] = rawValue;
+                }
+            }
 
             for (int iteration = 0; iteration < 20; iteration++)
             {
@@ -1249,9 +1292,13 @@ namespace Nivtropy.ViewModels
                 var delta = row.DeltaH;
 
                 bool backIsAnchor = !string.IsNullOrWhiteSpace(row.BackCode)
-                    && _dataViewModel.HasKnownHeight(row.BackCode);
+                    && (_dataViewModel.HasKnownHeight(row.BackCode) ||
+                        (!_dataViewModel.IsSharedPointEnabled(row.BackCode) &&
+                         _dataViewModel.HasKnownHeight(_dataViewModel.GetPointCodeForRun(row.BackCode, runName))));
                 bool foreIsAnchor = !string.IsNullOrWhiteSpace(row.ForeCode)
-                    && _dataViewModel.HasKnownHeight(row.ForeCode);
+                    && (_dataViewModel.HasKnownHeight(row.ForeCode) ||
+                        (!_dataViewModel.IsSharedPointEnabled(row.ForeCode) &&
+                         _dataViewModel.HasKnownHeight(_dataViewModel.GetPointCodeForRun(row.ForeCode, runName))));
 
                 // Подхватываем текущее известное значение (якорь или полученное ранее в этом ходе)
                 if (row.BackHeightZ0 == null)
