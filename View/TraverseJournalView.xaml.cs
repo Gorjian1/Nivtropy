@@ -34,6 +34,8 @@ namespace Nivtropy.Views
         private double? _manualMaxHeight;
         private bool _showZ = true;
         private bool _showZ0 = true;
+        private bool _showAnomalies = true;
+        private double _sensitivitySigma = 2.5;
 
         public TraverseJournalView()
         {
@@ -211,10 +213,62 @@ namespace Nivtropy.Views
                 }
             }
 
-            // Рисуем линию Z0 (пунктиром)
+            // Рисуем цветовую индикацию разности плеч (толстые фоновые линии)
+            double cumulativeDistForArm = 0;
+            for (int i = 0; i < rows.Count - 1; i++)
+            {
+                var row = rows[i];
+                var nextRow = rows[i + 1];
+                var armDiff = Math.Abs(row.ArmDifference_m ?? 0);
+                var stationLength = row.StationLength_m ?? 0;
+
+                // Определяем допуск для разности плеч
+                // Обычно допуск составляет около 5м для технического нивелирования
+                // Используем значение из флага IsArmDifferenceExceeded если он установлен
+                var armDiffExceeded = row.IsArmDifferenceExceeded;
+
+                // Цветовая градация: зелёный -> жёлтый -> оранжевый -> красный
+                Color segmentColor;
+                if (armDiffExceeded)
+                {
+                    segmentColor = Color.FromRgb(255, 69, 58); // Красный
+                }
+                else if (armDiff > 3.0)
+                {
+                    segmentColor = Color.FromRgb(255, 159, 10); // Оранжевый
+                }
+                else if (armDiff > 1.5)
+                {
+                    segmentColor = Color.FromRgb(255, 204, 0); // Жёлтый
+                }
+                else
+                {
+                    segmentColor = Color.FromRgb(52, 199, 89); // Зелёный
+                }
+
+                // Рисуем толстую полупрозрачную линию как фон
+                var x1 = margin + (cumulativeDistForArm / totalDistance) * plotWidth;
+                var x2 = margin + ((cumulativeDistForArm + stationLength) / totalDistance) * plotWidth;
+
+                // Рисуем вертикальную полосу по всей высоте графика
+                var rect = new System.Windows.Shapes.Rectangle
+                {
+                    Width = Math.Max(x2 - x1, 2),
+                    Height = plotHeight,
+                    Fill = new SolidColorBrush(Color.FromArgb(30, segmentColor.R, segmentColor.G, segmentColor.B)), // 30 = ~12% прозрачности
+                    ToolTip = $"Ст. {row.Index}: разность плеч = {armDiff:F3} м"
+                };
+                Canvas.SetLeft(rect, x1);
+                Canvas.SetTop(rect, margin);
+                ProfileCanvas.Children.Add(rect);
+
+                cumulativeDistForArm += stationLength;
+            }
+
+            // Рисуем линию Z0 (пунктиром, серая)
             if (_showZ0 && pointsZ0.Count >= 2)
             {
-                var profileZ0Brush = new SolidColorBrush(_profileZ0Color);
+                var grayBrush = new SolidColorBrush(Color.FromRgb(128, 128, 128));
 
                 for (int i = 0; i < pointsZ0.Count - 1; i++)
                 {
@@ -229,7 +283,7 @@ namespace Nivtropy.Views
                         Y1 = y1,
                         X2 = x2,
                         Y2 = y2,
-                        Stroke = profileZ0Brush,
+                        Stroke = grayBrush,
                         StrokeThickness = 2.0,
                         StrokeDashArray = new DoubleCollection { 5, 3 }
                     };
@@ -237,11 +291,9 @@ namespace Nivtropy.Views
                 }
             }
 
-            // Рисуем линию Z (сплошной)
+            // Рисуем линию Z (сплошной, белая с чёрной обводкой)
             if (_showZ && pointsZ.Count >= 2)
             {
-                var profileBrush = new SolidColorBrush(_profileColor);
-
                 for (int i = 0; i < pointsZ.Count - 1; i++)
                 {
                     var x1 = margin + (pointsZ[i].distance / totalDistance) * plotWidth;
@@ -249,16 +301,29 @@ namespace Nivtropy.Views
                     var x2 = margin + (pointsZ[i + 1].distance / totalDistance) * plotWidth;
                     var y2 = canvasHeight - margin - ((pointsZ[i + 1].height - minHeight) / heightRange * plotHeight);
 
-                    var line = new Line
+                    // Сначала рисуем чёрную обводку (толще)
+                    var outlineLine = new Line
                     {
                         X1 = x1,
                         Y1 = y1,
                         X2 = x2,
                         Y2 = y2,
-                        Stroke = profileBrush,
-                        StrokeThickness = 2.5
+                        Stroke = Brushes.Black,
+                        StrokeThickness = 3.5
                     };
-                    ProfileCanvas.Children.Add(line);
+                    ProfileCanvas.Children.Add(outlineLine);
+
+                    // Затем белую линию сверху (тоньше)
+                    var whiteLine = new Line
+                    {
+                        X1 = x1,
+                        Y1 = y1,
+                        X2 = x2,
+                        Y2 = y2,
+                        Stroke = Brushes.White,
+                        StrokeThickness = 2.0
+                    };
+                    ProfileCanvas.Children.Add(whiteLine);
                 }
             }
 
@@ -283,7 +348,7 @@ namespace Nivtropy.Views
             }
 
             // Визуализация аномалий (красные кружки)
-            if (_currentStatistics != null && _currentStatistics.HasOutliers)
+            if (_showAnomalies && _currentStatistics != null && _currentStatistics.HasOutliers)
             {
                 var outlierStations = _currentStatistics.Outliers.Select(o => o.StationIndex).ToHashSet();
 
@@ -951,34 +1016,61 @@ namespace Nivtropy.Views
             if (StatsMeanLength != null) StatsMeanLength.Text = stats.MeanStationLength.ToString("F2");
             if (StatsTotalLength != null) StatsTotalLength.Text = stats.TotalLength.ToString("F2");
 
-            // Обновляем панель аномалий
-            if (OutliersPanel != null && StatsOutliersCount != null && OutliersList != null)
+            // Обновляем счётчик аномалий
+            if (AnomaliesCountText != null)
             {
-                if (stats.HasOutliers)
+                AnomaliesCountText.Text = $" {stats.TotalOutliers}";
+            }
+
+            // Обновляем цвет иконки аномалий
+            if (AnomaliesCountIcon != null)
+            {
+                if (stats.HasCriticalOutliers)
                 {
-                    OutliersPanel.Visibility = Visibility.Visible;
-                    StatsOutliersCount.Text = stats.TotalOutliers.ToString();
-
-                    // Ограничиваем количество отображаемых аномалий (максимум 5)
-                    var displayOutliers = stats.Outliers.OrderByDescending(o => o.Severity).ThenByDescending(o => o.DeviationInSigma).Take(5).ToList();
-                    OutliersList.ItemsSource = displayOutliers;
-
-                    // Меняем цвет панели в зависимости от серьезности
-                    if (stats.HasCriticalOutliers)
-                    {
-                        OutliersPanel.Background = new SolidColorBrush(Color.FromRgb(0xFF, 0xE5, 0xE5)); // Красноватый
-                        OutliersPanel.BorderBrush = new SolidColorBrush(Color.FromRgb(0xFF, 0x44, 0x36));
-                    }
-                    else
-                    {
-                        OutliersPanel.Background = new SolidColorBrush(Color.FromRgb(0xFF, 0xF3, 0xCD)); // Желтоватый
-                        OutliersPanel.BorderBrush = new SolidColorBrush(Color.FromRgb(0xFF, 0xC1, 0x07));
-                    }
+                    AnomaliesCountIcon.Foreground = new SolidColorBrush(Color.FromRgb(0xFF, 0x44, 0x36)); // Красный
+                }
+                else if (stats.HasOutliers)
+                {
+                    AnomaliesCountIcon.Foreground = new SolidColorBrush(Color.FromRgb(0xFF, 0xC1, 0x07)); // Желтый
                 }
                 else
                 {
-                    OutliersPanel.Visibility = Visibility.Collapsed;
+                    AnomaliesCountIcon.Foreground = new SolidColorBrush(Color.FromRgb(0x90, 0x90, 0x90)); // Серый
                 }
+            }
+        }
+
+        /// <summary>
+        /// Обработчик изменения чекбокса отображения аномалий
+        /// </summary>
+        private void ShowAnomaliesCheckBox_Changed(object sender, RoutedEventArgs e)
+        {
+            _showAnomalies = ShowAnomaliesCheckBox?.IsChecked ?? true;
+
+            if (_currentTraverseRows != null)
+            {
+                DrawProportionalProfile(_currentTraverseRows);
+            }
+        }
+
+        /// <summary>
+        /// Обработчик изменения чувствительности анализа
+        /// </summary>
+        private void SensitivitySlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            _sensitivitySigma = e.NewValue;
+
+            if (SensitivityValueText != null)
+            {
+                SensitivityValueText.Text = _sensitivitySigma.ToString("F1");
+            }
+
+            // Пересчитываем статистику с новой чувствительностью
+            if (_currentTraverseRows != null)
+            {
+                _currentStatistics = CalculateStatistics(_currentTraverseRows, _sensitivitySigma);
+                DrawProportionalProfile(_currentTraverseRows);
+                UpdateStatisticsPanel();
             }
         }
     }

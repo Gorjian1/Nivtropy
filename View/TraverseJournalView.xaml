@@ -621,117 +621,18 @@
 
                     <!-- Canvas для рисования профиля -->
                     <Border Grid.Row="1" Padding="12" Background="#FFFAFAFA">
-                        <Grid>
-                            <Canvas x:Name="ProfileCanvas"
-                                    Background="White"
-                                    ClipToBounds="True"
-                                    SizeChanged="ProfileCanvas_SizeChanged"/>
-
-                            <!-- Панель статистики в левом верхнем углу -->
-                            <Border x:Name="StatisticsBorder"
-                                    HorizontalAlignment="Left"
-                                    VerticalAlignment="Top"
-                                    Background="#F0FFFFFF"
-                                    BorderBrush="#FFCCCCCC"
-                                    BorderThickness="1"
-                                    CornerRadius="3"
-                                    Padding="10,8"
-                                    Margin="20,20"
-                                    MinWidth="220">
-                                <Border.Effect>
-                                    <DropShadowEffect Color="Black" Opacity="0.15" BlurRadius="4" ShadowDepth="1"/>
-                                </Border.Effect>
-                                <StackPanel>
-                                    <TextBlock Text="📊 Статистика хода" FontSize="10" FontWeight="SemiBold" Margin="0,0,0,6" Foreground="#505050"/>
-
-                                    <!-- Высоты -->
-                                    <TextBlock FontSize="9" Foreground="#606060" Margin="0,2,0,0">
-                                        <Run Text="Высоты:  min="/><Run x:Name="StatsMinHeight" FontWeight="SemiBold" Text="—"/>
-                                        <Run Text="  max="/><Run x:Name="StatsMaxHeight" FontWeight="SemiBold" Text="—"/>
-                                    </TextBlock>
-                                    <TextBlock FontSize="9" Foreground="#606060" Margin="0,1,0,0">
-                                        <Run Text="             μ="/><Run x:Name="StatsMeanHeight" FontWeight="SemiBold" Text="—"/>
-                                        <Run Text="  σ="/><Run x:Name="StatsStdDevHeight" FontWeight="SemiBold" Text="—"/>
-                                    </TextBlock>
-
-                                    <!-- Превышения -->
-                                    <TextBlock FontSize="9" Foreground="#606060" Margin="0,4,0,0">
-                                        <Run Text="Превыш: max="/><Run x:Name="StatsMaxDeltaH" FontWeight="SemiBold" Text="—"/>
-                                        <Run Text="  μ="/><Run x:Name="StatsMeanDeltaH" FontWeight="SemiBold" Text="—"/>
-                                    </TextBlock>
-
-                                    <!-- Станции -->
-                                    <TextBlock FontSize="9" Foreground="#606060" Margin="0,4,0,0">
-                                        <Run Text="Станции: μ="/><Run x:Name="StatsMeanLength" FontWeight="SemiBold" Text="—"/>
-                                        <Run Text="  Σ="/><Run x:Name="StatsTotalLength" FontWeight="SemiBold" Text="—"/>
-                                    </TextBlock>
-
-                                    <!-- Аномалии -->
-                                    <Border x:Name="OutliersPanel"
-                                            Background="#FFFFF3CD"
-                                            BorderBrush="#FFFFC107"
-                                            BorderThickness="1"
-                                            CornerRadius="2"
-                                            Padding="6,4"
-                                            Margin="0,6,0,0"
-                                            Visibility="Collapsed">
-                                        <StackPanel>
-                                            <TextBlock FontSize="9" FontWeight="SemiBold" Foreground="#FF856404">
-                                                <Run Text="⚠ Аномалий: "/><Run x:Name="StatsOutliersCount" Text="0"/>
-                                            </TextBlock>
-                                            <ItemsControl x:Name="OutliersList" Margin="0,3,0,0">
-                                                <ItemsControl.ItemTemplate>
-                                                    <DataTemplate>
-                                                        <TextBlock FontSize="8" Foreground="#FF856404" TextWrapping="Wrap" Margin="0,1">
-                                                            <Run Text="• Ст. "/><Run Text="{Binding StationIndex}"/>
-                                                            <Run Text=": "/><Run Text="{Binding Description}"/>
-                                                        </TextBlock>
-                                                    </DataTemplate>
-                                                </ItemsControl.ItemTemplate>
-                                            </ItemsControl>
-                                        </StackPanel>
-                                    </Border>
-                                </StackPanel>
-                            </Border>
-
-                            <!-- Легенда в правом верхнем углу -->
-                            <Border x:Name="LegendBorder"
-                                    HorizontalAlignment="Right"
-                                    VerticalAlignment="Top"
-                                    Background="#F0FFFFFF"
-                                    BorderBrush="#FFCCCCCC"
-                                    BorderThickness="1"
-                                    CornerRadius="3"
-                                    Padding="8,6"
-                                    Margin="20,20">
-                                <Border.Effect>
-                                    <DropShadowEffect Color="Black" Opacity="0.15" BlurRadius="4" ShadowDepth="1"/>
-                                </Border.Effect>
-                                <StackPanel>
-                                    <TextBlock Text="Легенда" FontSize="10" FontWeight="SemiBold" Margin="0,0,0,4" Foreground="#505050"/>
-
-                                    <!-- Линия Z -->
-                                    <StackPanel x:Name="LegendZItem" Orientation="Horizontal" Margin="0,2">
-                                        <Rectangle x:Name="LegendZLine" Width="24" Height="3" Fill="#005A9E" VerticalAlignment="Center"/>
-                                        <TextBlock Text="Z (скорр.)" FontSize="10" Margin="6,0,0,0" VerticalAlignment="Center"/>
-                                    </StackPanel>
-
-                                    <!-- Линия Z0 -->
-                                    <StackPanel x:Name="LegendZ0Item" Orientation="Horizontal" Margin="0,2">
-                                        <Rectangle x:Name="LegendZ0Line" Width="24" Height="3" Fill="#808080" VerticalAlignment="Center">
-                                            <Rectangle.StrokeDashArray>3 2</Rectangle.StrokeDashArray>
-                                        </Rectangle>
-                                        <TextBlock Text="Z₀ (исходн.)" FontSize="10" Margin="6,0,0,0" VerticalAlignment="Center"/>
-                                    </StackPanel>
-                                </StackPanel>
-                            </Border>
-                        </Grid>
+                        <Canvas x:Name="ProfileCanvas"
+                                Background="White"
+                                ClipToBounds="True"
+                                SizeChanged="ProfileCanvas_SizeChanged"/>
                     </Border>
 
                     <!-- Панель настроек под профилем -->
                     <Border Grid.Row="2" Background="#FFFAFAFA" BorderBrush="#FFD0D0D0" BorderThickness="0,1,0,0" Padding="16,12">
                         <Grid>
                             <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="16"/>
                                 <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="16"/>
                                 <ColumnDefinition Width="Auto"/>
@@ -907,6 +808,109 @@
                                             </Button.Style>
                                         </Button>
                                     </Grid>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Группа: Статистика и анализ -->
+                            <Border Grid.Column="4"
+                                    Background="White"
+                                    BorderBrush="#FFE0E0E0"
+                                    BorderThickness="1"
+                                    CornerRadius="4"
+                                    Padding="12,10">
+                                <StackPanel>
+                                    <TextBlock Text="📊 Статистика"
+                                               FontSize="10"
+                                               FontWeight="SemiBold"
+                                               Foreground="#505050"
+                                               Margin="0,0,0,8"/>
+
+                                    <!-- Высоты -->
+                                    <TextBlock FontSize="10" Foreground="#606060" Margin="0,0,0,2">
+                                        <Run Text="Высоты: min="/><Run x:Name="StatsMinHeight" FontWeight="SemiBold" Text="—"/>
+                                        <Run Text=" max="/><Run x:Name="StatsMaxHeight" FontWeight="SemiBold" Text="—"/>
+                                    </TextBlock>
+                                    <TextBlock FontSize="10" Foreground="#606060" Margin="0,0,0,6">
+                                        <Run Text="          μ="/><Run x:Name="StatsMeanHeight" FontWeight="SemiBold" Text="—"/>
+                                        <Run Text=" σ="/><Run x:Name="StatsStdDevHeight" FontWeight="SemiBold" Text="—"/>
+                                    </TextBlock>
+
+                                    <!-- Превышения -->
+                                    <TextBlock FontSize="10" Foreground="#606060" Margin="0,0,0,6">
+                                        <Run Text="Превыш: max="/><Run x:Name="StatsMaxDeltaH" FontWeight="SemiBold" Text="—"/>
+                                        <Run Text=" μ="/><Run x:Name="StatsMeanDeltaH" FontWeight="SemiBold" Text="—"/>
+                                    </TextBlock>
+
+                                    <!-- Станции -->
+                                    <TextBlock FontSize="10" Foreground="#606060" Margin="0,0,0,8">
+                                        <Run Text="Станции: μ="/><Run x:Name="StatsMeanLength" FontWeight="SemiBold" Text="—"/>
+                                        <Run Text=" Σ="/><Run x:Name="StatsTotalLength" FontWeight="SemiBold" Text="—"/>
+                                    </TextBlock>
+
+                                    <!-- Аномалии (упрощённо) -->
+                                    <Separator Margin="0,0,0,8"/>
+
+                                    <Grid Margin="0,0,0,4">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="8"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+
+                                        <CheckBox x:Name="ShowAnomaliesCheckBox"
+                                                  Grid.Column="0"
+                                                  Content="Аномалии"
+                                                  IsChecked="True"
+                                                  FontSize="10"
+                                                  VerticalAlignment="Center"
+                                                  Checked="ShowAnomaliesCheckBox_Changed"
+                                                  Unchecked="ShowAnomaliesCheckBox_Changed"/>
+
+                                        <TextBlock Grid.Column="2"
+                                                   VerticalAlignment="Center"
+                                                   FontSize="10"
+                                                   FontWeight="SemiBold">
+                                            <Run x:Name="AnomaliesCountIcon" Text="⚠" Foreground="#FFC107"/>
+                                            <Run x:Name="AnomaliesCountText" Text=" 0" Foreground="#606060"/>
+                                        </TextBlock>
+                                    </Grid>
+
+                                    <!-- Настройки анализа -->
+                                    <TextBlock Text="Допуск (σ):"
+                                               FontSize="9"
+                                               Foreground="#707070"
+                                               Margin="0,4,0,2"/>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="8"/>
+                                            <ColumnDefinition Width="40"/>
+                                        </Grid.ColumnDefinitions>
+
+                                        <Slider x:Name="SensitivitySlider"
+                                                Grid.Column="0"
+                                                Minimum="1.5"
+                                                Maximum="4.0"
+                                                Value="2.5"
+                                                TickFrequency="0.5"
+                                                IsSnapToTickEnabled="True"
+                                                VerticalAlignment="Center"
+                                                ValueChanged="SensitivitySlider_ValueChanged"/>
+
+                                        <TextBlock Grid.Column="2"
+                                                   x:Name="SensitivityValueText"
+                                                   Text="2.5"
+                                                   FontSize="10"
+                                                   FontWeight="SemiBold"
+                                                   VerticalAlignment="Center"
+                                                   HorizontalAlignment="Center"/>
+                                    </Grid>
+
+                                    <TextBlock FontSize="8"
+                                               Foreground="#909090"
+                                               TextWrapping="Wrap"
+                                               Margin="0,2,0,0"
+                                               Text="1.5σ = более чувствительно&#x0a;4.0σ = менее чувствительно"/>
                                 </StackPanel>
                             </Border>
                         </Grid>
