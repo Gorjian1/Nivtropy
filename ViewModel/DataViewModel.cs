@@ -181,16 +181,19 @@ namespace Nivtropy.ViewModels
         /// </summary>
         private void CreateDisconnectedPointCopies(string pointCode)
         {
-            // Находим все ходы где используется эта точка
+            // Находим все ходы где используется эта точка через LineSummary
             var runsWithPoint = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             foreach (var record in Records)
             {
-                if (string.Equals(record.BackCode, pointCode, StringComparison.OrdinalIgnoreCase) ||
-                    string.Equals(record.ForeCode, pointCode, StringComparison.OrdinalIgnoreCase))
+                // Проверяем Target (целевая точка) и StationCode (код станции)
+                var recordPointCode = record.Target ?? record.StationCode;
+
+                if (string.Equals(recordPointCode, pointCode, StringComparison.OrdinalIgnoreCase))
                 {
-                    if (!string.IsNullOrWhiteSpace(record.LineName))
-                        runsWithPoint.Add(record.LineName);
+                    var runName = record.LineSummary?.DisplayName;
+                    if (!string.IsNullOrWhiteSpace(runName))
+                        runsWithPoint.Add(runName);
                 }
             }
 
@@ -198,19 +201,17 @@ namespace Nivtropy.ViewModels
             var existingHeight = GetKnownHeight(pointCode);
 
             // Создаём копию для каждого хода
-            foreach (var runName in runsWithPoint)
+            bool isFirst = true;
+            foreach (var runName in runsWithPoint.OrderBy(r => r))
             {
                 var pointCodeWithRun = GetPointCodeForRun(pointCode, runName);
 
                 // Если для первого хода есть высота - копируем её
-                // Для остальных создаём без высоты
-                if (existingHeight.HasValue && !HasKnownHeight(pointCodeWithRun))
+                // Для остальных создаём без высоты (они появятся в списке для установки)
+                if (existingHeight.HasValue && isFirst && !HasKnownHeight(pointCodeWithRun))
                 {
-                    // Копируем высоту только для первой встреченной копии
-                    if (runsWithPoint.First() == runName)
-                    {
-                        SetKnownHeight(pointCodeWithRun, existingHeight.Value);
-                    }
+                    SetKnownHeight(pointCodeWithRun, existingHeight.Value);
+                    isFirst = false;
                 }
             }
         }
