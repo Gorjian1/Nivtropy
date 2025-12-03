@@ -748,6 +748,9 @@ namespace Nivtropy.ViewModels
 
             foreach (var record in records)
             {
+                if (!string.IsNullOrWhiteSpace(record.LineMarker))
+                    continue;
+
                 var runIndex = record.LineSummary?.Index ?? 0;
                 AddUsage(record.Target, runIndex);
                 AddUsage(record.StationCode, runIndex);
