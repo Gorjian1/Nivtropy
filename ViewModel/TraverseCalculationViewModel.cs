@@ -560,7 +560,7 @@ namespace Nivtropy.ViewModels
             // Группируем станции по ходам для корректного расчета поправок
             var traverseGroups = items.GroupBy(r => r.LineName).ToList();
 
-            UpdateSharedPointsMetadata(traverseGroups);
+            UpdateSharedPointsMetadata(_dataViewModel.Records);
 
             // Доступные высоты точек: сначала известные вручную
             var availableAdjustedHeights = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
@@ -727,29 +727,30 @@ namespace Nivtropy.ViewModels
             return _dataViewModel.HasKnownHeight(code) || _dataViewModel.IsSharedPointEnabled(code);
         }
 
-        private void UpdateSharedPointsMetadata(List<IGrouping<string, TraverseRow>> traverseGroups)
+        private void UpdateSharedPointsMetadata(IReadOnlyCollection<MeasurementRecord> records)
         {
             var usage = new Dictionary<string, HashSet<int>>(StringComparer.OrdinalIgnoreCase);
 
-            foreach (var group in traverseGroups)
+            void AddUsage(string? code, int runIndex)
             {
-                var runIndex = group.FirstOrDefault()?.LineSummary?.Index ?? 0;
-                if (runIndex == 0)
-                    continue;
+                if (runIndex == 0 || string.IsNullOrWhiteSpace(code))
+                    return;
 
-                foreach (var code in group
-                             .SelectMany(r => new[] { r.BackCode, r.ForeCode })
-                             .Where(c => !string.IsNullOrWhiteSpace(c))
-                             .Select(c => c!))
+                var trimmed = code.Trim();
+                if (!usage.TryGetValue(trimmed, out var set))
                 {
-                    if (!usage.TryGetValue(code, out var set))
-                    {
-                        set = new HashSet<int>();
-                        usage[code] = set;
-                    }
-
-                    set.Add(runIndex);
+                    set = new HashSet<int>();
+                    usage[trimmed] = set;
                 }
+
+                set.Add(runIndex);
+            }
+
+            foreach (var record in records)
+            {
+                var runIndex = record.LineSummary?.Index ?? 0;
+                AddUsage(record.Target, runIndex);
+                AddUsage(record.StationCode, runIndex);
             }
 
             var sharedCodes = usage

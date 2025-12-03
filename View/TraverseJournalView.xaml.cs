@@ -154,14 +154,28 @@ namespace Nivtropy.Views
             // Собираем точки для Z и Z0
             var pointsZ = new System.Collections.Generic.List<(double height, double distance, string pointCode, int index)>();
             var pointsZ0 = new System.Collections.Generic.List<(double height, double distance, string pointCode, int index)>();
+            var pointDistances = new System.Collections.Generic.List<double>(rows.Count);
+            var segmentStarts = new System.Collections.Generic.List<double>(rows.Count);
+            var segmentLengths = new System.Collections.Generic.List<double>(rows.Count);
             double cumulativeDistance = 0;
 
             for (int i = 0; i < rows.Count; i++)
             {
                 var row = rows[i];
+                var stationLength = row.StationLength_m ?? 0;
                 var heightZ = row.IsVirtualStation ? row.BackHeight : row.ForeHeight;
                 var heightZ0 = row.IsVirtualStation ? row.BackHeightZ0 : row.ForeHeightZ0;
                 var pointCode = row.PointCode ?? "";
+
+                segmentStarts.Add(cumulativeDistance);
+
+                if (!row.IsVirtualStation)
+                {
+                    cumulativeDistance += stationLength;
+                }
+
+                segmentLengths.Add(row.IsVirtualStation ? 0 : stationLength);
+                pointDistances.Add(cumulativeDistance);
 
                 if (heightZ.HasValue && _showZ)
                 {
@@ -172,8 +186,6 @@ namespace Nivtropy.Views
                 {
                     pointsZ0.Add((heightZ0.Value, cumulativeDistance, pointCode, i + 1));
                 }
-
-                cumulativeDistance += row.StationLength_m ?? 0;
             }
 
             if (pointsZ.Count < 2 && pointsZ0.Count < 2)
@@ -212,13 +224,14 @@ namespace Nivtropy.Views
             }
 
             // Рисуем цветовую индикацию разности плеч (толстые фоновые линии)
-            double cumulativeDistForArm = 0;
             for (int i = 0; i < rows.Count - 1; i++)
             {
                 var row = rows[i];
-                var nextRow = rows[i + 1];
+                if (row.IsVirtualStation)
+                    continue;
+
                 var armDiff = Math.Abs(row.ArmDifference_m ?? 0);
-                var stationLength = row.StationLength_m ?? 0;
+                var stationLength = segmentLengths[i];
 
                 // Определяем допуск для разности плеч
                 // Обычно допуск составляет около 5м для технического нивелирования
@@ -245,8 +258,8 @@ namespace Nivtropy.Views
                 }
 
                 // Рисуем толстую полупрозрачную линию как фон
-                var x1 = margin + (cumulativeDistForArm / totalDistance) * plotWidth;
-                var x2 = margin + ((cumulativeDistForArm + stationLength) / totalDistance) * plotWidth;
+                var x1 = margin + (segmentStarts[i] / totalDistance) * plotWidth;
+                var x2 = margin + ((segmentStarts[i] + stationLength) / totalDistance) * plotWidth;
 
                 // Рисуем вертикальную полосу по всей высоте графика
                 var rect = new System.Windows.Shapes.Rectangle
@@ -260,7 +273,6 @@ namespace Nivtropy.Views
                 Canvas.SetTop(rect, margin);
                 ProfileCanvas.Children.Add(rect);
 
-                cumulativeDistForArm += stationLength;
             }
 
             // Рисуем линию Z0 (пунктиром, серая)
@@ -354,16 +366,10 @@ namespace Nivtropy.Views
                 {
                     if (outlierStations.Contains(rows[i].Index))
                     {
-                        var distance = 0.0;
-                        for (int j = 0; j < i; j++)
-                        {
-                            distance += rows[j].StationLength_m ?? 0;
-                        }
-
                         var height = rows[i].IsVirtualStation ? rows[i].BackHeight : rows[i].ForeHeight;
                         if (height.HasValue)
                         {
-                            var x = margin + (distance / totalDistance) * plotWidth;
+                            var x = margin + (pointDistances[i] / totalDistance) * plotWidth;
                             var y = canvasHeight - margin - ((height.Value - minHeight) / heightRange * plotHeight);
 
                             // Находим все аномалии для этой станции
