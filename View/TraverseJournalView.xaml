@@ -239,7 +239,7 @@
                                         <TextBlock Text="{Binding Name}" FontWeight="SemiBold" Foreground="#202020" />
                                         <TextBlock Text=" • Станций: " Margin="12,0,0,0" Foreground="#707070" />
                                         <TextBlock Text="{Binding ItemCount, Converter={StaticResource JournalStationCountConverter}}" FontWeight="SemiBold" Foreground="#202020" />
-                                        <TextBlock Text=" • ΣΔh: " Margin="12,0,0,0" Foreground="#707070" />
+                                        <TextBlock Text=" • Невязка: " Margin="12,0,0,0" Foreground="#707070" />
                                         <TextBlock Text="{Binding Converter={StaticResource GroupClosureConverter}}"
                                                    FontWeight="SemiBold"
                                                    Foreground="#0078D4" />

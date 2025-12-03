@@ -405,12 +405,13 @@ namespace Nivtropy.ViewModels
                         var totalLength = lineSummary.TotalAverageLength ?? 0;
                         var armAccumulation = lineSummary.ArmDifferenceAccumulation ?? 0;
                         var stationCount = lineSummary.RecordCount;
+                        var closureText = lineSummary.ClosuresDisplay;
 
-                        csv.AppendLine($"Станций: {stationCount}; Длина назад: {lengthBack:F2} м; Длина вперёд: {lengthFore:F2} м; Общая длина: {totalLength:F2} м; Накопление плеч: {armAccumulation:F3} м");
+                        csv.AppendLine($"Станций: {stationCount}; Длина назад: {lengthBack:F2} м; Длина вперёд: {lengthFore:F2} м; Общая длина: {totalLength:F2} м; Накопление плеч: {armAccumulation:F3} м; Невязка: {closureText} м");
                     }
 
                     // 3. Header row + data table
-                    csv.AppendLine("Номер;Ход;Точка;Станция;Отсчет назад (м);Отсчет вперед (м);Превышение (м);Поправка (мм);Превышение испр. (м);Высота непров. (м);Высота (м);Длина станции (м)");
+                    csv.AppendLine("Номер;Ход;Точка;Станция;Длина станции (м);Отсчет назад (м);Отсчет вперед (м);Превышение (м);Поправка (мм);Превышение испр. (м);Высота непров. (м);Высота (м);Точка");
 
                     foreach (var dataRow in rows)
                     {
@@ -422,6 +423,7 @@ namespace Nivtropy.ViewModels
                             dataRow.LineName,
                             dataRow.PointCode,
                             dataRow.Station,
+                            dataRow.StationLength_m?.ToString("F2") ?? "",
                             dataRow.Rb_m?.ToString("F4") ?? "",
                             dataRow.Rf_m?.ToString("F4") ?? "",
                             dataRow.DeltaH?.ToString("F4") ?? "",
@@ -429,7 +431,7 @@ namespace Nivtropy.ViewModels
                             dataRow.AdjustedDeltaH?.ToString("F4") ?? "",
                             heightZ0?.ToString("F4") ?? "",
                             height?.ToString("F4") ?? "",
-                            dataRow.StationLength_m?.ToString("F2") ?? ""
+                            dataRow.PointCode
                         ));
                     }
 
