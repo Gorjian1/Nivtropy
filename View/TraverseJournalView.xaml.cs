@@ -103,8 +103,9 @@ namespace Nivtropy.Views
 
                     if (heights.Any())
                     {
-                        MinHeightTextBox.Text = heights.Min().ToString("F2");
-                        MaxHeightTextBox.Text = heights.Max().ToString("F2");
+                        var (minHeight, maxHeight) = CalculateExtendedRange(heights);
+                        MinHeightTextBox.Text = minHeight.ToString("F2");
+                        MaxHeightTextBox.Text = maxHeight.ToString("F2");
                     }
 
                     // Вычисляем статистику и обнаруживаем аномалии
@@ -708,10 +709,37 @@ namespace Nivtropy.Views
 
                 if (heights.Any())
                 {
-                    MinHeightTextBox.Text = heights.Min().ToString("F2");
-                    MaxHeightTextBox.Text = heights.Max().ToString("F2");
+                    var (minHeight, maxHeight) = CalculateExtendedRange(heights);
+                    MinHeightTextBox.Text = minHeight.ToString("F2");
+                    MaxHeightTextBox.Text = maxHeight.ToString("F2");
                 }
             }
+        }
+
+        /// <summary>
+        /// Вычисляет расширенный диапазон высот для лучшей визуализации
+        /// Добавляет ±50% от диапазона данных
+        /// </summary>
+        private (double min, double max) CalculateExtendedRange(System.Collections.Generic.List<double> heights)
+        {
+            if (!heights.Any()) return (0, 0);
+
+            var actualMin = heights.Min();
+            var actualMax = heights.Max();
+            var range = actualMax - actualMin;
+
+            // Если диапазон очень маленький (менее 1см), расширяем минимум на ±0.5м
+            if (range < 0.01)
+            {
+                return (actualMin - 0.5, actualMax + 0.5);
+            }
+
+            // Добавляем половину диапазона сверху и снизу
+            var expansion = range * 0.5;
+            var minHeight = actualMin - expansion;
+            var maxHeight = actualMax + expansion;
+
+            return (minHeight, maxHeight);
         }
 
         /// <summary>
