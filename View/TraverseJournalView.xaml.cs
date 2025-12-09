@@ -1095,5 +1095,21 @@ namespace Nivtropy.Views
                 viewModel.Calculation.RemoveBenchmarkCommand.Execute(benchmark);
             }
         }
+
+        /// <summary>
+        /// Обработчик нажатия Enter в поле ввода высоты репера
+        /// </summary>
+        private void BenchmarkHeightTextBox_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Enter && DataContext is TraverseJournalViewModel viewModel)
+            {
+                // Попытка выполнить команду добавления репера
+                if (viewModel.Calculation.AddBenchmarkCommand.CanExecute(null))
+                {
+                    viewModel.Calculation.AddBenchmarkCommand.Execute(null);
+                    e.Handled = true;
+                }
+            }
+        }
     }
 }
