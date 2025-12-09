@@ -45,10 +45,10 @@
                        Text="Журнал нивелирного хода"
                        FontSize="14"
                        FontWeight="SemiBold"
-                       Margin="8,8,8,4"
+                       Margin="8,8,8,8"
                        VerticalAlignment="Center" />
 
-        <!-- Панель статистики с иконками -->
+        <!-- Панель статистики с иконками (убрали дублирование метода/класса) -->
         <StackPanel Grid.Row="1" Margin="8,4,8,4" Orientation="Horizontal">
             <TextBlock Text="&#xE9D9;" FontFamily="Segoe MDL2 Assets" FontSize="14" VerticalAlignment="Center" Foreground="#0078D4" />
             <TextBlock Text="Станций:" FontWeight="SemiBold" VerticalAlignment="Center" Margin="4,0,0,0" />
@@ -522,62 +522,99 @@
         <!-- ПРАВАЯ ПАНЕЛЬ: Настройки и информация -->
         <ScrollViewer Grid.Column="2"
                       VerticalScrollBarVisibility="Auto"
-                      HorizontalScrollBarVisibility="Disabled">
-            <StackPanel Margin="8">
+                      HorizontalScrollBarVisibility="Disabled"
+                      Padding="8">
+            <StackPanel>
 
-                <!-- Секция: Настройки расчёта -->
-                <Border BorderBrush="#FFB0B0B0"
-                        BorderThickness="1"
-                        CornerRadius="3"
-                        Padding="8"
-                        Margin="0,0,0,8"
-                        Background="White">
-                    <StackPanel>
-                        <TextBlock Text="НАСТРОЙКИ РАСЧЁТА"
-                                   FontWeight="SemiBold"
-                                   FontSize="12"
-                                   Margin="0,0,0,8" />
-                        <Separator Margin="0,0,0,8" />
+                <!-- Компактные настройки расчёта -->
+                <StackPanel Margin="0,0,0,12">
+                    <Border BorderBrush="#FFE0E0E0"
+                            BorderThickness="1"
+                            CornerRadius="4"
+                            Padding="10"
+                            Background="White"
+                            Margin="0,0,0,6">
+                        <StackPanel>
+                            <TextBlock Text="метод"
+                                       FontSize="10"
+                                       Foreground="#707070"
+                                       Margin="0,0,0,3" />
+                            <ComboBox ItemsSource="{Binding Calculation.Methods}"
+                                      SelectedItem="{Binding Calculation.SelectedMethod, Mode=TwoWay}"
+                                      DisplayMemberPath="Display"
+                                      FontSize="12" />
+                        </StackPanel>
+                    </Border>
 
-                        <Label Content="Метод:" Padding="0,4" />
-                        <ComboBox ItemsSource="{Binding Calculation.Methods}"
-                                  SelectedItem="{Binding Calculation.SelectedMethod, Mode=TwoWay}"
-                                  DisplayMemberPath="Display"
-                                  Margin="0,0,0,8" />
+                    <Border BorderBrush="#FFE0E0E0"
+                            BorderThickness="1"
+                            CornerRadius="4"
+                            Padding="10"
+                            Background="White"
+                            Margin="0,0,0,6">
+                        <StackPanel>
+                            <TextBlock Text="класс"
+                                       FontSize="10"
+                                       Foreground="#707070"
+                                       Margin="0,0,0,3" />
+                            <ComboBox ItemsSource="{Binding Calculation.Classes}"
+                                      SelectedItem="{Binding Calculation.SelectedClass, Mode=TwoWay}"
+                                      DisplayMemberPath="Display"
+                                      ToolTip="Выбор допуска по классу"
+                                      FontSize="12" />
+                        </StackPanel>
+                    </Border>
 
-                        <Label Content="Класс:" Padding="0,4" />
-                        <ComboBox ItemsSource="{Binding Calculation.Classes}"
-                                  SelectedItem="{Binding Calculation.SelectedClass, Mode=TwoWay}"
-                                  DisplayMemberPath="Display"
-                                  ToolTip="Выбор допуска по классу"
-                                  Margin="0,0,0,0" />
-                    </StackPanel>
-                </Border>
+                    <Button Command="{Binding Calculation.ExportCommand}"
+                            Padding="10"
+                            Background="White"
+                            BorderBrush="#FFE0E0E0"
+                            BorderThickness="1"
+                            Height="40"
+                            HorizontalContentAlignment="Center"
+                            VerticalContentAlignment="Center"
+                            Cursor="Hand">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="&#xE8B7;"
+                                       FontFamily="Segoe MDL2 Assets"
+                                       FontSize="16"
+                                       VerticalAlignment="Center"
+                                       Margin="0,0,6,0" />
+                            <TextBlock Text="Экспорт"
+                                       FontSize="13"
+                                       VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
 
                 <!-- Секция: Реперы -->
-                <Border BorderBrush="#FFB0B0B0"
+                <Border BorderBrush="#FFE0E0E0"
                         BorderThickness="1"
-                        CornerRadius="3"
-                        Padding="8"
-                        Margin="0,0,0,8"
+                        CornerRadius="4"
+                        Padding="10"
+                        Margin="0,0,0,12"
                         Background="White">
                     <StackPanel>
-                        <TextBlock Text="РЕПЕРЫ"
+                        <TextBlock Text="Реперы"
                                    FontWeight="SemiBold"
-                                   FontSize="12"
-                                   Margin="0,0,0,8" />
-                        <Separator Margin="0,0,0,8" />
+                                   FontSize="13"
+                                   Margin="0,0,0,10" />
 
                         <!-- Добавление репера -->
-                        <Label Content="Точка:" Padding="0,4" />
                         <ComboBox ItemsSource="{Binding Calculation.AvailablePoints}"
                                   SelectedItem="{Binding Calculation.SelectedPoint, Mode=TwoWay}"
                                   DisplayMemberPath="DisplayName"
                                   ToolTip="Выберите точку для установки известной высоты"
-                                  Margin="0,0,0,8" />
+                                  Margin="0,0,0,6"
+                                  FontSize="12">
+                            <ComboBox.Style>
+                                <Style TargetType="ComboBox">
+                                    <Setter Property="Background" Value="White" />
+                                </Style>
+                            </ComboBox.Style>
+                        </ComboBox>
 
-                        <Label Content="Высота (м):" Padding="0,4" />
-                        <Grid Margin="0,0,0,8">
+                        <Grid Margin="0,0,0,10">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="Auto" />
@@ -588,30 +625,31 @@
                                      ToolTip="Введите известную высоту репера (Enter для добавления)"
                                      KeyDown="BenchmarkHeightTextBox_KeyDown"
                                      VerticalContentAlignment="Center"
+                                     FontSize="12"
+                                     Padding="6"
                                      Margin="0,0,4,0" />
                             <Button Grid.Column="1"
-                                    Content="&#xE710;"
-                                    FontFamily="Segoe MDL2 Assets"
-                                    FontSize="16"
-                                    Width="30"
-                                    Height="28"
+                                    Content="+"
+                                    FontSize="18"
+                                    FontWeight="Bold"
+                                    Width="34"
+                                    Height="30"
                                     Command="{Binding Calculation.AddBenchmarkCommand}"
                                     ToolTip="Добавить репер"
                                     Padding="0"
                                     Background="#FF4CAF50"
                                     Foreground="White"
-                                    BorderThickness="0" />
+                                    BorderThickness="0"
+                                    Cursor="Hand" />
                         </Grid>
 
                         <!-- Список реперов -->
-                        <TextBlock Text="Список реперов:"
-                                   FontSize="11"
-                                   Foreground="#707070"
-                                   Margin="0,4,0,4" />
-                        <Border BorderBrush="#FFE0E0E0"
+                        <Separator Margin="0,0,0,8" />
+                        <Border BorderBrush="#FFF0F0F0"
                                 BorderThickness="1"
-                                CornerRadius="2"
-                                MaxHeight="200">
+                                CornerRadius="3"
+                                Background="#FFFAFAFA"
+                                MaxHeight="180">
                             <ScrollViewer VerticalScrollBarVisibility="Auto"
                                           HorizontalScrollBarVisibility="Disabled">
                                 <ItemsControl ItemsSource="{Binding Calculation.Benchmarks}">
@@ -619,7 +657,9 @@
                                         <DataTemplate>
                                             <Border BorderBrush="#FFE0E0E0"
                                                     BorderThickness="0,0,0,1"
-                                                    Padding="6,4">
+                                                    Padding="8,6"
+                                                    Background="White"
+                                                    Margin="2">
                                                 <Grid>
                                                     <Grid.ColumnDefinitions>
                                                         <ColumnDefinition Width="*" />
@@ -627,23 +667,25 @@
                                                     </Grid.ColumnDefinitions>
 
                                                     <StackPanel Grid.Column="0"
-                                                                Orientation="Vertical">
+                                                                Orientation="Horizontal"
+                                                                VerticalAlignment="Center">
                                                         <TextBlock Text="{Binding Code}"
                                                                    FontWeight="SemiBold"
-                                                                   FontSize="11" />
-                                                        <TextBlock FontSize="10"
-                                                                   Foreground="#707070">
-                                                            <Run Text="{Binding Height, StringFormat=F4}" />
+                                                                   FontSize="12"
+                                                                   Margin="0,0,8,0" />
+                                                        <TextBlock FontSize="11"
+                                                                   Foreground="#707070"
+                                                                   VerticalAlignment="Center">
+                                                            <Run Text="{Binding Height, Mode=OneWay, StringFormat=F4}" />
                                                             <Run Text=" м" />
                                                         </TextBlock>
                                                     </StackPanel>
 
                                                     <Button Grid.Column="1"
-                                                            Content="&#xE711;"
-                                                            FontFamily="Segoe MDL2 Assets"
-                                                            FontSize="12"
-                                                            Width="20"
-                                                            Height="20"
+                                                            Content="×"
+                                                            FontSize="16"
+                                                            Width="22"
+                                                            Height="22"
                                                             Padding="0"
                                                             Background="Transparent"
                                                             BorderThickness="0"
@@ -651,7 +693,8 @@
                                                             Cursor="Hand"
                                                             ToolTip="Удалить репер"
                                                             Click="RemoveBenchmark_Click"
-                                                            Tag="{Binding}" />
+                                                            Tag="{Binding}"
+                                                            VerticalAlignment="Center" />
                                                 </Grid>
                                             </Border>
                                         </DataTemplate>
@@ -662,29 +705,43 @@
                     </StackPanel>
                 </Border>
 
-                <!-- Секция: Экспорт -->
-                <Border BorderBrush="#FFB0B0B0"
+                <!-- Секция: Визуализация связей ходов (placeholder) -->
+                <Border BorderBrush="#FFE0E0E0"
                         BorderThickness="1"
-                        CornerRadius="3"
-                        Padding="8"
-                        Margin="0,0,0,8"
+                        CornerRadius="4"
+                        Padding="10"
+                        Margin="0,0,0,12"
                         Background="White">
                     <StackPanel>
-                        <TextBlock Text="ЭКСПОРТ"
+                        <TextBlock Text="Станций:    Допуск:    Длина: и тд..."
                                    FontWeight="SemiBold"
                                    FontSize="12"
-                                   Margin="0,0,0,8" />
-                        <Separator Margin="0,0,0,8" />
+                                   Margin="0,0,0,10"
+                                   TextWrapping="Wrap" />
 
-                        <Button Content="&#xE71D; Экспорт в Excel"
-                                FontFamily="Segoe MDL2 Assets, Segoe UI"
-                                Command="{Binding Calculation.ExportCommand}"
-                                ToolTip="Экспортировать данные в Excel"
-                                Padding="8,6"
-                                HorizontalContentAlignment="Center"
-                                Background="#FF0078D4"
-                                Foreground="White"
-                                BorderThickness="0" />
+                        <!-- Placeholder для визуализации -->
+                        <Border BorderBrush="#FFE0E0E0"
+                                BorderThickness="1"
+                                CornerRadius="3"
+                                Height="200"
+                                Background="#FFFAFAFA">
+                            <TextBlock Text="отрисовка связи ходов"
+                                       FontSize="13"
+                                       Foreground="#A0A0A0"
+                                       HorizontalAlignment="Center"
+                                       VerticalAlignment="Center" />
+                        </Border>
+
+                        <Button Content="∨"
+                                FontSize="16"
+                                Height="32"
+                                Margin="0,10,0,0"
+                                Background="White"
+                                BorderBrush="#FFE0E0E0"
+                                BorderThickness="1"
+                                HorizontalAlignment="Stretch"
+                                Cursor="Hand"
+                                ToolTip="Развернуть/свернуть" />
                     </StackPanel>
                 </Border>
 
