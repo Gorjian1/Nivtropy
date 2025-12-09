@@ -484,6 +484,12 @@
                       VerticalScrollBarVisibility="Auto"
                       HorizontalScrollBarVisibility="Disabled"
                       Padding="8">
+            <ScrollViewer.Background>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                    <GradientStop Color="#FFF5F7F9" Offset="0"/>
+                    <GradientStop Color="#FFEAEFF4" Offset="1"/>
+                </LinearGradientBrush>
+            </ScrollViewer.Background>
             <StackPanel>
 
                 <!-- СТРОКА 1: Метод | Класс | Экспорт (в один ряд) -->
@@ -498,44 +504,76 @@
 
                     <!-- Метод -->
                     <Border Grid.Column="0"
-                            BorderBrush="#FFE0E0E0"
+                            BorderBrush="#FFBCC7D3"
                             BorderThickness="1"
-                            CornerRadius="4"
+                            CornerRadius="2"
                             Padding="8"
                             Background="White">
+                        <Border.Effect>
+                            <DropShadowEffect Color="#40000000" BlurRadius="3" ShadowDepth="1" Direction="270" Opacity="0.25"/>
+                        </Border.Effect>
                         <StackPanel>
                             <TextBlock Text="метод"
                                        FontSize="9"
-                                       Foreground="#707070"
-                                       Margin="0,0,0,3" />
+                                       Foreground="#2B579A"
+                                       FontWeight="SemiBold"
+                                       Margin="0,0,0,4" />
                             <ComboBox ItemsSource="{Binding Calculation.Methods}"
                                       SelectedItem="{Binding Calculation.SelectedMethod, Mode=TwoWay}"
                                       DisplayMemberPath="Display"
                                       FontSize="11"
-                                      BorderThickness="0"
-                                      Background="Transparent" />
+                                      Height="24">
+                                <ComboBox.Style>
+                                    <Style TargetType="ComboBox">
+                                        <Setter Property="Background">
+                                            <Setter.Value>
+                                                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                                    <GradientStop Color="#FFFFFFFF" Offset="0"/>
+                                                    <GradientStop Color="#FFF5F7F9" Offset="1"/>
+                                                </LinearGradientBrush>
+                                            </Setter.Value>
+                                        </Setter>
+                                    </Style>
+                                </ComboBox.Style>
+                            </ComboBox>
                         </StackPanel>
                     </Border>
 
                     <!-- Класс -->
                     <Border Grid.Column="2"
-                            BorderBrush="#FFE0E0E0"
+                            BorderBrush="#FFBCC7D3"
                             BorderThickness="1"
-                            CornerRadius="4"
+                            CornerRadius="2"
                             Padding="8"
                             Background="White">
+                        <Border.Effect>
+                            <DropShadowEffect Color="#40000000" BlurRadius="3" ShadowDepth="1" Direction="270" Opacity="0.25"/>
+                        </Border.Effect>
                         <StackPanel>
                             <TextBlock Text="класс"
                                        FontSize="9"
-                                       Foreground="#707070"
-                                       Margin="0,0,0,3" />
+                                       Foreground="#2B579A"
+                                       FontWeight="SemiBold"
+                                       Margin="0,0,0,4" />
                             <ComboBox ItemsSource="{Binding Calculation.Classes}"
                                       SelectedItem="{Binding Calculation.SelectedClass, Mode=TwoWay}"
                                       DisplayMemberPath="Display"
                                       ToolTip="Выбор допуска по классу"
                                       FontSize="11"
-                                      BorderThickness="0"
-                                      Background="Transparent" />
+                                      Height="24">
+                                <ComboBox.Style>
+                                    <Style TargetType="ComboBox">
+                                        <Setter Property="Background">
+                                            <Setter.Value>
+                                                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                                    <GradientStop Color="#FFFFFFFF" Offset="0"/>
+                                                    <GradientStop Color="#FFF5F7F9" Offset="1"/>
+                                                </LinearGradientBrush>
+                                            </Setter.Value>
+                                        </Setter>
+                                    </Style>
+                                </ComboBox.Style>
+                            </ComboBox>
                         </StackPanel>
                     </Border>
 
@@ -545,90 +583,230 @@
                             Width="50"
                             Height="50"
                             Padding="0"
-                            Background="White"
-                            BorderBrush="#FFE0E0E0"
+                            BorderBrush="#FF4F9F4F"
                             BorderThickness="1"
                             VerticalAlignment="Stretch"
                             HorizontalContentAlignment="Center"
                             VerticalContentAlignment="Center"
                             Cursor="Hand"
                             ToolTip="Экспорт в Excel">
+                        <Button.Style>
+                            <Style TargetType="Button">
+                                <Setter Property="Background">
+                                    <Setter.Value>
+                                        <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                            <GradientStop Color="#FF6FBD6F" Offset="0"/>
+                                            <GradientStop Color="#FF5AAF5A" Offset="1"/>
+                                        </LinearGradientBrush>
+                                    </Setter.Value>
+                                </Setter>
+                                <Setter Property="Effect">
+                                    <Setter.Value>
+                                        <DropShadowEffect Color="#40000000" BlurRadius="4" ShadowDepth="1" Direction="270" Opacity="0.3"/>
+                                    </Setter.Value>
+                                </Setter>
+                                <Style.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter Property="Background">
+                                            <Setter.Value>
+                                                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                                    <GradientStop Color="#FF7FCD7F" Offset="0"/>
+                                                    <GradientStop Color="#FF6ABF6A" Offset="1"/>
+                                                </LinearGradientBrush>
+                                            </Setter.Value>
+                                        </Setter>
+                                    </Trigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
                         <Button.Content>
                             <TextBlock Text="&#xE8B7;"
                                        FontFamily="Segoe MDL2 Assets"
                                        FontSize="20"
-                                       Foreground="#107C10" />
+                                       Foreground="White" />
                         </Button.Content>
                     </Button>
                 </Grid>
 
                 <!-- СТРОКА 2: Блок реперов с кнопкой-списком -->
-                <Border BorderBrush="#FFE0E0E0"
+                <Border BorderBrush="#FFBCC7D3"
                         BorderThickness="1"
-                        CornerRadius="4"
-                        Padding="10"
+                        CornerRadius="2"
+                        Padding="12"
                         Margin="0,0,0,8"
                         Background="White">
+                    <Border.Effect>
+                        <DropShadowEffect Color="#40000000" BlurRadius="4" ShadowDepth="1" Direction="270" Opacity="0.3"/>
+                    </Border.Effect>
                     <StackPanel>
                         <TextBlock Text="Реперы"
                                    FontWeight="SemiBold"
                                    FontSize="12"
-                                   Margin="0,0,0,8" />
+                                   Foreground="#2B579A"
+                                   Margin="0,0,0,10" />
 
-                        <!-- Выбор точки и ввод высоты -->
-                        <ComboBox ItemsSource="{Binding Calculation.AvailablePoints}"
-                                  SelectedItem="{Binding Calculation.SelectedPoint, Mode=TwoWay}"
-                                  DisplayMemberPath="DisplayName"
-                                  ToolTip="Выберите точку для установки известной высоты"
-                                  Margin="0,0,0,6"
-                                  FontSize="11" />
-
-                        <Grid Margin="0,0,0,8">
+                        <!-- Одна строка: Точки + Высота + кнопки -->
+                        <Grid>
                             <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
                                 <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="8" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="80" />
                                 <ColumnDefinition Width="4" />
                                 <ColumnDefinition Width="Auto" />
                                 <ColumnDefinition Width="4" />
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
 
+                            <!-- Метка "Точки:" -->
+                            <TextBlock Grid.Column="0"
+                                       Text="Точки:"
+                                       FontSize="11"
+                                       VerticalAlignment="Center"
+                                       Margin="0,0,6,0" />
+
+                            <!-- Комбобокс с точками -->
+                            <ComboBox Grid.Column="1"
+                                      ItemsSource="{Binding Calculation.AvailablePoints}"
+                                      SelectedItem="{Binding Calculation.SelectedPoint, Mode=TwoWay}"
+                                      DisplayMemberPath="DisplayName"
+                                      ToolTip="Выберите точку для установки известной высоты"
+                                      FontSize="11"
+                                      Height="26"
+                                      VerticalContentAlignment="Center">
+                                <ComboBox.Style>
+                                    <Style TargetType="ComboBox">
+                                        <Setter Property="Background">
+                                            <Setter.Value>
+                                                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                                    <GradientStop Color="#FFFFFFFF" Offset="0"/>
+                                                    <GradientStop Color="#FFF5F7F9" Offset="1"/>
+                                                </LinearGradientBrush>
+                                            </Setter.Value>
+                                        </Setter>
+                                    </Style>
+                                </ComboBox.Style>
+                            </ComboBox>
+
+                            <!-- Метка "Высота:" -->
+                            <TextBlock Grid.Column="3"
+                                       Text="Высота:"
+                                       FontSize="11"
+                                       VerticalAlignment="Center"
+                                       Margin="0,0,6,0" />
+
+                            <!-- Поле ввода высоты -->
                             <TextBox x:Name="BenchmarkHeightTextBox"
-                                     Grid.Column="0"
+                                     Grid.Column="4"
                                      Text="{Binding Calculation.NewBenchmarkHeight, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                      ToolTip="Введите известную высоту репера (Enter для добавления)"
                                      KeyDown="BenchmarkHeightTextBox_KeyDown"
                                      VerticalContentAlignment="Center"
                                      FontSize="11"
-                                     Padding="6"
-                                     Height="28" />
+                                     Padding="6,2"
+                                     Height="26">
+                                <TextBox.Style>
+                                    <Style TargetType="TextBox">
+                                        <Setter Property="Background">
+                                            <Setter.Value>
+                                                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                                    <GradientStop Color="#FFFFFFFF" Offset="0"/>
+                                                    <GradientStop Color="#FFF5F7F9" Offset="1"/>
+                                                </LinearGradientBrush>
+                                            </Setter.Value>
+                                        </Setter>
+                                    </Style>
+                                </TextBox.Style>
+                            </TextBox>
 
-                            <Button Grid.Column="2"
+                            <!-- Кнопка + -->
+                            <Button Grid.Column="6"
                                     Content="+"
                                     FontSize="16"
                                     FontWeight="Bold"
-                                    Width="28"
-                                    Height="28"
+                                    Width="26"
+                                    Height="26"
                                     Command="{Binding Calculation.AddBenchmarkCommand}"
                                     ToolTip="Добавить репер"
                                     Padding="0"
-                                    Background="#FF4CAF50"
                                     Foreground="White"
-                                    BorderThickness="0"
-                                    Cursor="Hand" />
+                                    BorderThickness="1"
+                                    BorderBrush="#FF5A9F5A"
+                                    Cursor="Hand">
+                                <Button.Style>
+                                    <Style TargetType="Button">
+                                        <Setter Property="Background">
+                                            <Setter.Value>
+                                                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                                    <GradientStop Color="#FF6FBD6F" Offset="0"/>
+                                                    <GradientStop Color="#FF4CAF50" Offset="1"/>
+                                                </LinearGradientBrush>
+                                            </Setter.Value>
+                                        </Setter>
+                                        <Style.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter Property="Background">
+                                                    <Setter.Value>
+                                                        <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                                            <GradientStop Color="#FF7FCD7F" Offset="0"/>
+                                                            <GradientStop Color="#FF5ABF5A" Offset="1"/>
+                                                        </LinearGradientBrush>
+                                                    </Setter.Value>
+                                                </Setter>
+                                            </Trigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Button.Style>
+                            </Button>
 
-                            <!-- Кнопка для показа/скрытия списка реперов -->
+                            <!-- Кнопка ▼ для показа/скрытия списка -->
                             <ToggleButton x:Name="ToggleBenchmarksButton"
-                                          Grid.Column="4"
-                                          Width="28"
-                                          Height="28"
+                                          Grid.Column="8"
+                                          Width="26"
+                                          Height="26"
                                           Padding="0"
-                                          Background="White"
-                                          BorderBrush="#FFE0E0E0"
+                                          BorderBrush="#FFACACAC"
                                           BorderThickness="1"
                                           Cursor="Hand"
                                           ToolTip="Показать/скрыть список реперов">
+                                <ToggleButton.Style>
+                                    <Style TargetType="ToggleButton">
+                                        <Setter Property="Background">
+                                            <Setter.Value>
+                                                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                                    <GradientStop Color="#FFFFFFFF" Offset="0"/>
+                                                    <GradientStop Color="#FFF0F0F0" Offset="1"/>
+                                                </LinearGradientBrush>
+                                            </Setter.Value>
+                                        </Setter>
+                                        <Style.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter Property="Background">
+                                                    <Setter.Value>
+                                                        <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                                            <GradientStop Color="#FFFEFEFE" Offset="0"/>
+                                                            <GradientStop Color="#FFE5F1FB" Offset="1"/>
+                                                        </LinearGradientBrush>
+                                                    </Setter.Value>
+                                                </Setter>
+                                            </Trigger>
+                                            <Trigger Property="IsChecked" Value="True">
+                                                <Setter Property="Background">
+                                                    <Setter.Value>
+                                                        <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                                            <GradientStop Color="#FFD0E5F5" Offset="0"/>
+                                                            <GradientStop Color="#FFBAD6F0" Offset="1"/>
+                                                        </LinearGradientBrush>
+                                                    </Setter.Value>
+                                                </Setter>
+                                            </Trigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </ToggleButton.Style>
                                 <TextBlock Text="▼"
-                                           FontSize="10"
+                                           FontSize="9"
+                                           Foreground="#505050"
                                            HorizontalAlignment="Center"
                                            VerticalAlignment="Center" />
                             </ToggleButton>
@@ -697,17 +875,21 @@
                 </Border>
 
                 <!-- СТРОКА 3: Статистика (перенесено из панели над таблицей) -->
-                <Border BorderBrush="#FFE0E0E0"
+                <Border BorderBrush="#FFBCC7D3"
                         BorderThickness="1"
-                        CornerRadius="4"
-                        Padding="10"
+                        CornerRadius="2"
+                        Padding="12"
                         Margin="0,0,0,8"
                         Background="White">
+                    <Border.Effect>
+                        <DropShadowEffect Color="#40000000" BlurRadius="4" ShadowDepth="1" Direction="270" Opacity="0.3"/>
+                    </Border.Effect>
                     <StackPanel>
                         <TextBlock Text="Статистика"
                                    FontWeight="SemiBold"
                                    FontSize="12"
-                                   Margin="0,0,0,8" />
+                                   Foreground="#2B579A"
+                                   Margin="0,0,0,10" />
 
                         <!-- Станций -->
                         <Grid Margin="0,0,0,4">
@@ -791,17 +973,21 @@
                 </Border>
 
                 <!-- СТРОКА 4: Визуализация связей ходов (placeholder) -->
-                <Border BorderBrush="#FFE0E0E0"
+                <Border BorderBrush="#FFBCC7D3"
                         BorderThickness="1"
-                        CornerRadius="4"
-                        Padding="10"
+                        CornerRadius="2"
+                        Padding="12"
                         Margin="0,0,0,8"
                         Background="White">
+                    <Border.Effect>
+                        <DropShadowEffect Color="#40000000" BlurRadius="4" ShadowDepth="1" Direction="270" Opacity="0.3"/>
+                    </Border.Effect>
                     <StackPanel>
                         <TextBlock Text="Связи ходов"
                                    FontWeight="SemiBold"
                                    FontSize="12"
-                                   Margin="0,0,0,8" />
+                                   Foreground="#2B579A"
+                                   Margin="0,0,0,10" />
 
                         <!-- Placeholder для визуализации -->
                         <Border BorderBrush="#FFE0E0E0"
