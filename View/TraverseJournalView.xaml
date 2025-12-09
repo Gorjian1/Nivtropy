@@ -10,6 +10,7 @@
              d:DesignWidth="800"
              x:Name="RootControl">
     <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
         <converters:MethodDeltaConverter x:Key="MethodDeltaConverter" />
         <converters:GroupClosureConverter x:Key="GroupClosureConverter" />
         <converters:ArmDifferenceExceededToBrushConverter x:Key="ArmDifferenceExceededToBrushConverter" />
@@ -24,78 +25,31 @@
         </CollectionViewSource>
     </UserControl.Resources>
 
+    <!-- Главный Grid с двумя колонками: таблица слева, настройки справа -->
     <Grid>
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="*" />
-        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="7*" MinWidth="400" />
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="3*" MinWidth="280" />
+        </Grid.ColumnDefinitions>
 
-        <StackPanel Grid.Row="0"
-                    Margin="8,8,8,4"
-                    Orientation="Horizontal">
-            <TextBlock Text="Журнал нивелирного хода"
+        <!-- ЛЕВАЯ ПАНЕЛЬ: Таблица журнала -->
+        <Grid Grid.Column="0">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+
+            <!-- Заголовок таблицы -->
+            <TextBlock Grid.Row="0"
+                       Text="Журнал нивелирного хода"
                        FontSize="14"
                        FontWeight="SemiBold"
+                       Margin="8,8,8,8"
                        VerticalAlignment="Center" />
-            <StackPanel Orientation="Horizontal" Margin="24,0,0,0">
-                <TextBlock Text="Метод:" VerticalAlignment="Center" />
-                <TextBlock Text="{Binding Calculation.SelectedMethod.Display}"
-                           FontWeight="SemiBold"
-                           Margin="6,0,0,0"
-                           VerticalAlignment="Center" />
-            </StackPanel>
-            <StackPanel Orientation="Horizontal" Margin="16,0,0,0">
-                <TextBlock Text="Класс:" VerticalAlignment="Center" />
-                <TextBlock Text="{Binding Calculation.SelectedClass.Display}"
-                           FontWeight="SemiBold"
-                           Margin="6,0,0,0"
-                           VerticalAlignment="Center" />
-            </StackPanel>
-        </StackPanel>
 
-        <!-- Панель статистики с иконками -->
-        <StackPanel Grid.Row="1" Margin="8,4,8,4" Orientation="Horizontal">
-            <TextBlock Text="&#xE9D9;" FontFamily="Segoe MDL2 Assets" FontSize="14" VerticalAlignment="Center" Foreground="#0078D4" />
-            <TextBlock Text="Станций:" FontWeight="SemiBold" VerticalAlignment="Center" Margin="4,0,0,0" />
-            <TextBlock Text="{Binding Calculation.StationsCount}" Margin="4,0,0,0" VerticalAlignment="Center" FontWeight="SemiBold" />
-
-            <TextBlock Text="•" Margin="16,0,16,0" VerticalAlignment="Center" Foreground="#707070" />
-
-            <TextBlock Text="&#xE81D;" FontFamily="Segoe MDL2 Assets" FontSize="14" VerticalAlignment="Center" Foreground="#D83B01" />
-            <TextBlock Text="ΣΔh:" FontWeight="SemiBold" VerticalAlignment="Center" Margin="4,0,0,0" />
-            <TextBlock Text="{Binding Calculation.Closure, StringFormat=+0.0000;-0.0000;0.0000}" Margin="4,0,4,0" VerticalAlignment="Center" FontWeight="SemiBold">
-                <TextBlock.Style>
-                    <Style TargetType="TextBlock">
-                        <Style.Triggers>
-                            <DataTrigger Binding="{Binding Calculation.IsClosureWithinTolerance}" Value="True">
-                                <Setter Property="Foreground" Value="#107C10" />
-                            </DataTrigger>
-                            <DataTrigger Binding="{Binding Calculation.IsClosureWithinTolerance}" Value="False">
-                                <Setter Property="Foreground" Value="#FFF44336" />
-                            </DataTrigger>
-                        </Style.Triggers>
-                    </Style>
-                </TextBlock.Style>
-            </TextBlock>
-            <TextBlock Text="м" VerticalAlignment="Center" Foreground="#707070" />
-
-            <TextBlock Text="•" Margin="16,0,16,0" VerticalAlignment="Center" Foreground="#707070" />
-
-            <TextBlock Text="&#xE73E;" FontFamily="Segoe MDL2 Assets" FontSize="14" VerticalAlignment="Center" Foreground="#8764B8" />
-            <TextBlock Text="Допуск:" FontWeight="SemiBold" VerticalAlignment="Center" Margin="4,0,0,0" />
-            <TextBlock Text="{Binding Calculation.AllowableClosure, StringFormat=±0.0000}" Margin="4,0,4,0" VerticalAlignment="Center" FontWeight="SemiBold" />
-            <TextBlock Text="м" VerticalAlignment="Center" Foreground="#707070" />
-
-            <TextBlock Text="•" Margin="16,0,16,0" VerticalAlignment="Center" Foreground="#707070" />
-
-            <TextBlock Text="&#xECC6;" FontFamily="Segoe MDL2 Assets" FontSize="14" VerticalAlignment="Center" Foreground="#00B7C3" />
-            <TextBlock Text="Длина:" FontWeight="SemiBold" VerticalAlignment="Center" Margin="4,0,0,0" />
-            <TextBlock Text="{Binding Calculation.TotalAverageLength, StringFormat=0.00}" Margin="4,0,4,0" VerticalAlignment="Center" FontWeight="SemiBold" />
-            <TextBlock Text="м" VerticalAlignment="Center" Foreground="#707070" />
-        </StackPanel>
-
-        <Border Grid.Row="2" Margin="8" BorderBrush="#FFB0B0B0" BorderThickness="1">
+            <!-- Таблица журнала -->
+            <Border Grid.Row="1" Margin="8" BorderBrush="#FFB0B0B0" BorderThickness="1">
             <DataGrid ItemsSource="{Binding Source={StaticResource StationsGrouped}}"
                       AutoGenerateColumns="False"
                       CanUserAddRows="False"
@@ -514,6 +468,516 @@
                 </DataGrid.Columns>
             </DataGrid>
         </Border>
+        </Grid>
+        <!-- Конец левой панели -->
+
+        <!-- GridSplitter для изменения размера панелей -->
+        <GridSplitter Grid.Column="1"
+                      Width="5"
+                      HorizontalAlignment="Stretch"
+                      VerticalAlignment="Stretch"
+                      Background="#FFE0E0E0"
+                      ShowsPreview="False" />
+
+        <!-- ПРАВАЯ ПАНЕЛЬ: Настройки и информация -->
+        <ScrollViewer Grid.Column="2"
+                      VerticalScrollBarVisibility="Auto"
+                      HorizontalScrollBarVisibility="Disabled"
+                      Padding="8">
+            <ScrollViewer.Background>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                    <GradientStop Color="#FFF5F7F9" Offset="0"/>
+                    <GradientStop Color="#FFEAEFF4" Offset="1"/>
+                </LinearGradientBrush>
+            </ScrollViewer.Background>
+            <StackPanel>
+
+                <!-- СТРОКА 1: Метод | Класс | Экспорт (в один ряд) -->
+                <Grid Margin="0,0,0,8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="4" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="4" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Метод -->
+                    <Border Grid.Column="0"
+                            BorderBrush="#FFBCC7D3"
+                            BorderThickness="1"
+                            CornerRadius="2"
+                            Padding="8"
+                            Background="White">
+                        <Border.Effect>
+                            <DropShadowEffect Color="#40000000" BlurRadius="3" ShadowDepth="1" Direction="270" Opacity="0.25"/>
+                        </Border.Effect>
+                        <StackPanel>
+                            <TextBlock Text="метод"
+                                       FontSize="9"
+                                       Foreground="#2B579A"
+                                       FontWeight="SemiBold"
+                                       Margin="0,0,0,4" />
+                            <ComboBox ItemsSource="{Binding Calculation.Methods}"
+                                      SelectedItem="{Binding Calculation.SelectedMethod, Mode=TwoWay}"
+                                      DisplayMemberPath="Display"
+                                      FontSize="11"
+                                      Height="24">
+                                <ComboBox.Style>
+                                    <Style TargetType="ComboBox">
+                                        <Setter Property="Background">
+                                            <Setter.Value>
+                                                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                                    <GradientStop Color="#FFFFFFFF" Offset="0"/>
+                                                    <GradientStop Color="#FFF5F7F9" Offset="1"/>
+                                                </LinearGradientBrush>
+                                            </Setter.Value>
+                                        </Setter>
+                                    </Style>
+                                </ComboBox.Style>
+                            </ComboBox>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Класс -->
+                    <Border Grid.Column="2"
+                            BorderBrush="#FFBCC7D3"
+                            BorderThickness="1"
+                            CornerRadius="2"
+                            Padding="8"
+                            Background="White">
+                        <Border.Effect>
+                            <DropShadowEffect Color="#40000000" BlurRadius="3" ShadowDepth="1" Direction="270" Opacity="0.25"/>
+                        </Border.Effect>
+                        <StackPanel>
+                            <TextBlock Text="класс"
+                                       FontSize="9"
+                                       Foreground="#2B579A"
+                                       FontWeight="SemiBold"
+                                       Margin="0,0,0,4" />
+                            <ComboBox ItemsSource="{Binding Calculation.Classes}"
+                                      SelectedItem="{Binding Calculation.SelectedClass, Mode=TwoWay}"
+                                      DisplayMemberPath="Display"
+                                      ToolTip="Выбор допуска по классу"
+                                      FontSize="11"
+                                      Height="24">
+                                <ComboBox.Style>
+                                    <Style TargetType="ComboBox">
+                                        <Setter Property="Background">
+                                            <Setter.Value>
+                                                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                                    <GradientStop Color="#FFFFFFFF" Offset="0"/>
+                                                    <GradientStop Color="#FFF5F7F9" Offset="1"/>
+                                                </LinearGradientBrush>
+                                            </Setter.Value>
+                                        </Setter>
+                                    </Style>
+                                </ComboBox.Style>
+                            </ComboBox>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Кнопка экспорта (маленькая квадратная) -->
+                    <Button Grid.Column="4"
+                            Command="{Binding Calculation.ExportCommand}"
+                            Width="50"
+                            Height="50"
+                            Padding="0"
+                            BorderBrush="#FF4F9F4F"
+                            BorderThickness="1"
+                            VerticalAlignment="Stretch"
+                            HorizontalContentAlignment="Center"
+                            VerticalContentAlignment="Center"
+                            Cursor="Hand"
+                            ToolTip="Экспорт в Excel">
+                        <Button.Style>
+                            <Style TargetType="Button">
+                                <Setter Property="Background">
+                                    <Setter.Value>
+                                        <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                            <GradientStop Color="#FF6FBD6F" Offset="0"/>
+                                            <GradientStop Color="#FF5AAF5A" Offset="1"/>
+                                        </LinearGradientBrush>
+                                    </Setter.Value>
+                                </Setter>
+                                <Setter Property="Effect">
+                                    <Setter.Value>
+                                        <DropShadowEffect Color="#40000000" BlurRadius="4" ShadowDepth="1" Direction="270" Opacity="0.3"/>
+                                    </Setter.Value>
+                                </Setter>
+                                <Style.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter Property="Background">
+                                            <Setter.Value>
+                                                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                                    <GradientStop Color="#FF7FCD7F" Offset="0"/>
+                                                    <GradientStop Color="#FF6ABF6A" Offset="1"/>
+                                                </LinearGradientBrush>
+                                            </Setter.Value>
+                                        </Setter>
+                                    </Trigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                        <Button.Content>
+                            <TextBlock Text="&#xE8B7;"
+                                       FontFamily="Segoe MDL2 Assets"
+                                       FontSize="20"
+                                       Foreground="White" />
+                        </Button.Content>
+                    </Button>
+                </Grid>
+
+                <!-- СТРОКА 2: Блок реперов с кнопкой-списком -->
+                <Border BorderBrush="#FFBCC7D3"
+                        BorderThickness="1"
+                        CornerRadius="2"
+                        Padding="12"
+                        Margin="0,0,0,8"
+                        Background="White">
+                    <Border.Effect>
+                        <DropShadowEffect Color="#40000000" BlurRadius="4" ShadowDepth="1" Direction="270" Opacity="0.3"/>
+                    </Border.Effect>
+                    <StackPanel>
+                        <TextBlock Text="Реперы"
+                                   FontWeight="SemiBold"
+                                   FontSize="12"
+                                   Foreground="#2B579A"
+                                   Margin="0,0,0,10" />
+
+                        <!-- Одна строка: Точки + Высота + кнопки -->
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="8" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="80" />
+                                <ColumnDefinition Width="4" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="4" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+
+                            <!-- Метка "Точки:" -->
+                            <TextBlock Grid.Column="0"
+                                       Text="Точки:"
+                                       FontSize="11"
+                                       VerticalAlignment="Center"
+                                       Margin="0,0,6,0" />
+
+                            <!-- Комбобокс с точками -->
+                            <ComboBox Grid.Column="1"
+                                      ItemsSource="{Binding Calculation.AvailablePoints}"
+                                      SelectedItem="{Binding Calculation.SelectedPoint, Mode=TwoWay}"
+                                      DisplayMemberPath="DisplayName"
+                                      ToolTip="Выберите точку для установки известной высоты"
+                                      FontSize="11"
+                                      Height="26"
+                                      VerticalContentAlignment="Center">
+                                <ComboBox.Style>
+                                    <Style TargetType="ComboBox">
+                                        <Setter Property="Background">
+                                            <Setter.Value>
+                                                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                                    <GradientStop Color="#FFFFFFFF" Offset="0"/>
+                                                    <GradientStop Color="#FFF5F7F9" Offset="1"/>
+                                                </LinearGradientBrush>
+                                            </Setter.Value>
+                                        </Setter>
+                                    </Style>
+                                </ComboBox.Style>
+                            </ComboBox>
+
+                            <!-- Метка "Высота:" -->
+                            <TextBlock Grid.Column="3"
+                                       Text="Высота:"
+                                       FontSize="11"
+                                       VerticalAlignment="Center"
+                                       Margin="0,0,6,0" />
+
+                            <!-- Поле ввода высоты -->
+                            <TextBox x:Name="BenchmarkHeightTextBox"
+                                     Grid.Column="4"
+                                     Text="{Binding Calculation.NewBenchmarkHeight, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                     ToolTip="Введите известную высоту репера (Enter для добавления)"
+                                     KeyDown="BenchmarkHeightTextBox_KeyDown"
+                                     VerticalContentAlignment="Center"
+                                     FontSize="11"
+                                     Padding="6,2"
+                                     Height="26">
+                                <TextBox.Style>
+                                    <Style TargetType="TextBox">
+                                        <Setter Property="Background">
+                                            <Setter.Value>
+                                                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                                    <GradientStop Color="#FFFFFFFF" Offset="0"/>
+                                                    <GradientStop Color="#FFF5F7F9" Offset="1"/>
+                                                </LinearGradientBrush>
+                                            </Setter.Value>
+                                        </Setter>
+                                    </Style>
+                                </TextBox.Style>
+                            </TextBox>
+
+                            <!-- Кнопка + -->
+                            <Button Grid.Column="6"
+                                    Content="+"
+                                    FontSize="16"
+                                    FontWeight="Bold"
+                                    Width="26"
+                                    Height="26"
+                                    Command="{Binding Calculation.AddBenchmarkCommand}"
+                                    ToolTip="Добавить репер"
+                                    Padding="0"
+                                    Foreground="White"
+                                    BorderThickness="1"
+                                    BorderBrush="#FF5A9F5A"
+                                    Cursor="Hand">
+                                <Button.Style>
+                                    <Style TargetType="Button">
+                                        <Setter Property="Background">
+                                            <Setter.Value>
+                                                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                                    <GradientStop Color="#FF6FBD6F" Offset="0"/>
+                                                    <GradientStop Color="#FF4CAF50" Offset="1"/>
+                                                </LinearGradientBrush>
+                                            </Setter.Value>
+                                        </Setter>
+                                        <Style.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter Property="Background">
+                                                    <Setter.Value>
+                                                        <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                                            <GradientStop Color="#FF7FCD7F" Offset="0"/>
+                                                            <GradientStop Color="#FF5ABF5A" Offset="1"/>
+                                                        </LinearGradientBrush>
+                                                    </Setter.Value>
+                                                </Setter>
+                                            </Trigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Button.Style>
+                            </Button>
+
+                            <!-- Кнопка ▼ для показа/скрытия списка -->
+                            <ToggleButton x:Name="ToggleBenchmarksButton"
+                                          Grid.Column="8"
+                                          Width="26"
+                                          Height="26"
+                                          Padding="0"
+                                          BorderBrush="#FFACACAC"
+                                          BorderThickness="1"
+                                          Cursor="Hand"
+                                          ToolTip="Показать/скрыть список реперов">
+                                <ToggleButton.Style>
+                                    <Style TargetType="ToggleButton">
+                                        <Setter Property="Background">
+                                            <Setter.Value>
+                                                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                                    <GradientStop Color="#FFFFFFFF" Offset="0"/>
+                                                    <GradientStop Color="#FFF0F0F0" Offset="1"/>
+                                                </LinearGradientBrush>
+                                            </Setter.Value>
+                                        </Setter>
+                                        <Style.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter Property="Background">
+                                                    <Setter.Value>
+                                                        <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                                            <GradientStop Color="#FFFEFEFE" Offset="0"/>
+                                                            <GradientStop Color="#FFE5F1FB" Offset="1"/>
+                                                        </LinearGradientBrush>
+                                                    </Setter.Value>
+                                                </Setter>
+                                            </Trigger>
+                                            <Trigger Property="IsChecked" Value="True">
+                                                <Setter Property="Background">
+                                                    <Setter.Value>
+                                                        <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                                            <GradientStop Color="#FFD0E5F5" Offset="0"/>
+                                                            <GradientStop Color="#FFBAD6F0" Offset="1"/>
+                                                        </LinearGradientBrush>
+                                                    </Setter.Value>
+                                                </Setter>
+                                            </Trigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </ToggleButton.Style>
+                                <TextBlock Text="▼"
+                                           FontSize="9"
+                                           Foreground="#505050"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center" />
+                            </ToggleButton>
+                        </Grid>
+
+                        <!-- Список реперов (сворачиваемый) -->
+                        <Border BorderBrush="#FFF0F0F0"
+                                BorderThickness="1"
+                                CornerRadius="3"
+                                Background="#FFFAFAFA"
+                                MaxHeight="150"
+                                Visibility="{Binding ElementName=ToggleBenchmarksButton, Path=IsChecked, Converter={StaticResource BooleanToVisibilityConverter}}">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                          HorizontalScrollBarVisibility="Disabled">
+                                <ItemsControl ItemsSource="{Binding Calculation.Benchmarks}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border BorderBrush="#FFE0E0E0"
+                                                    BorderThickness="0,0,0,1"
+                                                    Padding="6,4"
+                                                    Background="White"
+                                                    Margin="1">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                    </Grid.ColumnDefinitions>
+
+                                                    <StackPanel Grid.Column="0"
+                                                                Orientation="Horizontal"
+                                                                VerticalAlignment="Center">
+                                                        <TextBlock Text="{Binding Code}"
+                                                                   FontWeight="SemiBold"
+                                                                   FontSize="11"
+                                                                   Margin="0,0,6,0" />
+                                                        <TextBlock FontSize="10"
+                                                                   Foreground="#707070"
+                                                                   VerticalAlignment="Center">
+                                                            <Run Text="{Binding Height, Mode=OneWay, StringFormat=F4}" />
+                                                            <Run Text=" м" />
+                                                        </TextBlock>
+                                                    </StackPanel>
+
+                                                    <Button Grid.Column="1"
+                                                            Content="×"
+                                                            FontSize="14"
+                                                            Width="20"
+                                                            Height="20"
+                                                            Padding="0"
+                                                            Background="Transparent"
+                                                            BorderThickness="0"
+                                                            Foreground="#FFF44336"
+                                                            Cursor="Hand"
+                                                            ToolTip="Удалить репер"
+                                                            Click="RemoveBenchmark_Click"
+                                                            Tag="{Binding}"
+                                                            VerticalAlignment="Center" />
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </ScrollViewer>
+                        </Border>
+                    </StackPanel>
+                </Border>
+
+                <!-- СТРОКА 3: Статистика (перенесено из панели над таблицей) -->
+                <Border BorderBrush="#FFBCC7D3"
+                        BorderThickness="1"
+                        CornerRadius="2"
+                        Padding="12"
+                        Margin="0,0,0,8"
+                        Background="White">
+                    <Border.Effect>
+                        <DropShadowEffect Color="#40000000" BlurRadius="4" ShadowDepth="1" Direction="270" Opacity="0.3"/>
+                    </Border.Effect>
+                    <StackPanel>
+                        <TextBlock Text="Статистика"
+                                   FontWeight="SemiBold"
+                                   FontSize="12"
+                                   Foreground="#2B579A"
+                                   Margin="0,0,0,10" />
+
+                        <!-- Вся статистика в одну строку -->
+                        <WrapPanel Orientation="Horizontal">
+                            <!-- Станций -->
+                            <StackPanel Orientation="Horizontal" Margin="0,0,12,0">
+                                <TextBlock Text="&#xE9D9;" FontFamily="Segoe MDL2 Assets" FontSize="11" Foreground="#0078D4" VerticalAlignment="Center" />
+                                <TextBlock Text=" Станций:" FontSize="10" Foreground="#707070" Margin="3,0,3,0" VerticalAlignment="Center" />
+                                <TextBlock Text="{Binding Calculation.StationsCount}" FontSize="10" FontWeight="SemiBold" VerticalAlignment="Center" />
+                            </StackPanel>
+
+                            <!-- ΣΔh -->
+                            <StackPanel Orientation="Horizontal" Margin="0,0,12,0">
+                                <TextBlock Text="&#xE81D;" FontFamily="Segoe MDL2 Assets" FontSize="11" Foreground="#D83B01" VerticalAlignment="Center" />
+                                <TextBlock Text=" ΣΔh:" FontSize="10" Foreground="#707070" Margin="3,0,3,0" VerticalAlignment="Center" />
+                                <TextBlock Text="{Binding Calculation.Closure, StringFormat=+0.0000;-0.0000;0.0000}" FontSize="10" FontWeight="SemiBold" VerticalAlignment="Center">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding Calculation.IsClosureWithinTolerance}" Value="True">
+                                                    <Setter Property="Foreground" Value="#107C10" />
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding Calculation.IsClosureWithinTolerance}" Value="False">
+                                                    <Setter Property="Foreground" Value="#FFF44336" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                                <TextBlock Text=" м" FontSize="10" Foreground="#707070" Margin="2,0,0,0" VerticalAlignment="Center" />
+                            </StackPanel>
+
+                            <!-- Допуск -->
+                            <StackPanel Orientation="Horizontal" Margin="0,0,12,0">
+                                <TextBlock Text="&#xE73E;" FontFamily="Segoe MDL2 Assets" FontSize="11" Foreground="#8764B8" VerticalAlignment="Center" />
+                                <TextBlock Text=" Допуск:" FontSize="10" Foreground="#707070" Margin="3,0,3,0" VerticalAlignment="Center" />
+                                <TextBlock Text="{Binding Calculation.AllowableClosure, StringFormat=±0.0000}" FontSize="10" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                <TextBlock Text=" м" FontSize="10" Foreground="#707070" Margin="2,0,0,0" VerticalAlignment="Center" />
+                            </StackPanel>
+
+                            <!-- Длина -->
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="&#xECC6;" FontFamily="Segoe MDL2 Assets" FontSize="11" Foreground="#00B7C3" VerticalAlignment="Center" />
+                                <TextBlock Text=" Длина:" FontSize="10" Foreground="#707070" Margin="3,0,3,0" VerticalAlignment="Center" />
+                                <TextBlock Text="{Binding Calculation.TotalAverageLength, StringFormat=0.00}" FontSize="10" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                <TextBlock Text=" м" FontSize="10" Foreground="#707070" Margin="2,0,0,0" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </WrapPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- СТРОКА 4: Визуализация связей ходов (placeholder) -->
+                <Border BorderBrush="#FFBCC7D3"
+                        BorderThickness="1"
+                        CornerRadius="2"
+                        Padding="12"
+                        Margin="0,0,0,8"
+                        Background="White">
+                    <Border.Effect>
+                        <DropShadowEffect Color="#40000000" BlurRadius="4" ShadowDepth="1" Direction="270" Opacity="0.3"/>
+                    </Border.Effect>
+                    <StackPanel>
+                        <TextBlock Text="Связи ходов"
+                                   FontWeight="SemiBold"
+                                   FontSize="12"
+                                   Foreground="#2B579A"
+                                   Margin="0,0,0,10" />
+
+                        <!-- Placeholder для визуализации -->
+                        <Border BorderBrush="#FFE0E0E0"
+                                BorderThickness="1"
+                                CornerRadius="3"
+                                Height="180"
+                                Background="#FFFAFAFA">
+                            <TextBlock Text="Визуализация связей между ходами"
+                                       FontSize="11"
+                                       Foreground="#A0A0A0"
+                                       TextWrapping="Wrap"
+                                       TextAlignment="Center"
+                                       HorizontalAlignment="Center"
+                                       VerticalAlignment="Center"
+                                       Margin="20" />
+                        </Border>
+                    </StackPanel>
+                </Border>
+
+            </StackPanel>
+        </ScrollViewer>
+        <!-- Конец правой панели -->
 
         <Popup x:Name="SharedPointsPopup"
                Placement="Bottom"
