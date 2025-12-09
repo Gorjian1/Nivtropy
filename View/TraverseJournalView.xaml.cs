@@ -1082,5 +1082,18 @@ namespace Nivtropy.Views
                 UpdateStatisticsPanel();
             }
         }
+
+        /// <summary>
+        /// Обработчик удаления репера из списка
+        /// </summary>
+        private void RemoveBenchmark_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button button &&
+                button.Tag is BenchmarkItem benchmark &&
+                DataContext is TraverseJournalViewModel viewModel)
+            {
+                viewModel.Calculation.RemoveBenchmarkCommand.Execute(benchmark);
+            }
+        }
     }
 }
