@@ -37,12 +37,31 @@ namespace Nivtropy.Views
         private bool _showAnomalies = true;
         private double _sensitivitySigma = 2.5;
 
+        // Debouncing для отложенной перерисовки профиля
+        private System.Windows.Threading.DispatcherTimer? _redrawTimer;
+        private bool _redrawPending;
+
         public TraverseJournalView()
         {
             InitializeComponent();
 
             PreviewKeyDown += TraverseJournalView_PreviewKeyDown;
             PreviewMouseWheel += TraverseJournalView_PreviewMouseWheel;
+
+            // Инициализация таймера для debouncing перерисовки
+            _redrawTimer = new System.Windows.Threading.DispatcherTimer
+            {
+                Interval = TimeSpan.FromMilliseconds(100)
+            };
+            _redrawTimer.Tick += (s, e) =>
+            {
+                _redrawTimer.Stop();
+                if (_redrawPending && _currentTraverseRows != null)
+                {
+                    _redrawPending = false;
+                    DrawProportionalProfileImmediate(_currentTraverseRows);
+                }
+            };
             Focusable = true;
 
             _profileColor = _savedProfileColor;
@@ -138,7 +157,21 @@ namespace Nivtropy.Views
                 DrawProportionalProfile(_currentTraverseRows);
         }
 
+        /// <summary>
+        /// Запланировать перерисовку профиля с debouncing (отложенная перерисовка)
+        /// </summary>
         private void DrawProportionalProfile(System.Collections.Generic.List<TraverseRow> rows)
+        {
+            _currentTraverseRows = rows;
+            _redrawPending = true;
+            _redrawTimer?.Stop();
+            _redrawTimer?.Start();
+        }
+
+        /// <summary>
+        /// Немедленная перерисовка профиля (без debouncing)
+        /// </summary>
+        private void DrawProportionalProfileImmediate(System.Collections.Generic.List<TraverseRow> rows)
         {
             ProfileCanvas.Children.Clear();
 

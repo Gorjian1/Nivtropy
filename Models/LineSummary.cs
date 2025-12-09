@@ -45,17 +45,17 @@ namespace Nivtropy.Models
         /// <summary>
         /// Общая длина хода (назад) в метрах
         /// </summary>
-        public double? TotalDistanceBack { get; }
+        public double? TotalDistanceBack { get; set; }
 
         /// <summary>
         /// Общая длина хода (вперёд) в метрах
         /// </summary>
-        public double? TotalDistanceFore { get; }
+        public double? TotalDistanceFore { get; set; }
 
         /// <summary>
         /// Накопление разности плеч за ход (относительное значение с учетом знака) в метрах
         /// </summary>
-        public double? ArmDifferenceAccumulation { get; }
+        public double? ArmDifferenceAccumulation { get; set; }
 
         /// <summary>
         /// Общая длина хода: сумма длин назад и вперёд (в метрах)

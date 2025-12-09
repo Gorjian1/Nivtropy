@@ -342,14 +342,11 @@ namespace Nivtropy.ViewModels
             // Устанавливаем высоту в DataViewModel
             _dataViewModel.SetKnownHeight(SelectedPoint.Code, height);
 
-            // Обновляем список реперов
-            UpdateBenchmarks();
-
             // Очищаем поля ввода
             SelectedPoint = null;
             NewBenchmarkHeight = string.Empty;
 
-            // Пересчитываем высоты
+            // Пересчитываем высоты (внутри вызывается UpdateBenchmarks)
             UpdateRows();
         }
 
@@ -966,11 +963,17 @@ namespace Nivtropy.ViewModels
 
             bool startKnown = !string.IsNullOrWhiteSpace(startCode) && isAnchor(startCode!);
             bool endKnown = !string.IsNullOrWhiteSpace(endCode) && isAnchor(endCode!);
-            bool closesByLoop = startKnown
+
+            // Циклический ход определяется по совпадению кодов начала и конца,
+            // независимо от наличия известной высоты
+            bool closesByLoop = !string.IsNullOrWhiteSpace(startCode)
                 && !string.IsNullOrWhiteSpace(endCode)
                 && string.Equals(startCode, endCode, StringComparison.OrdinalIgnoreCase);
 
-            bool isClosed = startKnown && (endKnown || closesByLoop);
+            // Ход замкнут, если:
+            // - Циклический (замыкается на себя), ИЛИ
+            // - Начальная и конечная точки обе известны
+            bool isClosed = closesByLoop || (startKnown && endKnown);
             if (!isClosed)
             {
                 return TraverseClosureMode.Open;
@@ -981,6 +984,7 @@ namespace Nivtropy.ViewModels
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .Count();
 
+            // Локальное уравнивание только если больше одной различной известной точки
             if (distinctAnchorCount > 1 || (lineSummary?.UseLocalAdjustment ?? false))
                 return TraverseClosureMode.Local;
 
@@ -1563,41 +1567,19 @@ namespace Nivtropy.ViewModels
                 }
                 var knownPointsCount = knownPointsSet.Count;
 
-                // Создаем новый LineSummary с обновленными значениями
-                var newSummary = new LineSummary(
-                    existingSummary.Index,
-                    existingSummary.StartTarget,
-                    existingSummary.StartStation,
-                    existingSummary.EndTarget,
-                    existingSummary.EndStation,
-                    existingSummary.RecordCount,
-                    existingSummary.DeltaHSum,
-                    totalDistanceBack,
-                    totalDistanceFore,
-                    accumulation,
-                    knownPointsCount);
+                // Обновляем существующий LineSummary вместо создания нового
+                existingSummary.TotalDistanceBack = totalDistanceBack;
+                existingSummary.TotalDistanceFore = totalDistanceFore;
+                existingSummary.ArmDifferenceAccumulation = accumulation;
+                existingSummary.KnownPointsCount = knownPointsCount;
 
-                if (_sharedPointsByRun.TryGetValue(newSummary.Index, out var sharedCodesForRun))
+                if (_sharedPointsByRun.TryGetValue(existingSummary.Index, out var sharedCodesForRun))
                 {
-                    newSummary.SetSharedPoints(sharedCodesForRun);
+                    existingSummary.SetSharedPoints(sharedCodesForRun);
                 }
                 else
                 {
-                    newSummary.SetSharedPoints(Array.Empty<string>());
-                }
-
-                // Сохраняем состояние UseLocalAdjustment
-                newSummary.UseLocalAdjustment = existingSummary.UseLocalAdjustment;
-                newSummary.IsArmDifferenceAccumulationExceeded = existingSummary.IsArmDifferenceAccumulationExceeded;
-                newSummary.SetClosures(existingSummary.Closures);
-
-                // Заменяем в коллекции
-                _dataViewModel.Runs[existingIndex] = newSummary;
-
-                // Обновляем ссылки в TraverseRow
-                foreach (var row in rows)
-                {
-                    row.LineSummary = newSummary;
+                    existingSummary.SetSharedPoints(Array.Empty<string>());
                 }
             }
         }
