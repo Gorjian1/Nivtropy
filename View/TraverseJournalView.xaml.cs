@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
@@ -15,7 +16,7 @@ namespace Nivtropy.Views
     /// </summary>
     public partial class TraverseJournalView : UserControl
     {
-        private System.Collections.Generic.List<TraverseRow>? _currentTraverseRows;
+        private List<TraverseRow>? _currentTraverseRows;
         private TraverseCalculationViewModel? _currentViewModel;
         private ProfileStatistics? _currentStatistics;
 
@@ -88,6 +89,9 @@ namespace Nivtropy.Views
             {
                 if (e.NewValue is TraverseJournalViewModel viewModel)
                 {
+                    _currentViewModel = viewModel.Calculation;
+                    InitializeSystemsPanel();
+
                     // Подписываемся на изменения в ViewModel
                     viewModel.Calculation.PropertyChanged += (_, args) =>
                     {
@@ -96,6 +100,16 @@ namespace Nivtropy.Views
                         {
                             Dispatcher.BeginInvoke(new System.Action(() => DrawTraverseSystemVisualization()));
                         }
+                    };
+
+                    viewModel.Calculation.Systems.CollectionChanged += (_, __) =>
+                    {
+                        Dispatcher.BeginInvoke(new Action(InitializeSystemsPanel));
+                    };
+
+                    viewModel.Calculation.Runs.CollectionChanged += (_, __) =>
+                    {
+                        Dispatcher.BeginInvoke(new Action(RefreshRunsList));
                     };
 
                     // Начальная отрисовка с задержкой (когда UI полностью загрузится)
@@ -1142,24 +1156,203 @@ namespace Nivtropy.Views
             }
         }
 
-        /// <summary>
-        /// Обработчик клика на кнопку "Управление ходами"
-        /// </summary>
-        private void ManageSystems_Click(object sender, RoutedEventArgs e)
+        private TraverseCalculationViewModel? Calculation => _currentViewModel ?? (DataContext as TraverseJournalViewModel)?.Calculation;
+
+        private void InitializeSystemsPanel()
         {
-            if (DataContext is not TraverseJournalViewModel viewModel)
+            if (Calculation == null)
                 return;
 
-            var dialog = new SystemsManagementWindow(viewModel.Calculation)
-            {
-                Owner = Window.GetWindow(this)
-            };
+            SystemsListBox.ItemsSource = Calculation.Systems;
 
-            if (dialog.ShowDialog() == true)
+            if (SystemsListBox.SelectedItem == null && Calculation.Systems.Count > 0)
             {
-                // Обновляем визуализацию после изменений
-                DrawTraverseSystemVisualization();
+                SystemsListBox.SelectedIndex = 0;
             }
+            else
+            {
+                RefreshRunsList();
+            }
+
+            DrawTraverseSystemVisualization();
+        }
+
+        private void SystemsListBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            RefreshRunsList();
+        }
+
+        private void RefreshRunsList()
+        {
+            if (Calculation == null)
+                return;
+
+            if (SystemsListBox.SelectedItem is TraverseSystem selectedSystem)
+            {
+                RunsHeaderText.Text = $"Ходы системы: {selectedSystem.Name}";
+
+                var runsInSystem = Calculation.Runs
+                    .Where(r => r.SystemId == selectedSystem.Id)
+                    .ToList();
+
+                RunsListBox.ItemsSource = runsInSystem;
+
+                MoveToSystemComboBox.ItemsSource = Calculation.Systems
+                    .Where(s => s.Id != selectedSystem.Id)
+                    .ToList();
+
+                if (MoveToSystemComboBox.Items.Count > 0)
+                {
+                    MoveToSystemComboBox.SelectedIndex = 0;
+                }
+            }
+            else
+            {
+                RunsListBox.ItemsSource = null;
+                RunsHeaderText.Text = "Ходы системы";
+                MoveToSystemComboBox.ItemsSource = null;
+            }
+        }
+
+        private void CreateSystem_Click(object sender, RoutedEventArgs e)
+        {
+            if (Calculation == null)
+                return;
+
+            var dialog = new InputDialog("Создание системы", "Введите название системы:");
+            if (dialog.ShowDialog() == true && !string.IsNullOrWhiteSpace(dialog.ResponseText))
+            {
+                var newSystem = new TraverseSystem(
+                    Guid.NewGuid().ToString(),
+                    dialog.ResponseText,
+                    Calculation.Systems.Count
+                );
+
+                Calculation.Systems.Add(newSystem);
+                SystemsListBox.SelectedItem = newSystem;
+            }
+        }
+
+        private void RenameSystem_Click(object sender, RoutedEventArgs e)
+        {
+            if (Calculation == null)
+                return;
+
+            if (SystemsListBox.SelectedItem is TraverseSystem selectedSystem)
+            {
+                if (selectedSystem.Id == "system-default")
+                {
+                    MessageBox.Show(
+                        "Систему по умолчанию нельзя переименовать.",
+                        "Ошибка",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Warning);
+                    return;
+                }
+
+                var dialog = new InputDialog("Переименование системы", "Введите новое название:", selectedSystem.Name);
+                if (dialog.ShowDialog() == true && !string.IsNullOrWhiteSpace(dialog.ResponseText))
+                {
+                    selectedSystem.Name = dialog.ResponseText;
+
+                    SystemsListBox.Items.Refresh();
+                    RefreshRunsList();
+                }
+            }
+        }
+
+        private void DeleteSystem_Click(object sender, RoutedEventArgs e)
+        {
+            if (Calculation == null)
+                return;
+
+            if (SystemsListBox.SelectedItem is TraverseSystem selectedSystem)
+            {
+                if (selectedSystem.Id == "system-default")
+                {
+                    MessageBox.Show(
+                        "Систему по умолчанию нельзя удалить.",
+                        "Ошибка",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Warning);
+                    return;
+                }
+
+                var result = MessageBox.Show(
+                    $"Удалить систему '{selectedSystem.Name}'?\n\nВсе ходы будут перемещены в систему по умолчанию.",
+                    "Подтверждение удаления",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Question);
+
+                if (result == MessageBoxResult.Yes)
+                {
+                    var defaultSystem = Calculation.Systems.FirstOrDefault(s => s.Id == "system-default");
+                    if (defaultSystem == null)
+                        return;
+
+                    foreach (var run in Calculation.Runs.Where(r => r.SystemId == selectedSystem.Id))
+                    {
+                        run.SystemId = defaultSystem.Id;
+                        selectedSystem.RemoveRun(run.Index);
+                        defaultSystem.AddRun(run.Index);
+                    }
+
+                    Calculation.Systems.Remove(selectedSystem);
+                    SystemsListBox.SelectedItem = defaultSystem;
+                }
+            }
+        }
+
+        private void MoveRuns_Click(object sender, RoutedEventArgs e)
+        {
+            if (Calculation == null)
+                return;
+
+            if (MoveToSystemComboBox.SelectedItem is not TraverseSystem targetSystem)
+            {
+                MessageBox.Show(
+                    "Выберите целевую систему для перемещения.",
+                    "Внимание",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+                return;
+            }
+
+            if (RunsListBox.SelectedItems.Count == 0)
+            {
+                MessageBox.Show(
+                    "Выберите ходы для перемещения.",
+                    "Внимание",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+                return;
+            }
+
+            if (SystemsListBox.SelectedItem is not TraverseSystem currentSystem)
+                return;
+
+            var selectedRuns = RunsListBox.SelectedItems.Cast<LineSummary>().ToList();
+
+            foreach (var run in selectedRuns)
+            {
+                currentSystem.RemoveRun(run.Index);
+                targetSystem.AddRun(run.Index);
+                run.SystemId = targetSystem.Id;
+            }
+
+            SystemsListBox.Items.Refresh();
+            RefreshRunsList();
+
+            MessageBox.Show(
+                $"Перемещено ходов: {selectedRuns.Count}",
+                "Успешно",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+        }
+
+        private void RefreshSystemsButton_Click(object sender, RoutedEventArgs e)
+        {
+            InitializeSystemsPanel();
         }
 
         /// <summary>
