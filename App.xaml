@@ -1,12 +1,30 @@
-﻿<Application x:Class="Nivtropy.App"
+<Application x:Class="Nivtropy.App"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:local="clr-namespace:Nivtropy"
+             xmlns:vm="clr-namespace:Nivtropy.ViewModels"
+             xmlns:view="clr-namespace:Nivtropy.Views"
              StartupUri="MainWindow.xaml">
     <Application.Resources>
         <Style x:Key="RibbonTabHeaderStyle" TargetType="TabItem">
             <Setter Property="Padding" Value="12,6"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
         </Style>
+
+        <DataTemplate DataType="{x:Type vm:DataViewModel}">
+            <view:DataViewControl />
+        </DataTemplate>
+
+        <DataTemplate DataType="{x:Type vm:TraverseJournalViewModel}">
+            <view:TraverseJournalView />
+        </DataTemplate>
+
+        <DataTemplate DataType="{x:Type vm:DataGeneratorViewModel}">
+            <view:TraverseDesignView />
+        </DataTemplate>
+
+        <DataTemplate DataType="{x:Type vm:SettingsViewModel}">
+            <view:SettingsView />
+        </DataTemplate>
     </Application.Resources>
 </Application>
