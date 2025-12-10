@@ -105,5 +105,102 @@ namespace Nivtropy.Views
             // Делегируем рисование ViewModel, который использует сервис
             vm.DrawSystemVisualization(SystemVisualizationCanvas);
         }
+
+        #region XAML Event Handlers
+
+        // Эти handlers нужны для связи с XAML и делегируют вызовы к ViewModel
+
+        private void ProfileCanvas_SizeChanged(object sender, SizeChangedEventArgs e)
+        {
+            RedrawProfile();
+        }
+
+        private void ProfileColorComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (sender is ComboBox comboBox && comboBox.SelectedItem is ComboBoxItem item && item.Tag is string colorHex)
+            {
+                var color = (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(colorHex);
+                if (ViewModel != null)
+                    ViewModel.ProfileColor = color;
+            }
+        }
+
+        private void ProfileZ0ColorComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (sender is ComboBox comboBox && comboBox.SelectedItem is ComboBoxItem item && item.Tag is string colorHex)
+            {
+                var color = (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(colorHex);
+                if (ViewModel != null)
+                    ViewModel.ProfileZ0Color = color;
+            }
+        }
+
+        private void HeightLimitTextBox_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (sender is TextBox textBox && ViewModel != null)
+            {
+                if (textBox.Name == "MinHeightTextBox")
+                {
+                    if (double.TryParse(textBox.Text, out var minHeight))
+                        ViewModel.ManualMinHeight = minHeight;
+                    else
+                        ViewModel.ManualMinHeight = null;
+                }
+                else if (textBox.Name == "MaxHeightTextBox")
+                {
+                    if (double.TryParse(textBox.Text, out var maxHeight))
+                        ViewModel.ManualMaxHeight = maxHeight;
+                    else
+                        ViewModel.ManualMaxHeight = null;
+                }
+            }
+        }
+
+        private void AutoScaleButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (ViewModel != null)
+            {
+                ViewModel.ManualMinHeight = null;
+                ViewModel.ManualMaxHeight = null;
+                RedrawProfile();
+            }
+        }
+
+        private void CloseProfilePopup_Click(object sender, RoutedEventArgs e)
+        {
+            // Закрываем popup (обработка в XAML через Popup.IsOpen binding)
+        }
+
+        private void BenchmarkHeightTextBox_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+        {
+            if (e.Key == System.Windows.Input.Key.Enter)
+            {
+                // Логика добавления репера уже в ViewModel через Command
+                e.Handled = true;
+            }
+        }
+
+        private void RemoveBenchmark_Click(object sender, RoutedEventArgs e)
+        {
+            // Логика удаления репера через Command в ViewModel
+        }
+
+        private void SystemsListBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            RedrawSystemVisualization();
+        }
+
+        private void ShowTraverseDetails_Click(object sender, RoutedEventArgs e)
+        {
+            // Логика отображения деталей хода
+        }
+
+        private void RunActivationChanged(object sender, RoutedEventArgs e)
+        {
+            // Логика изменения активации хода - перерисовываем систему
+            RedrawSystemVisualization();
+        }
+
+        #endregion
     }
 }
