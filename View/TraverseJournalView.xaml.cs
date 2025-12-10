@@ -1150,12 +1150,16 @@ namespace Nivtropy.Views
             if (DataContext is not TraverseJournalViewModel viewModel)
                 return;
 
-            // Здесь будет открываться диалог управления системами
-            System.Windows.MessageBox.Show(
-                "Диалог управления системами ходов будет реализован позже.",
-                "Управление ходами",
-                System.Windows.MessageBoxButton.OK,
-                System.Windows.MessageBoxImage.Information);
+            var dialog = new SystemsManagementWindow(viewModel.Calculation)
+            {
+                Owner = Window.GetWindow(this)
+            };
+
+            if (dialog.ShowDialog() == true)
+            {
+                // Обновляем визуализацию после изменений
+                DrawTraverseSystemVisualization();
+            }
         }
 
         /// <summary>
