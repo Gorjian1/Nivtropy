@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
@@ -102,6 +103,14 @@ namespace Nivtropy.Views
                         }
                     };
 
+                    viewModel.Calculation.SharedPoints.CollectionChanged += (_, __) =>
+                    {
+                        SubscribeSharedPointItems(viewModel.Calculation);
+                        Dispatcher.BeginInvoke(new System.Action(() => DrawTraverseSystemVisualization()));
+                    };
+
+                    SubscribeSharedPointItems(viewModel.Calculation);
+
                     viewModel.Calculation.Systems.CollectionChanged += (_, __) =>
                     {
                         Dispatcher.BeginInvoke(new Action(InitializeSystemsPanel));
@@ -126,6 +135,31 @@ namespace Nivtropy.Views
                 }
                 DrawTraverseSystemVisualization();
             };
+        }
+
+        private readonly List<SharedPointLinkItem> _observedSharedPoints = new();
+
+        private void SubscribeSharedPointItems(TraverseCalculationViewModel calculation)
+        {
+            foreach (var item in _observedSharedPoints)
+            {
+                item.PropertyChanged -= SharedPointItemOnPropertyChanged;
+            }
+            _observedSharedPoints.Clear();
+
+            foreach (var item in calculation.SharedPoints)
+            {
+                item.PropertyChanged += SharedPointItemOnPropertyChanged;
+                _observedSharedPoints.Add(item);
+            }
+        }
+
+        private void SharedPointItemOnPropertyChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == nameof(SharedPointLinkItem.IsEnabled))
+            {
+                Dispatcher.BeginInvoke(new System.Action(() => DrawTraverseSystemVisualization()));
+            }
         }
 
         private void ShowTraverseDetails_Click(object sender, RoutedEventArgs e)
@@ -1554,7 +1588,8 @@ namespace Nivtropy.Views
 
             using (var context = geometry.Open())
             {
-                context.BeginFigure(points[0], true, isClosed);
+                var isFilled = isClosed;
+                context.BeginFigure(points[0], isFilled, isClosed);
 
                 if (points.Count == 1)
                     return geometry;
