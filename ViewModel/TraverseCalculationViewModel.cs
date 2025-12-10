@@ -24,6 +24,7 @@ namespace Nivtropy.ViewModels
         private readonly ObservableCollection<SharedPointLinkItem> _sharedPoints = new();
         private readonly ObservableCollection<TraverseSystem> _systems = new();
         private readonly Dictionary<string, SharedPointLinkItem> _sharedPointLookup = new(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, string> _benchmarkSystems = new(StringComparer.OrdinalIgnoreCase);
         private Dictionary<int, List<string>> _sharedPointsByRun = new();
 
         private bool _isUpdating = false; // Флаг для подавления обновлений
@@ -370,6 +371,9 @@ namespace Nivtropy.ViewModels
             // Устанавливаем высоту в DataViewModel
             _dataViewModel.SetKnownHeight(SelectedPoint.Code, height);
 
+            // Привязываем репер к текущей системе
+            _benchmarkSystems[SelectedPoint.Code] = SelectedSystem?.Id ?? DEFAULT_SYSTEM_ID;
+
             // Очищаем поля ввода
             SelectedPoint = null;
             NewBenchmarkHeight = string.Empty;
@@ -387,6 +391,7 @@ namespace Nivtropy.ViewModels
                 return;
 
             _dataViewModel.ClearKnownHeight(benchmark.Code);
+            _benchmarkSystems.Remove(benchmark.Code);
             UpdateBenchmarks();
             UpdateRows();
         }
@@ -532,18 +537,32 @@ namespace Nivtropy.ViewModels
         }
 
         /// <summary>
-        /// Обновляет список реперов из DataViewModel
+        /// Обновляет список реперов из DataViewModel с фильтрацией по выбранной системе
         /// </summary>
         private void UpdateBenchmarks()
         {
             _benchmarks.Clear();
+
+            var selectedSystemId = SelectedSystem?.Id;
 
             foreach (var kvp in _dataViewModel.KnownHeights
                              .OrderBy(k => ParsePointCode(k.Key).isNumeric ? 0 : 1)
                              .ThenBy(k => ParsePointCode(k.Key).number)
                              .ThenBy(k => k.Key, StringComparer.OrdinalIgnoreCase))
             {
-                _benchmarks.Add(new BenchmarkItem(kvp.Key, kvp.Value));
+                // Определяем систему для этого репера
+                if (!_benchmarkSystems.TryGetValue(kvp.Key, out var benchmarkSystemId))
+                {
+                    // Если репер еще не привязан к системе, привязываем к системе по умолчанию
+                    benchmarkSystemId = DEFAULT_SYSTEM_ID;
+                    _benchmarkSystems[kvp.Key] = benchmarkSystemId;
+                }
+
+                // Показываем только реперы текущей системы
+                if (string.IsNullOrEmpty(selectedSystemId) || benchmarkSystemId == selectedSystemId)
+                {
+                    _benchmarks.Add(new BenchmarkItem(kvp.Key, kvp.Value, benchmarkSystemId));
+                }
             }
         }
 
@@ -584,6 +603,9 @@ namespace Nivtropy.ViewModels
 
             // Группируем станции по ходам для корректного расчета поправок
             var traverseGroups = items.GroupBy(r => r.LineName).ToList();
+
+            // Инициализация систем для новых ходов
+            InitializeRunSystems();
 
             UpdateSharedPointsMetadata(_dataViewModel.Records);
 
@@ -827,6 +849,32 @@ namespace Nivtropy.ViewModels
             foreach (var item in ordered)
             {
                 _sharedPoints.Add(item);
+            }
+        }
+
+        /// <summary>
+        /// Инициализация систем для новых ходов
+        /// </summary>
+        private void InitializeRunSystems()
+        {
+            var defaultSystem = _systems.FirstOrDefault(s => s.Id == DEFAULT_SYSTEM_ID);
+            if (defaultSystem == null)
+                return;
+
+            foreach (var run in Runs)
+            {
+                // Если ход еще не привязан к системе, привязываем к системе по умолчанию
+                if (string.IsNullOrEmpty(run.SystemId))
+                {
+                    run.SystemId = DEFAULT_SYSTEM_ID;
+                }
+
+                // Добавляем ход в RunIndexes соответствующей системы
+                var system = _systems.FirstOrDefault(s => s.Id == run.SystemId);
+                if (system != null && !system.ContainsRun(run.Index))
+                {
+                    system.AddRun(run.Index);
+                }
             }
         }
 
