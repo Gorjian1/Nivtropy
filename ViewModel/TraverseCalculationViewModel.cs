@@ -618,7 +618,7 @@ namespace Nivtropy.ViewModels
                 return;
             }
 
-            var items = TraverseBuilder.Build(records);
+            var items = TraverseBuilder.BuildStatic(records);
 
             // Группируем станции по ходам для корректного расчета поправок
             var traverseGroups = items.GroupBy(r => r.LineName).ToList();

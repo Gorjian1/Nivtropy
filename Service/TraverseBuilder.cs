@@ -4,11 +4,15 @@ using Nivtropy.Models;
 
 namespace Nivtropy.Services
 {
-    public static class TraverseBuilder
+    /// <summary>
+    /// Построитель структуры хода из записей измерений
+    /// Реализует интерфейс ITraverseBuilder для соблюдения принципа инверсии зависимостей (DIP)
+    /// </summary>
+    public class TraverseBuilder : ITraverseBuilder
     {
         // Спаривание с учётом режима: BF (Back→Forward) или FB (Forward→Back)
         // Режим определяет порядок точек в паре
-        public static List<TraverseRow> Build(IEnumerable<MeasurementRecord> records, LineSummary? run = null)
+        public List<TraverseRow> Build(IEnumerable<MeasurementRecord> records, LineSummary? run = null)
         {
             var list = new List<TraverseRow>();
             string line = run?.DisplayName ?? "?";
@@ -138,6 +142,17 @@ namespace Nivtropy.Services
             }
             if (pending != null) list.Add(pending);
             return list;
+        }
+
+        /// <summary>
+        /// Статический метод для обратной совместимости со старым кодом
+        /// Рекомендуется использовать инстансный метод Build через DI
+        /// </summary>
+        [Obsolete("Используйте инстансный метод Build через Dependency Injection")]
+        public static List<TraverseRow> BuildStatic(IEnumerable<MeasurementRecord> records, LineSummary? run = null)
+        {
+            var builder = new TraverseBuilder();
+            return builder.Build(records, run);
         }
     }
 }

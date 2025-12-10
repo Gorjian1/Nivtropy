@@ -174,7 +174,7 @@ namespace Nivtropy.ViewModels
                 return;
             }
 
-            var items = TraverseBuilder.Build(
+            var items = TraverseBuilder.BuildStatic(
                 _dataViewModel.Records.Where(r => ReferenceEquals(r.LineSummary, SelectedRun)),
                 SelectedRun);
 

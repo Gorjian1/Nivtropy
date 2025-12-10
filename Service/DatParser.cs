@@ -6,11 +6,16 @@ using System.Linq;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 using Nivtropy.Models;
 
 namespace Nivtropy.Services
 {
-    public class DatParser
+    /// <summary>
+    /// Парсер данных нивелирования из различных форматов файлов
+    /// Реализует интерфейс IDataParser для соблюдения принципа инверсии зависимостей (DIP)
+    /// </summary>
+    public class DatParser : IDataParser
     {
         private static readonly CultureInfo CI = CultureInfo.InvariantCulture;
         private static readonly string[] CandidateEncodings = { "utf-8", "windows-1251", "cp1251", "latin1", "utf-16" };
@@ -24,6 +29,39 @@ namespace Nivtropy.Services
             ["HDfore"] = new[] { "HDFore", "HD_F", "HF" },
         };
 
+        #region IDataParser Implementation
+
+        /// <summary>
+        /// Асинхронно загружает и парсит файл данных нивелирования
+        /// </summary>
+        public async Task<List<MeasurementRecord>> LoadFromFileAsync(string filePath)
+        {
+            return await Task.Run(() => Parse(filePath, null).ToList());
+        }
+
+        /// <summary>
+        /// Парсит данные из строк текста
+        /// </summary>
+        public List<MeasurementRecord> ParseLines(IEnumerable<string> lines, string? format = null)
+        {
+            var linesArray = lines.ToArray();
+            var detectedFormat = DetectFileFormat(linesArray);
+
+            if (detectedFormat == FileFormat.TrimbleDini || format == "TrimbleDini")
+            {
+                return ParseTrimbleDini(linesArray).ToList();
+            }
+            else
+            {
+                return ParseForFormat(linesArray, null, null).ToList();
+            }
+        }
+
+        #endregion
+
+        /// <summary>
+        /// Парсит файл данных нивелирования (устаревший метод, сохранён для обратной совместимости)
+        /// </summary>
         public IEnumerable<MeasurementRecord> Parse(string path, string? synonymsConfigPath = null)
         {
             var text = ReadTextSmart(path);
