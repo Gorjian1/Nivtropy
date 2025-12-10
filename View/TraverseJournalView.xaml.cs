@@ -82,6 +82,32 @@ namespace Nivtropy.Views
                 if (ShowZ0CheckBox != null)
                     ShowZ0CheckBox.IsChecked = _savedShowZ0;
             };
+
+            // Подписка на изменения DataContext для отрисовки визуализации ходов
+            DataContextChanged += (s, e) =>
+            {
+                if (e.NewValue is TraverseJournalViewModel viewModel)
+                {
+                    // Подписываемся на изменения в ViewModel
+                    viewModel.Calculation.PropertyChanged += (_, args) =>
+                    {
+                        if (args.PropertyName == nameof(TraverseCalculationViewModel.Rows) ||
+                            args.PropertyName == nameof(TraverseCalculationViewModel.SelectedSystem))
+                        {
+                            DrawTraverseSystemVisualization();
+                        }
+                    };
+
+                    // Начальная отрисовка
+                    DrawTraverseSystemVisualization();
+                }
+            };
+
+            // Подписка на изменение размера канваса
+            if (TraverseVisualizationCanvas != null)
+            {
+                TraverseVisualizationCanvas.SizeChanged += (s, e) => DrawTraverseSystemVisualization();
+            }
         }
 
         private void ShowTraverseDetails_Click(object sender, RoutedEventArgs e)
@@ -1108,6 +1134,168 @@ namespace Nivtropy.Views
                 {
                     viewModel.Calculation.AddBenchmarkCommand.Execute(null);
                     e.Handled = true;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Отрисовка визуализации системы ходов
+        /// </summary>
+        private void DrawTraverseSystemVisualization()
+        {
+            if (TraverseVisualizationCanvas == null)
+                return;
+
+            TraverseVisualizationCanvas.Children.Clear();
+
+            if (DataContext is not TraverseJournalViewModel viewModel)
+                return;
+
+            var calculation = viewModel.Calculation;
+            var runs = calculation.Runs.ToList();
+
+            if (runs.Count == 0)
+                return;
+
+            var canvasWidth = TraverseVisualizationCanvas.ActualWidth;
+            var canvasHeight = TraverseVisualizationCanvas.ActualHeight;
+
+            if (canvasWidth < 10 || canvasHeight < 10)
+                return;
+
+            // Палитра цветов для систем
+            var systemColors = new[]
+            {
+                Color.FromRgb(25, 118, 210),   // Синий
+                Color.FromRgb(56, 142, 60),    // Зелёный
+                Color.FromRgb(251, 140, 0),    // Оранжевый
+                Color.FromRgb(142, 36, 170),   // Фиолетовый
+                Color.FromRgb(0, 150, 136),    // Бирюзовый
+                Color.FromRgb(211, 47, 47)     // Красный
+            };
+
+            // Группируем ходы по системам
+            var runsBySystem = runs.GroupBy(r => r.SystemId ?? "default").ToList();
+
+            // Простое расположение: сетка
+            var margin = 20;
+            var spacing = 10;
+            var itemWidth = 80;
+            var itemHeight = 60;
+
+            var columns = Math.Max(1, (int)((canvasWidth - 2 * margin) / (itemWidth + spacing)));
+            var currentX = margin;
+            var currentY = margin;
+            var currentCol = 0;
+
+            int colorIndex = 0;
+            foreach (var systemGroup in runsBySystem)
+            {
+                var systemColor = systemColors[colorIndex % systemColors.Length];
+                colorIndex++;
+
+                foreach (var run in systemGroup)
+                {
+                    // Определяем, является ли ход цикличным
+                    bool isCyclic = !string.IsNullOrWhiteSpace(run.StartLabel) &&
+                                    !string.IsNullOrWhiteSpace(run.EndLabel) &&
+                                    string.Equals(run.StartLabel, run.EndLabel, StringComparison.OrdinalIgnoreCase);
+
+                    // Цвет и стиль в зависимости от активности
+                    var strokeColor = run.IsActive ? systemColor : Color.FromRgb(150, 150, 150);
+                    var strokeBrush = new SolidColorBrush(strokeColor);
+                    var fillBrush = new SolidColorBrush(Color.FromArgb(30, strokeColor.R, strokeColor.G, strokeColor.B));
+
+                    if (isCyclic)
+                    {
+                        // Рисуем круг для цикличного хода
+                        var ellipse = new Ellipse
+                        {
+                            Width = 40,
+                            Height = 40,
+                            Stroke = strokeBrush,
+                            StrokeThickness = run.IsActive ? 2 : 1.5,
+                            Fill = fillBrush,
+                            ToolTip = $"{run.Header}\n{run.CombinedStats}"
+                        };
+
+                        if (!run.IsActive)
+                        {
+                            ellipse.StrokeDashArray = new DoubleCollection { 3, 2 };
+                        }
+
+                        Canvas.SetLeft(ellipse, currentX + itemWidth / 2 - 20);
+                        Canvas.SetTop(ellipse, currentY + 5);
+                        TraverseVisualizationCanvas.Children.Add(ellipse);
+                    }
+                    else
+                    {
+                        // Рисуем линию для открытого хода
+                        var line = new Line
+                        {
+                            X1 = currentX + 10,
+                            Y1 = currentY + 25,
+                            X2 = currentX + itemWidth - 10,
+                            Y2 = currentY + 25,
+                            Stroke = strokeBrush,
+                            StrokeThickness = run.IsActive ? 3 : 2,
+                            ToolTip = $"{run.Header}\n{run.CombinedStats}"
+                        };
+
+                        if (!run.IsActive)
+                        {
+                            line.StrokeDashArray = new DoubleCollection { 4, 3 };
+                        }
+
+                        TraverseVisualizationCanvas.Children.Add(line);
+
+                        // Точки на концах
+                        var startPoint = new Ellipse
+                        {
+                            Width = 8,
+                            Height = 8,
+                            Fill = strokeBrush
+                        };
+                        Canvas.SetLeft(startPoint, currentX + 10 - 4);
+                        Canvas.SetTop(startPoint, currentY + 25 - 4);
+                        TraverseVisualizationCanvas.Children.Add(startPoint);
+
+                        var endPoint = new Ellipse
+                        {
+                            Width = 8,
+                            Height = 8,
+                            Fill = strokeBrush
+                        };
+                        Canvas.SetLeft(endPoint, currentX + itemWidth - 10 - 4);
+                        Canvas.SetTop(endPoint, currentY + 25 - 4);
+                        TraverseVisualizationCanvas.Children.Add(endPoint);
+                    }
+
+                    // Подпись хода
+                    var label = new TextBlock
+                    {
+                        Text = run.DisplayName,
+                        FontSize = 9,
+                        FontWeight = run.IsActive ? FontWeights.SemiBold : FontWeights.Normal,
+                        Foreground = strokeBrush,
+                        HorizontalAlignment = HorizontalAlignment.Center
+                    };
+                    Canvas.SetLeft(label, currentX + itemWidth / 2 - 15);
+                    Canvas.SetTop(label, currentY + 45);
+                    TraverseVisualizationCanvas.Children.Add(label);
+
+                    // Переход к следующей позиции
+                    currentCol++;
+                    if (currentCol >= columns)
+                    {
+                        currentCol = 0;
+                        currentX = margin;
+                        currentY += itemHeight + spacing;
+                    }
+                    else
+                    {
+                        currentX += itemWidth + spacing;
+                    }
                 }
             }
         }
