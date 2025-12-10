@@ -1587,6 +1587,35 @@ namespace Nivtropy.Views
                 return Math.Clamp(scaled, 26, 138);
             }
 
+            double CalculateRunRotation(LineSummary run, IReadOnlyList<string> sequence)
+            {
+                static int StableHash(string value)
+                {
+                    unchecked
+                    {
+                        int hash = 17;
+                        foreach (var ch in value)
+                        {
+                            hash = hash * 31 + ch;
+                        }
+
+                        return hash;
+                    }
+                }
+
+                unchecked
+                {
+                    int seed = StableHash(run.DisplayName ?? run.Index.ToString());
+                    foreach (var code in sequence)
+                    {
+                        seed = seed * 23 + StableHash(code);
+                    }
+
+                    var degrees = (seed % 360 + 360) % 360; // в диапазоне [0,360)
+                    return degrees * Math.PI / 180.0;
+                }
+            }
+
             var runShapeRadius = runs.ToDictionary(
                 run => run,
                 run => CalculateRunRadius(pointsByRun.TryGetValue(run, out var seq) ? seq.Count : 0));
@@ -1719,6 +1748,7 @@ namespace Nivtropy.Views
                     : Math.Min(runShapeRadius.TryGetValue(run, out var fallbackRadius) ? fallbackRadius : 32,
                         GetMaxRadius(centerPoint, padding));
 
+                var rotationOffset = CalculateRunRotation(run, pointSequence);
                 var vertices = new List<Point>();
                 for (int i = 0; i < pointSequence.Count; i++)
                 {
@@ -1729,7 +1759,7 @@ namespace Nivtropy.Views
                         continue;
                     }
 
-                    var angle = 2 * Math.PI * i / pointCount;
+                    var angle = rotationOffset + 2 * Math.PI * i / pointCount;
                     var vertex = new Point(
                         centerPoint.X + shapeRadius * Math.Cos(angle),
                         centerPoint.Y + shapeRadius * Math.Sin(angle));
