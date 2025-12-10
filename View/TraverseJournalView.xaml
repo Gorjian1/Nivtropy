@@ -618,26 +618,38 @@
                                    Foreground="#2B579A"
                                    Margin="0,0,0,10" />
 
-                        <!-- Выбор системы -->
+                        <!-- Одна строка: Система + Точки + Высота + кнопки -->
                         <Grid Margin="0,0,0,8">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="110" />
+                                <ColumnDefinition Width="6" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="90" />
+                                <ColumnDefinition Width="6" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="80" />
+                                <ColumnDefinition Width="4" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="4" />
+                                <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
 
+                            <!-- Метка "Система:" -->
                             <TextBlock Grid.Column="0"
                                        Text="Система:"
                                        FontSize="11"
                                        VerticalAlignment="Center"
                                        Margin="0,0,6,0" />
 
+                            <!-- ComboBox системы -->
                             <ComboBox Grid.Column="1"
                                       ItemsSource="{Binding Calculation.Systems}"
                                       SelectedItem="{Binding Calculation.SelectedSystem, Mode=TwoWay}"
                                       DisplayMemberPath="DisplayName"
                                       ToolTip="Выберите систему ходов для установки реперов"
                                       FontSize="11"
-                                      Height="24">
+                                      Height="26">
                                 <ComboBox.Style>
                                     <Style TargetType="ComboBox">
                                         <Setter Property="Background">
@@ -651,31 +663,16 @@
                                     </Style>
                                 </ComboBox.Style>
                             </ComboBox>
-                        </Grid>
-
-                        <!-- Одна строка: Точки + Высота + кнопки -->
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="8" />
-                                <ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="80" />
-                                <ColumnDefinition Width="4" />
-                                <ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="4" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
 
                             <!-- Метка "Точки:" -->
-                            <TextBlock Grid.Column="0"
+                            <TextBlock Grid.Column="3"
                                        Text="Точки:"
                                        FontSize="11"
                                        VerticalAlignment="Center"
                                        Margin="0,0,6,0" />
 
                             <!-- Комбобокс с точками -->
-                            <ComboBox Grid.Column="1"
+                            <ComboBox Grid.Column="4"
                                       ItemsSource="{Binding Calculation.AvailablePoints}"
                                       SelectedItem="{Binding Calculation.SelectedPoint, Mode=TwoWay}"
                                       DisplayMemberPath="DisplayName"
@@ -698,7 +695,7 @@
                             </ComboBox>
 
                             <!-- Метка "Высота:" -->
-                            <TextBlock Grid.Column="3"
+                            <TextBlock Grid.Column="6"
                                        Text="Высота:"
                                        FontSize="11"
                                        VerticalAlignment="Center"
@@ -706,7 +703,7 @@
 
                             <!-- Поле ввода высоты -->
                             <TextBox x:Name="BenchmarkHeightTextBox"
-                                     Grid.Column="4"
+                                     Grid.Column="7"
                                      Text="{Binding Calculation.NewBenchmarkHeight, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                      ToolTip="Введите известную высоту репера (Enter для добавления)"
                                      KeyDown="BenchmarkHeightTextBox_KeyDown"
@@ -729,7 +726,7 @@
                             </TextBox>
 
                             <!-- Кнопка + -->
-                            <Button Grid.Column="6"
+                            <Button Grid.Column="9"
                                     Content="+"
                                     FontSize="16"
                                     FontWeight="Bold"
@@ -770,7 +767,7 @@
 
                             <!-- Кнопка ▼ для показа/скрытия списка -->
                             <ToggleButton x:Name="ToggleBenchmarksButton"
-                                          Grid.Column="8"
+                                          Grid.Column="11"
                                           Width="26"
                                           Height="26"
                                           Padding="0"
@@ -975,8 +972,9 @@
                                     ClipToBounds="True" />
                         </Border>
 
-                        <!-- Кнопка управления системами -->
-                        <Button Content="⚙ Управление системами"
+                        <!-- Кнопка управления ходами -->
+                        <Button Content="⚙ Управление ходами"
+                                Click="ManageSystems_Click"
                                 Margin="0,8,0,0"
                                 Padding="10,6"
                                 FontSize="11"

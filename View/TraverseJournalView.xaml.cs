@@ -94,20 +94,24 @@ namespace Nivtropy.Views
                         if (args.PropertyName == nameof(TraverseCalculationViewModel.Rows) ||
                             args.PropertyName == nameof(TraverseCalculationViewModel.SelectedSystem))
                         {
-                            DrawTraverseSystemVisualization();
+                            Dispatcher.BeginInvoke(new System.Action(() => DrawTraverseSystemVisualization()));
                         }
                     };
 
-                    // Начальная отрисовка
-                    DrawTraverseSystemVisualization();
+                    // Начальная отрисовка с задержкой (когда UI полностью загрузится)
+                    Dispatcher.BeginInvoke(new System.Action(() => DrawTraverseSystemVisualization()), System.Windows.Threading.DispatcherPriority.Loaded);
                 }
             };
 
-            // Подписка на изменение размера канваса
-            if (TraverseVisualizationCanvas != null)
+            // Подписка на Loaded для начальной отрисовки визуализации
+            Loaded += (s, e) =>
             {
-                TraverseVisualizationCanvas.SizeChanged += (s, e) => DrawTraverseSystemVisualization();
-            }
+                if (TraverseVisualizationCanvas != null)
+                {
+                    TraverseVisualizationCanvas.SizeChanged += (_, __) => DrawTraverseSystemVisualization();
+                }
+                DrawTraverseSystemVisualization();
+            };
         }
 
         private void ShowTraverseDetails_Click(object sender, RoutedEventArgs e)
@@ -1136,6 +1140,22 @@ namespace Nivtropy.Views
                     e.Handled = true;
                 }
             }
+        }
+
+        /// <summary>
+        /// Обработчик клика на кнопку "Управление ходами"
+        /// </summary>
+        private void ManageSystems_Click(object sender, RoutedEventArgs e)
+        {
+            if (DataContext is not TraverseJournalViewModel viewModel)
+                return;
+
+            // Здесь будет открываться диалог управления системами
+            System.Windows.MessageBox.Show(
+                "Диалог управления системами ходов будет реализован позже.",
+                "Управление ходами",
+                System.Windows.MessageBoxButton.OK,
+                System.Windows.MessageBoxImage.Information);
         }
 
         /// <summary>
