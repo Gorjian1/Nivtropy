@@ -1480,8 +1480,9 @@ namespace Nivtropy.Views
             var sharedPoints = calculation.SharedPoints.Where(p => p.IsEnabled).ToList();
 
             var sharedPointPositions = new Dictionary<string, Point>(StringComparer.OrdinalIgnoreCase);
-            var sharedRadius = Math.Min(canvasWidth, canvasHeight) / 2 - 40;
+            const double canvasMargin = 20;
             var center = new Point(canvasWidth / 2, canvasHeight / 2);
+            var sharedRadius = Math.Min(canvasWidth, canvasHeight) / 2 - canvasMargin * 2;
 
             for (int i = 0; i < sharedPoints.Count; i++)
             {
@@ -1493,7 +1494,9 @@ namespace Nivtropy.Views
 
             // Центры ходов: для связанных — около средних общих точек, для несвязанных — отдельное кольцо
             var runCenters = new Dictionary<LineSummary, Point>();
-            var orbitRadius = sharedPoints.Count > 0 ? sharedRadius * 0.85 : Math.Min(canvasWidth, canvasHeight) / 2 - 50;
+            var orbitRadius = sharedPoints.Count > 0
+                ? sharedRadius * 0.8
+                : Math.Min(canvasWidth, canvasHeight) / 2 - canvasMargin * 2.5;
 
             for (int i = 0; i < runs.Count; i++)
             {
@@ -1516,9 +1519,19 @@ namespace Nivtropy.Views
 
                     // Небольшое смещение, чтобы фигуры с одинаковыми общими точками не налегали друг на друга
                     var jitterAngle = ((run.Index * 37) % 360) * Math.PI / 180.0;
-                    var jitterDistance = (anchors.Count > 1 ? 10 : 18) + (i % 3) * 3;
+                    var jitterDistance = (anchors.Count > 1 ? 8 : 14) + (i % 2) * 2;
                     var offset = new Vector(Math.Cos(jitterAngle) * jitterDistance, Math.Sin(jitterAngle) * jitterDistance);
-                    runCenters[run] = basePoint + offset;
+                    var target = basePoint + offset;
+
+                    var maxRadius = Math.Min(canvasWidth, canvasHeight) / 2 - canvasMargin * 2;
+                    var vectorFromCenter = target - center;
+                    if (vectorFromCenter.Length > maxRadius)
+                    {
+                        vectorFromCenter.Normalize();
+                        target = center + vectorFromCenter * maxRadius;
+                    }
+
+                    runCenters[run] = target;
                 }
                 else
                 {
@@ -1538,19 +1551,20 @@ namespace Nivtropy.Views
 
                 var runColor = runColors.TryGetValue(run, out var c) ? c : Colors.SteelBlue;
                 var strokeColor = run.IsActive ? runColor : Color.FromRgb(140, 140, 140);
-                var fillColor = Color.FromArgb(40, runColor.R, runColor.G, runColor.B);
 
                 var centerPoint = runCenters[run];
                 var pointCount = Math.Max(pointSequence.Count, 2);
-                var shapeRadius = 22 + pointCount * 6;
+                var shapeRadius = Math.Min(22 + pointCount * 6, Math.Min(canvasWidth, canvasHeight) / 2 - canvasMargin * 2);
 
                 var vertices = new List<Point>();
+                var anchoredFlags = new List<bool>();
                 for (int i = 0; i < pointSequence.Count; i++)
                 {
                     var code = pointSequence[i];
                     if (sharedPointPositions.TryGetValue(code, out var sharedPos))
                     {
                         vertices.Add(sharedPos);
+                        anchoredFlags.Add(true);
                         continue;
                     }
 
@@ -1559,6 +1573,36 @@ namespace Nivtropy.Views
                         centerPoint.X + shapeRadius * Math.Cos(angle),
                         centerPoint.Y + shapeRadius * Math.Sin(angle));
                     vertices.Add(vertex);
+                    anchoredFlags.Add(false);
+                }
+
+                var minX = vertices.Min(p => p.X);
+                var maxX = vertices.Max(p => p.X);
+                var minY = vertices.Min(p => p.Y);
+                var maxY = vertices.Max(p => p.Y);
+
+                var shiftX = 0.0;
+                var shiftY = 0.0;
+
+                if (minX < canvasMargin)
+                    shiftX = canvasMargin - minX;
+                else if (maxX > canvasWidth - canvasMargin)
+                    shiftX = (canvasWidth - canvasMargin) - maxX;
+
+                if (minY < canvasMargin)
+                    shiftY = canvasMargin - minY;
+                else if (maxY > canvasHeight - canvasMargin)
+                    shiftY = (canvasHeight - canvasMargin) - maxY;
+
+                if (Math.Abs(shiftX) > double.Epsilon || Math.Abs(shiftY) > double.Epsilon)
+                {
+                    for (int i = 0; i < vertices.Count; i++)
+                    {
+                        if (anchoredFlags[i])
+                            continue;
+
+                        vertices[i] = new Point(vertices[i].X + shiftX, vertices[i].Y + shiftY);
+                    }
                 }
 
                 bool isClosed = string.Equals(pointSequence.First(), pointSequence.Last(), StringComparison.OrdinalIgnoreCase);
@@ -1569,7 +1613,7 @@ namespace Nivtropy.Views
                     Data = geometry,
                     Stroke = new SolidColorBrush(strokeColor),
                     StrokeThickness = run.IsActive ? 2.2 : 1.5,
-                    Fill = new SolidColorBrush(fillColor),
+                    Fill = Brushes.Transparent,
                     StrokeDashArray = run.IsActive ? null : new DoubleCollection { 3, 3 },
                     StrokeLineJoin = PenLineJoin.Round,
                     StrokeStartLineCap = PenLineCap.Round,
