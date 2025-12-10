@@ -1656,7 +1656,7 @@ namespace Nivtropy.Views
             }
 
             // Пересчитываем центры с учётом итоговых радиусов, чтобы фигуры не перекручивались после изменения размера
-            var actualRunRadius = runs.ToDictionary<LineSummary, double, double>(run => run, run => 0);
+            var actualRunRadius = runs.ToDictionary(run => run, _ => 0d);
 
             double GetActualRadius(LineSummary run)
             {
