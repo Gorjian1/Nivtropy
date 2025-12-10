@@ -151,44 +151,17 @@
                                             </Button.Template>
                                         </Button>
 
-                                        <Button x:Name="SharedPointsButton"
-                                                Width="24" Height="24"
-                                                Margin="0,0,8,0"
-                                                Padding="0"
-                                                BorderThickness="0"
-                                                Cursor="Hand"
-                                                Tag="{Binding Items[0].LineSummary}"
-                                                Click="ShowSharedPoints_Click">
-                                            <Button.Style>
-                                                <Style TargetType="Button">
-                                                    <Setter Property="Visibility" Value="Collapsed" />
-                                                    <Setter Property="Background" Value="#8A8A8A" />
-                                                    <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding Items[0].LineSummary.HasSharedPoints}" Value="True">
-                                                            <Setter Property="Visibility" Value="Visible" />
-                                                        </DataTrigger>
-                                                        <Trigger Property="IsMouseOver" Value="True">
-                                                            <Setter Property="Opacity" Value="0.8" />
-                                                        </Trigger>
-                                                    </Style.Triggers>
+                                        <!-- Checkbox активности хода -->
+                                        <CheckBox IsChecked="{Binding Items[0].LineSummary.IsActive, Mode=TwoWay}"
+                                                  ToolTip="Активен (участвует в расчётах и экспорте)"
+                                                  Margin="0,0,8,0"
+                                                  VerticalAlignment="Center">
+                                            <CheckBox.Style>
+                                                <Style TargetType="CheckBox">
+                                                    <Setter Property="Foreground" Value="#202020" />
                                                 </Style>
-                                            </Button.Style>
-                                            <Button.Template>
-                                                <ControlTemplate TargetType="Button">
-                                                    <Border Background="{TemplateBinding Background}"
-                                                            CornerRadius="12"
-                                                            Width="24"
-                                                            Height="24">
-                                                        <TextBlock Text="&#xE8CB;"
-                                                                   FontFamily="Segoe MDL2 Assets"
-                                                                   FontSize="14"
-                                                                   Foreground="White"
-                                                                   HorizontalAlignment="Center"
-                                                                   VerticalAlignment="Center"/>
-                                                    </Border>
-                                                </ControlTemplate>
-                                            </Button.Template>
-                                        </Button>
+                                            </CheckBox.Style>
+                                        </CheckBox>
 
                                         <TextBlock Text="{Binding Name}" FontWeight="SemiBold" Foreground="#202020" />
                                         <TextBlock Text=" • Станций: " Margin="12,0,0,0" Foreground="#707070" />
@@ -644,6 +617,41 @@
                                    FontSize="12"
                                    Foreground="#2B579A"
                                    Margin="0,0,0,10" />
+
+                        <!-- Выбор системы -->
+                        <Grid Margin="0,0,0,8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+
+                            <TextBlock Grid.Column="0"
+                                       Text="Система:"
+                                       FontSize="11"
+                                       VerticalAlignment="Center"
+                                       Margin="0,0,6,0" />
+
+                            <ComboBox Grid.Column="1"
+                                      ItemsSource="{Binding Calculation.Systems}"
+                                      SelectedItem="{Binding Calculation.SelectedSystem, Mode=TwoWay}"
+                                      DisplayMemberPath="DisplayName"
+                                      ToolTip="Выберите систему ходов для установки реперов"
+                                      FontSize="11"
+                                      Height="24">
+                                <ComboBox.Style>
+                                    <Style TargetType="ComboBox">
+                                        <Setter Property="Background">
+                                            <Setter.Value>
+                                                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                                    <GradientStop Color="#FFFFFFFF" Offset="0"/>
+                                                    <GradientStop Color="#FFF5F7F9" Offset="1"/>
+                                                </LinearGradientBrush>
+                                            </Setter.Value>
+                                        </Setter>
+                                    </Style>
+                                </ComboBox.Style>
+                            </ComboBox>
+                        </Grid>
 
                         <!-- Одна строка: Точки + Высота + кнопки -->
                         <Grid>
