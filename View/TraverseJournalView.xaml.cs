@@ -1187,6 +1187,15 @@ namespace Nivtropy.Views
             if (canvasWidth < 10 || canvasHeight < 10)
                 return;
 
+            var canvasMargin = 24.0;
+            var centerX = canvasWidth / 2;
+            var centerY = canvasHeight / 2;
+            var usableWidth = canvasWidth - canvasMargin * 2;
+            var usableHeight = canvasHeight - canvasMargin * 2;
+
+            if (usableWidth <= 0 || usableHeight <= 0)
+                return;
+
             // Палитра цветов для систем
             var systemColors = new[]
             {
@@ -1197,42 +1206,6 @@ namespace Nivtropy.Views
                 Color.FromRgb(0, 150, 136),    // Бирюзовый
                 Color.FromRgb(211, 47, 47)     // Красный
             };
-
-            // Строим граф связей точек
-            var pointPositions = new System.Collections.Generic.Dictionary<string, (double x, double y)>();
-            var pointConnections = new System.Collections.Generic.Dictionary<string, System.Collections.Generic.List<(LineSummary run, bool isStart)>>();
-
-            // Собираем все точки и их связи с ходами
-            foreach (var run in runs)
-            {
-                if (!string.IsNullOrWhiteSpace(run.StartLabel))
-                {
-                    if (!pointConnections.ContainsKey(run.StartLabel))
-                        pointConnections[run.StartLabel] = new System.Collections.Generic.List<(LineSummary, bool)>();
-                    pointConnections[run.StartLabel].Add((run, true));
-                }
-
-                if (!string.IsNullOrWhiteSpace(run.EndLabel))
-                {
-                    if (!pointConnections.ContainsKey(run.EndLabel))
-                        pointConnections[run.EndLabel] = new System.Collections.Generic.List<(LineSummary, bool)>();
-                    pointConnections[run.EndLabel].Add((run, false));
-                }
-            }
-
-            // Простой circular layout для точек
-            var centerX = canvasWidth / 2;
-            var centerY = canvasHeight / 2;
-            var radius = Math.Min(canvasWidth, canvasHeight) / 2 - 40;
-
-            var points = pointConnections.Keys.ToList();
-            for (int i = 0; i < points.Count; i++)
-            {
-                var angle = 2 * Math.PI * i / Math.Max(points.Count, 1);
-                var x = centerX + radius * Math.Cos(angle);
-                var y = centerY + radius * Math.Sin(angle);
-                pointPositions[points[i]] = (x, y);
-            }
 
             // Группируем ходы по системам для раскраски
             var runsBySystem = runs.GroupBy(r => r.SystemId ?? "default").ToList();
@@ -1249,119 +1222,196 @@ namespace Nivtropy.Views
                 colorIndex++;
             }
 
-            // Рисуем ходы как линии между точками
-            foreach (var run in runs)
+            // Список общих точек (используем только если точка встречается более одного раза)
+            var sharedPointRuns = runs
+                .SelectMany(run => run.SharedPointCodes.Select(code => (code, run)))
+                .GroupBy(item => item.code)
+                .Where(g => g.Count() > 1)
+                .ToDictionary(g => g.Key, g => g.Select(item => item.run).Distinct().ToList());
+
+            // Координаты центров ходов (узлы внешнего кольца)
+            var runCenters = new System.Collections.Generic.Dictionary<LineSummary, (double x, double y)>();
+            // Координаты общих точек (узлы внутреннего кольца)
+            var sharedPointPositions = new System.Collections.Generic.Dictionary<string, (double x, double y)>();
+
+            var vertices = new System.Collections.Generic.List<(string key, double x, double y, bool isAnchor, bool isRun)>();
+            var runVertexMap = new System.Collections.Generic.Dictionary<string, LineSummary>();
+            var sharedVertexMap = new System.Collections.Generic.Dictionary<string, string>();
+
+            // Раскладываем ходы по окружности
+            double runNodeSize = 28.0;
+            var runRadius = Math.Max(0, Math.Min(usableWidth, usableHeight) / 2 - runNodeSize / 2);
+            for (int i = 0; i < runs.Count; i++)
             {
-                if (string.IsNullOrWhiteSpace(run.StartLabel) || string.IsNullOrWhiteSpace(run.EndLabel))
-                    continue;
+                var angle = 2 * Math.PI * i / Math.Max(runs.Count, 1);
+                var x = centerX + runRadius * Math.Cos(angle);
+                var y = centerY + runRadius * Math.Sin(angle);
 
-                if (!pointPositions.ContainsKey(run.StartLabel) || !pointPositions.ContainsKey(run.EndLabel))
-                    continue;
+                runCenters[runs[i]] = (x, y);
+                var key = $"run-{runs[i].Index}";
+                vertices.Add((key, x, y, true, true));
+                runVertexMap[key] = runs[i];
+            }
 
-                var start = pointPositions[run.StartLabel];
-                var end = pointPositions[run.EndLabel];
+            // Раскладываем общие точки на внутреннем радиусе с учётом отступов канваса
+            if (sharedPointRuns.Count > 0)
+            {
+                double sharedNodeSize = 16.0;
+                double sharedRadius = Math.Min(runRadius * 0.6, Math.Min((usableWidth - sharedNodeSize) / 2, (usableHeight - sharedNodeSize) / 2));
+                sharedRadius = Math.Max(0, sharedRadius);
 
-                bool isCyclic = string.Equals(run.StartLabel, run.EndLabel, StringComparison.OrdinalIgnoreCase);
-                var strokeColor = run.IsActive ? runColors[run] : Color.FromRgb(150, 150, 150);
-                var strokeBrush = new SolidColorBrush(strokeColor);
-
-                if (isCyclic)
+                int idx = 0;
+                foreach (var code in sharedPointRuns.Keys)
                 {
-                    // Рисуем круг вокруг точки
-                    var ellipse = new Ellipse
-                    {
-                        Width = 30,
-                        Height = 30,
-                        Stroke = strokeBrush,
-                        StrokeThickness = run.IsActive ? 2.5 : 1.5,
-                        Fill = Brushes.Transparent,
-                        ToolTip = $"{run.Header}\n{run.CombinedStats}"
-                    };
+                    var angle = 2 * Math.PI * idx / sharedPointRuns.Count;
+                    var x = centerX + sharedRadius * Math.Cos(angle);
+                    var y = centerY + sharedRadius * Math.Sin(angle);
 
-                    if (!run.IsActive)
+                    sharedPointPositions[code] = (x, y);
+                    var key = $"shared-{code}";
+                    vertices.Add((key, x, y, false, false));
+                    sharedVertexMap[key] = code;
+                    idx++;
+                }
+            }
+
+            // Проверяем, не выходят ли вершины за границы с учётом отступов
+            if (vertices.Count > 0)
+            {
+                var minX = vertices.Min(v => v.x);
+                var maxX = vertices.Max(v => v.x);
+                var minY = vertices.Min(v => v.y);
+                var maxY = vertices.Max(v => v.y);
+
+                double shiftX = 0;
+                double shiftY = 0;
+
+                if (minX < canvasMargin)
+                    shiftX = canvasMargin - minX;
+                else if (maxX > canvasWidth - canvasMargin)
+                    shiftX = (canvasWidth - canvasMargin) - maxX;
+
+                if (minY < canvasMargin)
+                    shiftY = canvasMargin - minY;
+                else if (maxY > canvasHeight - canvasMargin)
+                    shiftY = (canvasHeight - canvasMargin) - maxY;
+
+                if (Math.Abs(shiftX) > double.Epsilon || Math.Abs(shiftY) > double.Epsilon)
+                {
+                    for (int i = 0; i < vertices.Count; i++)
                     {
-                        ellipse.StrokeDashArray = new DoubleCollection { 3, 2 };
+                        var v = vertices[i];
+                        vertices[i] = (v.key, v.x + shiftX, v.y + shiftY, v.isAnchor, v.isRun);
                     }
 
-                    Canvas.SetLeft(ellipse, start.x - 15);
-                    Canvas.SetTop(ellipse, start.y - 15);
-                    TraverseVisualizationCanvas.Children.Add(ellipse);
+                    foreach (var v in vertices)
+                    {
+                        if (runVertexMap.TryGetValue(v.key, out var run))
+                        {
+                            runCenters[run] = (v.x, v.y);
+                        }
+                        else if (sharedVertexMap.TryGetValue(v.key, out var code))
+                        {
+                            sharedPointPositions[code] = (v.x, v.y);
+                        }
+                    }
                 }
-                else
+            }
+
+            // Линии от ходов к общим точкам
+            foreach (var shared in sharedPointRuns)
+            {
+                if (!sharedPointPositions.TryGetValue(shared.Key, out var sharedPos))
+                    continue;
+
+                foreach (var run in shared.Value)
                 {
-                    // Рисуем линию между точками
+                    if (!runCenters.TryGetValue(run, out var runCenter))
+                        continue;
+
+                    var strokeColor = run.IsActive ? runColors[run] : Color.FromRgb(150, 150, 150);
                     var line = new Line
                     {
-                        X1 = start.x,
-                        Y1 = start.y,
-                        X2 = end.x,
-                        Y2 = end.y,
-                        Stroke = strokeBrush,
-                        StrokeThickness = run.IsActive ? 2.5 : 1.5,
-                        ToolTip = $"{run.Header}\n{run.CombinedStats}"
+                        X1 = runCenter.x,
+                        Y1 = runCenter.y,
+                        X2 = sharedPos.x,
+                        Y2 = sharedPos.y,
+                        Stroke = new SolidColorBrush(Color.FromArgb(90, strokeColor.R, strokeColor.G, strokeColor.B)),
+                        StrokeThickness = 2,
+                        StrokeDashArray = new DoubleCollection { 3, 3 }
                     };
-
-                    if (!run.IsActive)
-                    {
-                        line.StrokeDashArray = new DoubleCollection { 4, 3 };
-                    }
-
                     TraverseVisualizationCanvas.Children.Add(line);
                 }
+            }
 
-                // Подпись хода на середине линии
-                var labelX = (start.x + end.x) / 2;
-                var labelY = (start.y + end.y) / 2;
+            // Вершины общих точек
+            foreach (var kvp in sharedPointPositions)
+            {
+                var runsForPoint = sharedPointRuns.TryGetValue(kvp.Key, out var list) ? list : new System.Collections.Generic.List<LineSummary>();
+                var point = new Ellipse
+                {
+                    Width = 14,
+                    Height = 14,
+                    Fill = new SolidColorBrush(Color.FromRgb(255, 193, 7)),
+                    Stroke = Brushes.White,
+                    StrokeThickness = 2,
+                    ToolTip = $"Общая точка: {kvp.Key}\nХоды: {string.Join(", ", runsForPoint.Select(r => r.DisplayName))}"
+                };
+
+                Canvas.SetLeft(point, kvp.Value.x - point.Width / 2);
+                Canvas.SetTop(point, kvp.Value.y - point.Height / 2);
+                TraverseVisualizationCanvas.Children.Add(point);
+
+                var pointLabel = new TextBlock
+                {
+                    Text = kvp.Key,
+                    FontSize = 8,
+                    FontWeight = FontWeights.SemiBold,
+                    Foreground = Brushes.Black,
+                    Background = new SolidColorBrush(Color.FromArgb(180, 255, 255, 255))
+                };
+                Canvas.SetLeft(pointLabel, kvp.Value.x + 8);
+                Canvas.SetTop(pointLabel, kvp.Value.y - 8);
+                TraverseVisualizationCanvas.Children.Add(pointLabel);
+            }
+
+            // Вершины ходов
+            foreach (var run in runs)
+            {
+                if (!runCenters.TryGetValue(run, out var pos))
+                    continue;
+
+                var strokeColor = run.IsActive ? runColors[run] : Color.FromRgb(150, 150, 150);
+                var node = new Ellipse
+                {
+                    Width = 24,
+                    Height = 24,
+                    Fill = new SolidColorBrush(Color.FromArgb(200, strokeColor.R, strokeColor.G, strokeColor.B)),
+                    Stroke = Brushes.White,
+                    StrokeThickness = 2,
+                    ToolTip = run.Tooltip
+                };
+
+                if (!run.IsActive)
+                {
+                    node.StrokeDashArray = new DoubleCollection { 3, 2 };
+                }
+
+                Canvas.SetLeft(node, pos.x - node.Width / 2);
+                Canvas.SetTop(node, pos.y - node.Height / 2);
+                TraverseVisualizationCanvas.Children.Add(node);
 
                 var label = new TextBlock
                 {
                     Text = run.DisplayName,
                     FontSize = 9,
                     FontWeight = run.IsActive ? FontWeights.SemiBold : FontWeights.Normal,
-                    Foreground = strokeBrush,
+                    Foreground = new SolidColorBrush(strokeColor),
                     Background = new SolidColorBrush(Color.FromArgb(200, 250, 250, 250))
                 };
-                Canvas.SetLeft(label, labelX - 12);
-                Canvas.SetTop(label, labelY - 8);
+                Canvas.SetLeft(label, pos.x + 12);
+                Canvas.SetTop(label, pos.y - 8);
                 TraverseVisualizationCanvas.Children.Add(label);
-            }
-
-            // Рисуем точки соединений
-            foreach (var kvp in pointPositions)
-            {
-                var pointCode = kvp.Key;
-                var pos = kvp.Value;
-                var connectionCount = pointConnections[pointCode].Count;
-
-                // Цвет точки зависит от количества соединений
-                Color pointColor = connectionCount > 1 ? Colors.OrangeRed : Colors.DodgerBlue;
-
-                var point = new Ellipse
-                {
-                    Width = connectionCount > 1 ? 10 : 7,
-                    Height = connectionCount > 1 ? 10 : 7,
-                    Fill = new SolidColorBrush(pointColor),
-                    Stroke = Brushes.White,
-                    StrokeThickness = 2,
-                    ToolTip = $"Точка: {pointCode}\nХодов: {connectionCount}"
-                };
-
-                Canvas.SetLeft(point, pos.x - point.Width / 2);
-                Canvas.SetTop(point, pos.y - point.Height / 2);
-                TraverseVisualizationCanvas.Children.Add(point);
-
-                // Подпись точки
-                var pointLabel = new TextBlock
-                {
-                    Text = pointCode,
-                    FontSize = 8,
-                    FontWeight = FontWeights.Bold,
-                    Foreground = Brushes.Black,
-                    Background = new SolidColorBrush(Color.FromArgb(180, 255, 255, 255))
-                };
-                Canvas.SetLeft(pointLabel, pos.x + 8);
-                Canvas.SetTop(pointLabel, pos.y - 10);
-                TraverseVisualizationCanvas.Children.Add(pointLabel);
             }
         }
     }
