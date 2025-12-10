@@ -6,9 +6,14 @@ using System.Windows;
 using System.Windows.Input;
 using Microsoft.Win32;
 using Nivtropy.Views;
+using Nivtropy.Services.Visualization;
+using Nivtropy.Services.Statistics;
 
 namespace Nivtropy.ViewModels
 {
+    /// <summary>
+    /// Главная ViewModel приложения с поддержкой Dependency Injection
+    /// </summary>
     public class MainViewModel : INotifyPropertyChanged
     {
         private readonly DataViewControl _dataViewControl;
@@ -19,13 +24,23 @@ namespace Nivtropy.ViewModels
         private object? _currentView;
         private int _selectedRibbonIndex;
 
-        public MainViewModel()
+        public MainViewModel(
+            IProfileVisualizationService profileVisualizationService,
+            IProfileStatisticsService profileStatisticsService,
+            ITraverseSystemVisualizationService systemVisualizationService)
         {
             DataViewModel = new DataViewModel();
             SettingsViewModel = new SettingsViewModel();
             SettingsViewModel.Load();
             CalculationViewModel = new TraverseCalculationViewModel(DataViewModel, SettingsViewModel);
-            JournalViewModel = new TraverseJournalViewModel(CalculationViewModel);
+
+            // Создаём JournalViewModel с сервисами из DI
+            JournalViewModel = new TraverseJournalViewModel(
+                CalculationViewModel,
+                profileVisualizationService,
+                profileStatisticsService,
+                systemVisualizationService);
+
             DataGeneratorViewModel = new DataGeneratorViewModel();
 
             _dataViewControl = new DataViewControl { DataContext = DataViewModel };

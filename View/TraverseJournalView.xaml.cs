@@ -18,7 +18,7 @@ namespace Nivtropy.Views
 
             // Подписка на изменения размера для перерисовки
             ProfileCanvas.SizeChanged += (s, e) => RedrawProfile();
-            SystemVisualizationCanvas.SizeChanged += (s, e) => RedrawSystemVisualization();
+            TraverseVisualizationCanvas.SizeChanged += (s, e) => RedrawSystemVisualization();
 
             // Подписка на изменения DataContext
             DataContextChanged += (s, e) =>
@@ -103,7 +103,7 @@ namespace Nivtropy.Views
             if (vm == null) return;
 
             // Делегируем рисование ViewModel, который использует сервис
-            vm.DrawSystemVisualization(SystemVisualizationCanvas);
+            vm.DrawSystemVisualization(TraverseVisualizationCanvas);
         }
 
         #region XAML Event Handlers
@@ -199,6 +199,38 @@ namespace Nivtropy.Views
         {
             // Логика изменения активации хода - перерисовываем систему
             RedrawSystemVisualization();
+        }
+
+        private void SensitivitySlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            if (ViewModel != null)
+            {
+                ViewModel.SensitivitySigma = e.NewValue;
+            }
+        }
+
+        private void ShowAnomaliesCheckBox_Changed(object sender, RoutedEventArgs e)
+        {
+            if (sender is System.Windows.Controls.Primitives.ToggleButton checkBox && ViewModel != null)
+            {
+                ViewModel.ShowAnomalies = checkBox.IsChecked ?? false;
+            }
+        }
+
+        private void ShowZ0CheckBox_Changed(object sender, RoutedEventArgs e)
+        {
+            if (sender is System.Windows.Controls.Primitives.ToggleButton checkBox && ViewModel != null)
+            {
+                ViewModel.ShowZ0 = checkBox.IsChecked ?? false;
+            }
+        }
+
+        private void ShowZCheckBox_Changed(object sender, RoutedEventArgs e)
+        {
+            if (sender is System.Windows.Controls.Primitives.ToggleButton checkBox && ViewModel != null)
+            {
+                ViewModel.ShowZ = checkBox.IsChecked ?? false;
+            }
         }
 
         #endregion
