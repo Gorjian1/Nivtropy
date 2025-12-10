@@ -22,10 +22,15 @@ namespace Nivtropy.ViewModels
         private readonly ObservableCollection<PointItem> _availablePoints = new();
         private readonly ObservableCollection<BenchmarkItem> _benchmarks = new();
         private readonly ObservableCollection<SharedPointLinkItem> _sharedPoints = new();
+        private readonly ObservableCollection<TraverseSystem> _systems = new();
         private readonly Dictionary<string, SharedPointLinkItem> _sharedPointLookup = new(StringComparer.OrdinalIgnoreCase);
         private Dictionary<int, List<string>> _sharedPointsByRun = new();
 
         private bool _isUpdating = false; // Флаг для подавления обновлений
+
+        // ID системы по умолчанию
+        private const string DEFAULT_SYSTEM_ID = "system-default";
+        private const string DEFAULT_SYSTEM_NAME = "Основная";
 
         // Методы нивелирования для двойного хода
         // Допуск: 4 мм × √n, где n - число станций
@@ -62,6 +67,7 @@ namespace Nivtropy.ViewModels
         private string? _selectedPointCode;
         private PointItem? _selectedPoint;
         private string? _newBenchmarkHeight;
+        private TraverseSystem? _selectedSystem;
 
         public TraverseCalculationViewModel(DataViewModel dataViewModel, SettingsViewModel settingsViewModel)
         {
@@ -81,6 +87,12 @@ namespace Nivtropy.ViewModels
 
             _selectedMethod = _methods.FirstOrDefault();
             _selectedClass = _classes.FirstOrDefault();
+
+            // Инициализация системы по умолчанию
+            var defaultSystem = new TraverseSystem(DEFAULT_SYSTEM_ID, DEFAULT_SYSTEM_NAME, order: 0);
+            _systems.Add(defaultSystem);
+            _selectedSystem = defaultSystem;
+
             UpdateRows();
         }
 
@@ -100,7 +112,23 @@ namespace Nivtropy.ViewModels
         public ObservableCollection<PointItem> AvailablePoints => _availablePoints;
         public ObservableCollection<BenchmarkItem> Benchmarks => _benchmarks;
         public ObservableCollection<SharedPointLinkItem> SharedPoints => _sharedPoints;
+        public ObservableCollection<TraverseSystem> Systems => _systems;
         public SettingsViewModel Settings => _settingsViewModel;
+
+        public TraverseSystem? SelectedSystem
+        {
+            get => _selectedSystem;
+            set
+            {
+                if (_selectedSystem != value)
+                {
+                    _selectedSystem = value;
+                    OnPropertyChanged();
+                    // При смене системы обновляем список доступных реперов
+                    UpdateBenchmarks();
+                }
+            }
+        }
 
         public LevelingMethodOption[] Methods => _methods;
         public LevelingClassOption[] Classes => _classes;
