@@ -176,22 +176,24 @@ namespace Nivtropy.Services.Visualization
 
         private Dictionary<LineSummary, double> CalculateRotationOffsets(List<LineSummary> runs, Dictionary<LineSummary, List<string>> pointsByRun)
         {
-            return runs.ToDictionary(run =>
-            {
-                var key = run.DisplayName ?? run.Index.ToString();
-                long hash = 0;
-
-                foreach (var ch in key)
+            return runs.ToDictionary(
+                run => run,  // Ключ - LineSummary
+                run =>       // Значение - double (угол в радианах)
                 {
-                    hash = (hash * 31 + ch) & 0x7FFFFFFF;
-                }
+                    var key = run.DisplayName ?? run.Index.ToString();
+                    long hash = 0;
 
-                var count = pointsByRun.TryGetValue(run, out var seq) ? seq.Count : 0;
-                hash = (hash + count * 97 + run.Index * 53) & 0x7FFFFFFF;
+                    foreach (var ch in key)
+                    {
+                        hash = (hash * 31 + ch) & 0x7FFFFFFF;
+                    }
 
-                var degrees = 8 + (hash % 344);
-                return degrees * Math.PI / 180.0;
-            }, run => run);
+                    var count = pointsByRun.TryGetValue(run, out var seq) ? seq.Count : 0;
+                    hash = (hash + count * 97 + run.Index * 53) & 0x7FFFFFFF;
+
+                    var degrees = 8 + (hash % 344);
+                    return degrees * Math.PI / 180.0;
+                });
         }
 
         private Dictionary<string, Point> CalculateSharedPointPositions(List<SharedPointLinkItem> sharedPoints,
