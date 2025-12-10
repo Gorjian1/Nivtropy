@@ -1495,70 +1495,88 @@ namespace Nivtropy.Views
 
             var runShapeRadius = runs.ToDictionary(
                 run => run,
-                run => 22 + Math.Max(pointsByRun.TryGetValue(run, out var seq) ? seq.Count : 0, 2) * 6);
+                run => 24 + Math.Max(pointsByRun.TryGetValue(run, out var seq) ? seq.Count : 0, 2) * 7);
 
             var maxShapeRadius = runShapeRadius.Values.Count > 0 ? runShapeRadius.Values.Max() : 30;
 
             var sharedPoints = calculation.SharedPoints.Where(p => p.IsEnabled).ToList();
 
-            var sharedPointPositions = new Dictionary<string, Point>(StringComparer.OrdinalIgnoreCase);
-            var center = new Point(canvasWidth / 2, canvasHeight / 2);
-            var drawableRadius = Math.Min(canvasWidth, canvasHeight) / 2 - (padding + maxShapeRadius);
-            var sharedRadius = Math.Max(24, drawableRadius);
-
-            for (int i = 0; i < sharedPoints.Count; i++)
+            // Карта общих точек -> участвующие ходы
+            var sharedPointRuns = new Dictionary<string, List<LineSummary>>(StringComparer.OrdinalIgnoreCase);
+            foreach (var run in runs)
             {
-                var angle = 2 * Math.PI * i / Math.Max(1, sharedPoints.Count);
-                var point = new Point(
-                    center.X + sharedRadius * Math.Cos(angle),
-                    center.Y + sharedRadius * Math.Sin(angle));
-                sharedPointPositions[sharedPoints[i].Code] = ClampPoint(point, padding + 6);
+                foreach (var shared in calculation.GetSharedPointsForRun(run).Where(p => p.IsEnabled))
+                {
+                    if (!sharedPointRuns.TryGetValue(shared.Code, out var list))
+                    {
+                        list = new List<LineSummary>();
+                        sharedPointRuns[shared.Code] = list;
+                    }
+
+                    if (!list.Contains(run))
+                        list.Add(run);
+                }
             }
 
-            // Центры ходов: для связанных — около средних общих точек, для несвязанных — отдельное кольцо
-            var runCenters = new Dictionary<LineSummary, Point>();
-            var orbitBase = Math.Min(canvasWidth, canvasHeight) / 2 - (padding + maxShapeRadius);
-            var orbitRadius = sharedPoints.Count > 0 ? Math.Max(18, sharedRadius * 0.82) : Math.Max(24, orbitBase);
+            var center = new Point(canvasWidth / 2, canvasHeight / 2);
+            var drawableRadius = Math.Min(canvasWidth, canvasHeight) / 2 - (padding + maxShapeRadius);
+            var orbitRadius = Math.Max(24, drawableRadius);
 
+            // Базовые центры ходов равномерно по окружности, чтобы форма была стабильной
+            var runCenters = new Dictionary<LineSummary, Point>();
             for (int i = 0; i < runs.Count; i++)
             {
-                var run = runs[i];
-                var sharedForRun = calculation.GetSharedPointsForRun(run)
-                    .Where(p => p.IsEnabled)
-                    .Select(p => p.Code)
-                    .ToList();
+                var angle = 2 * Math.PI * i / Math.Max(1, runs.Count);
+                var proposed = new Point(
+                    center.X + orbitRadius * Math.Cos(angle),
+                    center.Y + orbitRadius * Math.Sin(angle));
+                var shapeRadius = runShapeRadius.TryGetValue(runs[i], out var r) ? r : 32;
+                runCenters[runs[i]] = ClampPoint(proposed, padding + shapeRadius);
+            }
 
-                var anchors = sharedForRun
-                    .Where(code => sharedPointPositions.ContainsKey(code))
-                    .Select(code => sharedPointPositions[code])
-                    .ToList();
-
-                var shapeRadius = runShapeRadius.TryGetValue(run, out var r) ? r : 32;
-
-                if (anchors.Count > 0)
+            // Позиции общих точек — между центрами участвующих ходов
+            var sharedPointPositions = new Dictionary<string, Point>(StringComparer.OrdinalIgnoreCase);
+            foreach (var shared in sharedPoints)
+            {
+                if (sharedPointRuns.TryGetValue(shared.Code, out var participants) && participants.Count > 0)
                 {
-                    var avgX = anchors.Average(p => p.X);
-                    var avgY = anchors.Average(p => p.Y);
-                    var basePoint = new Point(avgX, avgY);
+                    var baseX = participants.Average(r => runCenters[r].X);
+                    var baseY = participants.Average(r => runCenters[r].Y);
+                    var direction = new Vector(baseX - center.X, baseY - center.Y);
+                    if (direction.Length > 1)
+                    {
+                        direction.Normalize();
+                        direction *= 16;
+                    }
 
-                    // Небольшое смещение, чтобы фигуры с одинаковыми общими точками не налегали друг на друга
-                    var jitterAngle = ((run.Index * 37) % 360) * Math.PI / 180.0;
-                    var jitterDistance = (anchors.Count > 1 ? 10 : 18) + (i % 3) * 3;
-                    var offset = new Vector(Math.Cos(jitterAngle) * jitterDistance, Math.Sin(jitterAngle) * jitterDistance);
-                    var proposed = basePoint + offset;
-                    var margin = padding + shapeRadius;
-                    runCenters[run] = ClampPoint(proposed, margin);
+                    var proposed = new Point(baseX - direction.X, baseY - direction.Y);
+                    sharedPointPositions[shared.Code] = ClampPoint(proposed, padding + 6);
                 }
                 else
                 {
-                    var angle = 2 * Math.PI * i / Math.Max(1, runs.Count);
-                    var radius = orbitRadius + (sharedPoints.Count > 0 ? 24 : 0);
-                    var proposed = new Point(
-                        center.X + radius * Math.Cos(angle),
-                        center.Y + radius * Math.Sin(angle));
-                    var margin = padding + shapeRadius;
-                    runCenters[run] = ClampPoint(proposed, margin);
+                    sharedPointPositions[shared.Code] = ClampPoint(center, padding + 6);
                 }
+            }
+
+            // Небольшое притягивание ходов к их общим точкам, чтобы окружности пересекались естественно
+            foreach (var run in runs)
+            {
+                var anchors = calculation.GetSharedPointsForRun(run)
+                    .Where(p => p.IsEnabled && sharedPointPositions.ContainsKey(p.Code))
+                    .Select(p => sharedPointPositions[p.Code])
+                    .ToList();
+
+                if (anchors.Count == 0)
+                    continue;
+
+                var anchorCenter = new Point(anchors.Average(p => p.X), anchors.Average(p => p.Y));
+                var current = runCenters[run];
+                var adjusted = new Point(
+                    current.X + (anchorCenter.X - current.X) * 0.35,
+                    current.Y + (anchorCenter.Y - current.Y) * 0.35);
+
+                var margin = padding + (runShapeRadius.TryGetValue(run, out var r) ? r : 32);
+                runCenters[run] = ClampPoint(adjusted, margin);
             }
 
             // Рисуем каждый ход как сглаженную фигуру
