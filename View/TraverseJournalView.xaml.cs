@@ -1581,11 +1581,10 @@ namespace Nivtropy.Views
             double CalculateRunRadius(int pointCount)
             {
                 var clamped = Math.Max(pointCount, 1);
-                var scaled = clamped <= 8
-                    ? 12 + clamped * 5
-                    : 12 + 8 * 5 + (clamped - 8) * 3.5;
 
-                return Math.Min(scaled, 120);
+                // Чем меньше точек, тем меньше радиус; рост плавный, без резких скачков
+                var scaled = 18 + Math.Sqrt(clamped) * 9;
+                return Math.Clamp(scaled, 26, 138);
             }
 
             var runShapeRadius = runs.ToDictionary(
@@ -1656,9 +1655,25 @@ namespace Nivtropy.Views
                 }
             }
 
-            // Лёгкое раздвижение центров фигур, чтобы они меньше перекрывались
-            for (int iteration = 0; iteration < 18; iteration++)
+            // Пересчитываем центры с учётом итоговых радиусов, чтобы фигуры не перекручивались после изменения размера
+            var actualRunRadius = runs.ToDictionary<LineSummary, double, double>(run => run, run => 0);
+
+            double GetActualRadius(LineSummary run)
             {
+                var target = runShapeRadius[run];
+                var available = GetMaxRadius(runCenters[run], padding);
+                return Math.Min(target, available);
+            }
+
+            for (int iteration = 0; iteration < 22; iteration++)
+            {
+                foreach (var run in runs)
+                {
+                    var radius = GetActualRadius(run);
+                    actualRunRadius[run] = radius;
+                    runCenters[run] = ClampPoint(runCenters[run], padding + radius);
+                }
+
                 foreach (var a in runs)
                 {
                     foreach (var b in runs)
@@ -1669,7 +1684,7 @@ namespace Nivtropy.Views
                         var cb = runCenters[b];
                         var delta = cb - ca;
                         var distance = delta.Length;
-                        var target = runShapeRadius[a] + runShapeRadius[b] + padding * 0.6;
+                        var target = actualRunRadius[a] + actualRunRadius[b] + padding * 0.6;
 
                         if (distance <= 0.01 || distance >= target)
                             continue;
@@ -1679,8 +1694,8 @@ namespace Nivtropy.Views
                         var shiftA = new Point(ca.X - delta.X * push, ca.Y - delta.Y * push);
                         var shiftB = new Point(cb.X + delta.X * push, cb.Y + delta.Y * push);
 
-                        runCenters[a] = ClampPoint(shiftA, padding + runShapeRadius[a]);
-                        runCenters[b] = ClampPoint(shiftB, padding + runShapeRadius[b]);
+                        runCenters[a] = ClampPoint(shiftA, padding + actualRunRadius[a]);
+                        runCenters[b] = ClampPoint(shiftB, padding + actualRunRadius[b]);
                     }
                 }
             }
@@ -1699,8 +1714,10 @@ namespace Nivtropy.Views
 
                 var centerPoint = runCenters[run];
                 var pointCount = Math.Max(pointSequence.Count, 2);
-                var shapeRadius = runShapeRadius.TryGetValue(run, out var radius) ? radius : 32;
-                shapeRadius = Math.Min(shapeRadius, GetMaxRadius(centerPoint, padding));
+                var shapeRadius = actualRunRadius.TryGetValue(run, out var radius)
+                    ? radius
+                    : Math.Min(runShapeRadius.TryGetValue(run, out var fallbackRadius) ? fallbackRadius : 32,
+                        GetMaxRadius(centerPoint, padding));
 
                 var vertices = new List<Point>();
                 for (int i = 0; i < pointSequence.Count; i++)
