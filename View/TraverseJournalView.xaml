@@ -612,6 +612,7 @@
                         <DropShadowEffect Color="#40000000" BlurRadius="4" ShadowDepth="1" Direction="270" Opacity="0.3"/>
                     </Border.Effect>
                     <StackPanel>
+                        <!-- Заголовок -->
                         <TextBlock Text="Реперы"
                                    FontWeight="SemiBold"
                                    FontSize="12"
@@ -622,13 +623,13 @@
                         <Grid Margin="0,0,0,8">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="110" />
-                                <ColumnDefinition Width="6" />
+                                <ColumnDefinition Width="95" />
+                                <ColumnDefinition Width="4" />
                                 <ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="90" />
-                                <ColumnDefinition Width="6" />
+                                <ColumnDefinition Width="75" />
+                                <ColumnDefinition Width="4" />
                                 <ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="80" />
+                                <ColumnDefinition Width="70" />
                                 <ColumnDefinition Width="4" />
                                 <ColumnDefinition Width="Auto" />
                                 <ColumnDefinition Width="4" />
@@ -638,9 +639,9 @@
                             <!-- Метка "Система:" -->
                             <TextBlock Grid.Column="0"
                                        Text="Система:"
-                                       FontSize="11"
+                                       FontSize="10"
                                        VerticalAlignment="Center"
-                                       Margin="0,0,6,0" />
+                                       Margin="0,0,4,0" />
 
                             <!-- ComboBox системы -->
                             <ComboBox Grid.Column="1"
@@ -648,28 +649,17 @@
                                       SelectedItem="{Binding Calculation.SelectedSystem, Mode=TwoWay}"
                                       DisplayMemberPath="DisplayName"
                                       ToolTip="Выберите систему ходов для установки реперов"
-                                      FontSize="11"
-                                      Height="26">
-                                <ComboBox.Style>
-                                    <Style TargetType="ComboBox">
-                                        <Setter Property="Background">
-                                            <Setter.Value>
-                                                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
-                                                    <GradientStop Color="#FFFFFFFF" Offset="0"/>
-                                                    <GradientStop Color="#FFF5F7F9" Offset="1"/>
-                                                </LinearGradientBrush>
-                                            </Setter.Value>
-                                        </Setter>
-                                    </Style>
-                                </ComboBox.Style>
-                            </ComboBox>
+                                      FontSize="10"
+                                      Height="24"
+                                      Background="White"
+                                      BorderBrush="#FFACACAC" />
 
                             <!-- Метка "Точки:" -->
                             <TextBlock Grid.Column="3"
                                        Text="Точки:"
-                                       FontSize="11"
+                                       FontSize="10"
                                        VerticalAlignment="Center"
-                                       Margin="0,0,6,0" />
+                                       Margin="0,0,4,0" />
 
                             <!-- Комбобокс с точками -->
                             <ComboBox Grid.Column="4"
@@ -677,29 +667,18 @@
                                       SelectedItem="{Binding Calculation.SelectedPoint, Mode=TwoWay}"
                                       DisplayMemberPath="DisplayName"
                                       ToolTip="Выберите точку для установки известной высоты"
-                                      FontSize="11"
-                                      Height="26"
-                                      VerticalContentAlignment="Center">
-                                <ComboBox.Style>
-                                    <Style TargetType="ComboBox">
-                                        <Setter Property="Background">
-                                            <Setter.Value>
-                                                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
-                                                    <GradientStop Color="#FFFFFFFF" Offset="0"/>
-                                                    <GradientStop Color="#FFF5F7F9" Offset="1"/>
-                                                </LinearGradientBrush>
-                                            </Setter.Value>
-                                        </Setter>
-                                    </Style>
-                                </ComboBox.Style>
-                            </ComboBox>
+                                      FontSize="10"
+                                      Height="24"
+                                      Background="White"
+                                      BorderBrush="#FFACACAC"
+                                      VerticalContentAlignment="Center" />
 
                             <!-- Метка "Высота:" -->
                             <TextBlock Grid.Column="6"
                                        Text="Высота:"
-                                       FontSize="11"
+                                       FontSize="10"
                                        VerticalAlignment="Center"
-                                       Margin="0,0,6,0" />
+                                       Margin="0,0,4,0" />
 
                             <!-- Поле ввода высоты -->
                             <TextBox x:Name="BenchmarkHeightTextBox"
@@ -708,22 +687,11 @@
                                      ToolTip="Введите известную высоту репера (Enter для добавления)"
                                      KeyDown="BenchmarkHeightTextBox_KeyDown"
                                      VerticalContentAlignment="Center"
-                                     FontSize="11"
-                                     Padding="6,2"
-                                     Height="26">
-                                <TextBox.Style>
-                                    <Style TargetType="TextBox">
-                                        <Setter Property="Background">
-                                            <Setter.Value>
-                                                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
-                                                    <GradientStop Color="#FFFFFFFF" Offset="0"/>
-                                                    <GradientStop Color="#FFF5F7F9" Offset="1"/>
-                                                </LinearGradientBrush>
-                                            </Setter.Value>
-                                        </Setter>
-                                    </Style>
-                                </TextBox.Style>
-                            </TextBox>
+                                     FontSize="10"
+                                     Padding="4,2"
+                                     Height="24"
+                                     Background="White"
+                                     BorderBrush="#FFACACAC" />
 
                             <!-- Кнопка + -->
                             <Button Grid.Column="9"
@@ -956,11 +924,41 @@
                         <DropShadowEffect Color="#40000000" BlurRadius="4" ShadowDepth="1" Direction="270" Opacity="0.3"/>
                     </Border.Effect>
                     <StackPanel>
-                        <TextBlock Text="Связи ходов"
-                                   FontWeight="SemiBold"
-                                   FontSize="12"
-                                   Foreground="#2B579A"
-                                   Margin="0,0,0,10" />
+                        <!-- Заголовок с кнопкой управления -->
+                        <Grid Margin="0,0,0,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+
+                            <TextBlock Grid.Column="0"
+                                       Text="Связи ходов"
+                                       FontWeight="SemiBold"
+                                       FontSize="12"
+                                       Foreground="#2B579A"
+                                       VerticalAlignment="Center" />
+
+                            <Button Grid.Column="1"
+                                    Content="⚙ Управление ходами"
+                                    Click="ManageSystems_Click"
+                                    Padding="8,4"
+                                    FontSize="10"
+                                    Cursor="Hand"
+                                    ToolTip="Создание и редактирование систем ходов">
+                                <Button.Style>
+                                    <Style TargetType="Button">
+                                        <Setter Property="Background" Value="White" />
+                                        <Setter Property="BorderBrush" Value="#FFACACAC" />
+                                        <Setter Property="BorderThickness" Value="1" />
+                                        <Style.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter Property="Background" Value="#FFE5F1FB" />
+                                            </Trigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Button.Style>
+                            </Button>
+                        </Grid>
 
                         <!-- Canvas для визуализации -->
                         <Border BorderBrush="#FFE0E0E0"
@@ -971,43 +969,6 @@
                             <Canvas x:Name="TraverseVisualizationCanvas"
                                     ClipToBounds="True" />
                         </Border>
-
-                        <!-- Кнопка управления ходами -->
-                        <Button Content="⚙ Управление ходами"
-                                Click="ManageSystems_Click"
-                                Margin="0,8,0,0"
-                                Padding="10,6"
-                                FontSize="11"
-                                HorizontalAlignment="Stretch"
-                                Cursor="Hand"
-                                ToolTip="Создание и редактирование систем ходов">
-                            <Button.Style>
-                                <Style TargetType="Button">
-                                    <Setter Property="Background">
-                                        <Setter.Value>
-                                            <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
-                                                <GradientStop Color="#FFFFFFFF" Offset="0"/>
-                                                <GradientStop Color="#FFF0F0F0" Offset="1"/>
-                                            </LinearGradientBrush>
-                                        </Setter.Value>
-                                    </Setter>
-                                    <Setter Property="BorderBrush" Value="#FFACACAC" />
-                                    <Setter Property="BorderThickness" Value="1" />
-                                    <Style.Triggers>
-                                        <Trigger Property="IsMouseOver" Value="True">
-                                            <Setter Property="Background">
-                                                <Setter.Value>
-                                                    <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
-                                                        <GradientStop Color="#FFFEFEFE" Offset="0"/>
-                                                        <GradientStop Color="#FFE5F1FB" Offset="1"/>
-                                                    </LinearGradientBrush>
-                                                </Setter.Value>
-                                            </Setter>
-                                        </Trigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </Button.Style>
-                        </Button>
                     </StackPanel>
                 </Border>
 
