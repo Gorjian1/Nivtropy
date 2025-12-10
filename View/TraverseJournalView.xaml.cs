@@ -1398,6 +1398,30 @@ namespace Nivtropy.Views
             if (DataContext is not TraverseJournalViewModel viewModel)
                 return;
 
+            try
+            {
+                DrawTraverseSystemVisualization(viewModel);
+            }
+            catch (Exception ex)
+            {
+                // При редких ошибках данных защищаем UI от падения и показываем краткое сообщение
+                System.Diagnostics.Debug.WriteLine($"Traverse visualization failed: {ex}");
+
+                var errorBlock = new TextBlock
+                {
+                    Text = "Не удалось отрисовать схему ходов. Проверьте корректность данных.",
+                    Foreground = Brushes.DarkRed,
+                    FontWeight = FontWeights.SemiBold,
+                    TextWrapping = TextWrapping.Wrap,
+                    Margin = new Thickness(8)
+                };
+
+                TraverseVisualizationCanvas.Children.Add(errorBlock);
+            }
+        }
+
+        private void DrawTraverseSystemVisualization(TraverseJournalViewModel viewModel)
+        {
             var calculation = viewModel.Calculation;
             var runs = calculation.Runs.ToList();
 
@@ -1441,11 +1465,17 @@ namespace Nivtropy.Views
             foreach (var run in runs)
             {
                 var runRows = rows
-                    .Where(r => r.LineSummary?.Index == run.Index)
+                    .Where(r => r.LineSummary?.Index == run.Index || string.Equals(r.LineName, run.DisplayName, StringComparison.OrdinalIgnoreCase))
                     .OrderBy(r => r.Index)
                     .ToList();
 
                 var sequence = new List<string>();
+
+                if (!string.IsNullOrWhiteSpace(run.StartLabel))
+                {
+                    sequence.Add(run.StartLabel.Trim());
+                }
+
                 foreach (var row in runRows)
                 {
                     if (!string.IsNullOrWhiteSpace(row.BackCode))
@@ -1463,17 +1493,72 @@ namespace Nivtropy.Views
                     }
                 }
 
-                if (sequence.Count == 0 && !string.IsNullOrWhiteSpace(run.StartLabel))
+                if (sequence.Count == 1 && !string.IsNullOrWhiteSpace(run.EndLabel))
                 {
-                    sequence.Add(run.StartLabel.Trim());
-                    if (!string.Equals(run.StartLabel, run.EndLabel, StringComparison.OrdinalIgnoreCase)
-                        && !string.IsNullOrWhiteSpace(run.EndLabel))
+                    var end = run.EndLabel.Trim();
+                    if (!string.Equals(sequence[0], end, StringComparison.OrdinalIgnoreCase))
+                        sequence.Add(end);
+                }
+
+                if (sequence.Count == 0)
+                {
+                    var anchors = calculation.GetSharedPointsForRun(run)
+                        .Select(p => p.Code)
+                        .Where(code => !string.IsNullOrWhiteSpace(code))
+                        .Select(code => code.Trim())
+                        .Distinct(StringComparer.OrdinalIgnoreCase)
+                        .ToList();
+
+                    if (anchors.Count > 0)
+                        sequence.AddRange(anchors);
+                }
+
+                if (sequence.Count == 0 && !string.IsNullOrWhiteSpace(run.EndLabel))
+                {
+                    sequence.Add(run.EndLabel.Trim());
+                }
+
+                // Убираем подряд идущие дубликаты и при необходимости замыкаем ход
+                var uniqueSequence = new List<string>();
+                string? lastCode = null;
+                foreach (var code in sequence)
+                {
+                    if (string.Equals(code, lastCode, StringComparison.OrdinalIgnoreCase))
+                        continue;
+
+                    uniqueSequence.Add(code);
+                    lastCode = code;
+                }
+
+                if (uniqueSequence.Count == 1)
+                {
+                    var extra = calculation.GetSharedPointsForRun(run)
+                        .Select(p => p.Code)
+                        .FirstOrDefault(code => !string.IsNullOrWhiteSpace(code) && !string.Equals(code.Trim(), uniqueSequence[0], StringComparison.OrdinalIgnoreCase));
+
+                    if (!string.IsNullOrWhiteSpace(extra))
                     {
-                        sequence.Add(run.EndLabel.Trim());
+                        uniqueSequence.Add(extra.Trim());
+                    }
+                    else if (!string.IsNullOrWhiteSpace(run.EndLabel) && !string.Equals(uniqueSequence[0], run.EndLabel, StringComparison.OrdinalIgnoreCase))
+                    {
+                        uniqueSequence.Add(run.EndLabel.Trim());
                     }
                 }
 
-                pointsByRun[run] = sequence;
+                if (uniqueSequence.Count == 0 && !string.IsNullOrWhiteSpace(run.StartLabel))
+                {
+                    uniqueSequence.Add(run.StartLabel.Trim());
+                }
+
+                if (uniqueSequence.Count > 2
+                    && string.Equals(run.StartLabel, run.EndLabel, StringComparison.OrdinalIgnoreCase)
+                    && !string.Equals(uniqueSequence[0], uniqueSequence[^1], StringComparison.OrdinalIgnoreCase))
+                {
+                    uniqueSequence.Add(uniqueSequence[0]);
+                }
+
+                pointsByRun[run] = uniqueSequence;
             }
 
             // Общие точки (включенные) для связности
@@ -1493,9 +1578,37 @@ namespace Nivtropy.Views
                 return Math.Max(0, Math.Min(dx, dy));
             }
 
+            double CalculateRunRadius(int pointCount)
+            {
+                var clamped = Math.Max(pointCount, 1);
+
+                // Чем меньше точек, тем меньше радиус; рост плавный, без резких скачков
+                var scaled = 18 + Math.Sqrt(clamped) * 9;
+                return Math.Clamp(scaled, 26, 138);
+            }
+
             var runShapeRadius = runs.ToDictionary(
                 run => run,
-                run => 22 + Math.Max(pointsByRun.TryGetValue(run, out var seq) ? seq.Count : 0, 2) * 6);
+                run => CalculateRunRadius(pointsByRun.TryGetValue(run, out var seq) ? seq.Count : 0));
+
+            double ComputeRotationOffset(LineSummary run)
+            {
+                var key = run.DisplayName ?? run.Index.ToString();
+                long hash = 0;
+
+                foreach (var ch in key)
+                {
+                    hash = (hash * 31 + ch) & 0x7FFFFFFF;
+                }
+
+                var count = pointsByRun.TryGetValue(run, out var seq) ? seq.Count : 0;
+                hash = (hash + count * 97 + run.Index * 53) & 0x7FFFFFFF;
+
+                var degrees = 8 + (hash % 344);
+                return degrees * Math.PI / 180.0;
+            }
+
+            var runRotationOffsets = runs.ToDictionary(run => run, ComputeRotationOffset);
 
             var maxShapeRadius = runShapeRadius.Values.Count > 0 ? runShapeRadius.Values.Max() : 30;
 
@@ -1561,6 +1674,53 @@ namespace Nivtropy.Views
                 }
             }
 
+            // Пересчитываем центры с учётом итоговых радиусов, чтобы фигуры не перекручивались после изменения размера
+            var actualRunRadius = runs.ToDictionary(run => run, _ => 0d);
+
+            double GetActualRadius(LineSummary run)
+            {
+                var target = runShapeRadius[run];
+                var available = GetMaxRadius(runCenters[run], padding);
+                return Math.Min(target, available);
+            }
+
+            for (int iteration = 0; iteration < 22; iteration++)
+            {
+                foreach (var run in runs)
+                {
+                    var radius = GetActualRadius(run);
+                    actualRunRadius[run] = radius;
+                    runCenters[run] = ClampPoint(runCenters[run], padding + radius);
+                }
+
+                foreach (var a in runs)
+                {
+                    foreach (var b in runs)
+                    {
+                        if (a == b) continue;
+
+                        var ca = runCenters[a];
+                        var cb = runCenters[b];
+                        var delta = cb - ca;
+                        var distance = delta.Length;
+                        var target = actualRunRadius[a] + actualRunRadius[b] + padding * 0.6;
+
+                        if (distance <= 0.01 || distance >= target)
+                            continue;
+
+                        delta.Normalize();
+                        var push = (target - distance) / 2;
+                        var shiftA = new Point(ca.X - delta.X * push, ca.Y - delta.Y * push);
+                        var shiftB = new Point(cb.X + delta.X * push, cb.Y + delta.Y * push);
+
+                        runCenters[a] = ClampPoint(shiftA, padding + actualRunRadius[a]);
+                        runCenters[b] = ClampPoint(shiftB, padding + actualRunRadius[b]);
+                    }
+                }
+            }
+
+            var drawnSharedPoints = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
             // Рисуем каждый ход как сглаженную фигуру
             foreach (var run in runs)
             {
@@ -1569,14 +1729,18 @@ namespace Nivtropy.Views
 
                 var runColor = runColors.TryGetValue(run, out var c) ? c : Colors.SteelBlue;
                 var strokeColor = run.IsActive ? runColor : Color.FromRgb(140, 140, 140);
-                var fillColor = Colors.Transparent;
+                var fillColor = Color.FromArgb(30, runColor.R, runColor.G, runColor.B);
 
                 var centerPoint = runCenters[run];
                 var pointCount = Math.Max(pointSequence.Count, 2);
-                var shapeRadius = runShapeRadius.TryGetValue(run, out var radius) ? radius : 32;
-                shapeRadius = Math.Min(shapeRadius, GetMaxRadius(centerPoint, padding));
+                var shapeRadius = actualRunRadius.TryGetValue(run, out var radius)
+                    ? radius
+                    : Math.Min(runShapeRadius.TryGetValue(run, out var fallbackRadius) ? fallbackRadius : 32,
+                        GetMaxRadius(centerPoint, padding));
 
                 var vertices = new List<Point>();
+                var rotationOffset = runRotationOffsets.TryGetValue(run, out var offset) ? offset : 0.0;
+
                 for (int i = 0; i < pointSequence.Count; i++)
                 {
                     var code = pointSequence[i];
@@ -1586,7 +1750,7 @@ namespace Nivtropy.Views
                         continue;
                     }
 
-                    var angle = 2 * Math.PI * i / pointCount;
+                    var angle = rotationOffset + 2 * Math.PI * i / pointCount;
                     var vertex = new Point(
                         centerPoint.X + shapeRadius * Math.Cos(angle),
                         centerPoint.Y + shapeRadius * Math.Sin(angle));
@@ -1619,7 +1783,7 @@ namespace Nivtropy.Views
                     FontSize = 10,
                     FontWeight = run.IsActive ? FontWeights.SemiBold : FontWeights.Normal,
                     Foreground = new SolidColorBrush(strokeColor),
-                    Background = new SolidColorBrush(Color.FromArgb(210, 255, 255, 255))
+                    Background = new SolidColorBrush(Color.FromArgb(220, 255, 255, 255))
                 };
                 Canvas.SetLeft(label, centroid.X - 18);
                 Canvas.SetTop(label, centroid.Y - 10);
@@ -1644,32 +1808,42 @@ namespace Nivtropy.Views
                             ? Colors.OrangeRed
                             : Color.FromArgb(220, runColor.R, runColor.G, runColor.B);
 
-                    var node = new Ellipse
+                    if (!isShared || drawnSharedPoints.Add(code))
                     {
-                        Width = hasKnownHeight ? 11 : 9,
-                        Height = hasKnownHeight ? 11 : 9,
-                        Fill = new SolidColorBrush(pointColor),
-                        Stroke = Brushes.White,
-                        StrokeThickness = 2,
-                        ToolTip = $"{code}\n{(hasKnownHeight ? "Известная" : isShared ? "Общая" : "Точка хода" )}"
-                    };
+                        var node = new Ellipse
+                        {
+                            Width = hasKnownHeight ? 11 : 9,
+                            Height = hasKnownHeight ? 11 : 9,
+                            Fill = new SolidColorBrush(pointColor),
+                            Stroke = Brushes.White,
+                            StrokeThickness = 2,
+                            ToolTip = $"{code}\n{(hasKnownHeight ? "Известная" : isShared ? "Общая" : "Точка хода" )}"
+                        };
 
-                    Canvas.SetLeft(node, pointPos.X - node.Width / 2);
-                    Canvas.SetTop(node, pointPos.Y - node.Height / 2);
-                    TraverseVisualizationCanvas.Children.Add(node);
+                        Canvas.SetLeft(node, pointPos.X - node.Width / 2);
+                        Canvas.SetTop(node, pointPos.Y - node.Height / 2);
+                        TraverseVisualizationCanvas.Children.Add(node);
 
-                    var pointLabel = new TextBlock
-                    {
-                        Text = code,
-                        FontSize = 8,
-                        FontWeight = FontWeights.SemiBold,
-                        Foreground = Brushes.Black,
-                        Background = new SolidColorBrush(Color.FromArgb(200, 255, 255, 255))
-                    };
+                        var direction = pointPos - centerPoint;
+                        if (direction.Length < 0.001)
+                            direction = new Vector(0, -1);
+                        else
+                            direction.Normalize();
 
-                    Canvas.SetLeft(pointLabel, pointPos.X + 8);
-                    Canvas.SetTop(pointLabel, pointPos.Y - 10);
-                    TraverseVisualizationCanvas.Children.Add(pointLabel);
+                        var labelOffset = direction * (node.Width / 2 + 6);
+                        var pointLabel = new TextBlock
+                        {
+                            Text = code,
+                            FontSize = 8,
+                            FontWeight = FontWeights.SemiBold,
+                            Foreground = Brushes.Black,
+                            Background = new SolidColorBrush(Color.FromArgb(200, 255, 255, 255))
+                        };
+
+                        Canvas.SetLeft(pointLabel, pointPos.X + labelOffset.X - 6);
+                        Canvas.SetTop(pointLabel, pointPos.Y + labelOffset.Y - 8);
+                        TraverseVisualizationCanvas.Children.Add(pointLabel);
+                    }
                 }
             }
         }
