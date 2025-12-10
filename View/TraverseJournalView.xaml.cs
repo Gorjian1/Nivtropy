@@ -1398,6 +1398,30 @@ namespace Nivtropy.Views
             if (DataContext is not TraverseJournalViewModel viewModel)
                 return;
 
+            try
+            {
+                DrawTraverseSystemVisualization(viewModel);
+            }
+            catch (Exception ex)
+            {
+                // При редких ошибках данных защищаем UI от падения и показываем краткое сообщение
+                System.Diagnostics.Debug.WriteLine($"Traverse visualization failed: {ex}");
+
+                var errorBlock = new TextBlock
+                {
+                    Text = "Не удалось отрисовать схему ходов. Проверьте корректность данных.",
+                    Foreground = Brushes.DarkRed,
+                    FontWeight = FontWeights.SemiBold,
+                    TextWrapping = TextWrapping.Wrap,
+                    Margin = new Thickness(8)
+                };
+
+                TraverseVisualizationCanvas.Children.Add(errorBlock);
+            }
+        }
+
+        private void DrawTraverseSystemVisualization(TraverseJournalViewModel viewModel)
+        {
             var calculation = viewModel.Calculation;
             var runs = calculation.Runs.ToList();
 
