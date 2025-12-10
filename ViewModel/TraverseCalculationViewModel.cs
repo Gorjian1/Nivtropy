@@ -323,6 +323,25 @@ namespace Nivtropy.ViewModels
         public bool CanClearHeight => !string.IsNullOrWhiteSpace(_selectedPointCode) && _dataViewModel.HasKnownHeight(_selectedPointCode);
 
         /// <summary>
+        /// Проверяет, есть ли известная высота у точки
+        /// </summary>
+        public bool HasKnownHeight(string? pointCode)
+        {
+            if (string.IsNullOrWhiteSpace(pointCode))
+                return false;
+
+            return _dataViewModel.HasKnownHeight(pointCode);
+        }
+
+        /// <summary>
+        /// Проверяет, включена ли точка как общая между ходами
+        /// </summary>
+        public bool IsSharedPointEnabled(string? pointCode)
+        {
+            return _dataViewModel.IsSharedPointEnabled(pointCode);
+        }
+
+        /// <summary>
         /// Обновляет выбранную точку для установки высоты
         /// </summary>
         public void UpdateSelectedPoint(string? pointCode)
