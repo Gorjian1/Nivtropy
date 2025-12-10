@@ -12,7 +12,8 @@ namespace Nivtropy.Services
         /// Строит структуру хода из записей измерений
         /// </summary>
         /// <param name="records">Записи измерений</param>
+        /// <param name="run">Опциональная информация о ходе</param>
         /// <returns>Список строк хода</returns>
-        List<TraverseRow> Build(IEnumerable<MeasurementRecord> records);
+        List<TraverseRow> Build(IEnumerable<MeasurementRecord> records, LineSummary? run = null);
     }
 }

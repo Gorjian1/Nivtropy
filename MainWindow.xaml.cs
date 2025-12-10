@@ -1,14 +1,21 @@
 using System.Windows;
+using Microsoft.Extensions.DependencyInjection;
 using Nivtropy.ViewModels;
 
 namespace Nivtropy
 {
+    /// <summary>
+    /// Главное окно приложения
+    /// Использует Dependency Injection для получения ViewModel
+    /// </summary>
     public partial class MainWindow : Window
     {
         public MainWindow()
         {
             InitializeComponent();
-            DataContext = new MainViewModel();
+
+            // Получаем MainViewModel из DI контейнера
+            DataContext = App.Services.GetRequiredService<MainViewModel>();
         }
     }
 }
