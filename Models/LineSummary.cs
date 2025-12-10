@@ -17,7 +17,9 @@ namespace Nivtropy.Models
             double? totalDistanceBack = null,
             double? totalDistanceFore = null,
             double? armDifferenceAccumulation = null,
-            int knownPointsCount = 0)
+            int knownPointsCount = 0,
+            string? systemId = null,
+            bool isActive = true)
         {
             Index = index;
             StartTarget = startTarget;
@@ -30,6 +32,8 @@ namespace Nivtropy.Models
             TotalDistanceFore = totalDistanceFore;
             ArmDifferenceAccumulation = armDifferenceAccumulation;
             KnownPointsCount = knownPointsCount;
+            SystemId = systemId;
+            IsActive = isActive;
             Closures = Array.Empty<double>();
             SharedPointCodes = Array.Empty<string>();
         }
@@ -63,6 +67,16 @@ namespace Nivtropy.Models
         public double? TotalAverageLength => TotalDistanceBack.HasValue && TotalDistanceFore.HasValue
             ? TotalDistanceBack.Value + TotalDistanceFore.Value
             : null;
+
+        /// <summary>
+        /// ID системы, к которой принадлежит ход
+        /// </summary>
+        public string? SystemId { get; set; }
+
+        /// <summary>
+        /// Активен ли ход (участвует в расчётах и экспорте)
+        /// </summary>
+        public bool IsActive { get; set; }
 
         /// <summary>
         /// Количество известных точек в этом ходе

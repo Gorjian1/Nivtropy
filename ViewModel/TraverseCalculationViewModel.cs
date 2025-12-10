@@ -22,15 +22,16 @@ namespace Nivtropy.ViewModels
         private readonly ObservableCollection<PointItem> _availablePoints = new();
         private readonly ObservableCollection<BenchmarkItem> _benchmarks = new();
         private readonly ObservableCollection<SharedPointLinkItem> _sharedPoints = new();
+        private readonly ObservableCollection<TraverseSystem> _systems = new();
         private readonly Dictionary<string, SharedPointLinkItem> _sharedPointLookup = new(StringComparer.OrdinalIgnoreCase);
-        private readonly Dictionary<string, double> _availableAdjustedHeightsCache = new(StringComparer.OrdinalIgnoreCase);
-        private readonly Dictionary<string, double> _availableRawHeightsCache = new(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, string> _benchmarkSystems = new(StringComparer.OrdinalIgnoreCase);
         private Dictionary<int, List<string>> _sharedPointsByRun = new();
 
-        private List<TraverseRow>? _cachedTraverseRows;
-        private int _cachedRecordsVersion = -1;
-
         private bool _isUpdating = false; // Флаг для подавления обновлений
+
+        // ID системы по умолчанию
+        private const string DEFAULT_SYSTEM_ID = "system-default";
+        private const string DEFAULT_SYSTEM_NAME = "Основная";
 
         // Методы нивелирования для двойного хода
         // Допуск: 4 мм × √n, где n - число станций
@@ -67,6 +68,7 @@ namespace Nivtropy.ViewModels
         private string? _selectedPointCode;
         private PointItem? _selectedPoint;
         private string? _newBenchmarkHeight;
+        private TraverseSystem? _selectedSystem;
 
         public TraverseCalculationViewModel(DataViewModel dataViewModel, SettingsViewModel settingsViewModel)
         {
@@ -86,6 +88,12 @@ namespace Nivtropy.ViewModels
 
             _selectedMethod = _methods.FirstOrDefault();
             _selectedClass = _classes.FirstOrDefault();
+
+            // Инициализация системы по умолчанию
+            var defaultSystem = new TraverseSystem(DEFAULT_SYSTEM_ID, DEFAULT_SYSTEM_NAME, order: 0);
+            _systems.Add(defaultSystem);
+            _selectedSystem = defaultSystem;
+
             UpdateRows();
         }
 
@@ -105,7 +113,23 @@ namespace Nivtropy.ViewModels
         public ObservableCollection<PointItem> AvailablePoints => _availablePoints;
         public ObservableCollection<BenchmarkItem> Benchmarks => _benchmarks;
         public ObservableCollection<SharedPointLinkItem> SharedPoints => _sharedPoints;
+        public ObservableCollection<TraverseSystem> Systems => _systems;
         public SettingsViewModel Settings => _settingsViewModel;
+
+        public TraverseSystem? SelectedSystem
+        {
+            get => _selectedSystem;
+            set
+            {
+                if (_selectedSystem != value)
+                {
+                    _selectedSystem = value;
+                    OnPropertyChanged();
+                    // При смене системы обновляем список доступных реперов
+                    UpdateBenchmarks();
+                }
+            }
+        }
 
         public LevelingMethodOption[] Methods => _methods;
         public LevelingClassOption[] Classes => _classes;
@@ -299,6 +323,25 @@ namespace Nivtropy.ViewModels
         public bool CanClearHeight => !string.IsNullOrWhiteSpace(_selectedPointCode) && _dataViewModel.HasKnownHeight(_selectedPointCode);
 
         /// <summary>
+        /// Проверяет, есть ли известная высота у точки
+        /// </summary>
+        public bool HasKnownHeight(string? pointCode)
+        {
+            if (string.IsNullOrWhiteSpace(pointCode))
+                return false;
+
+            return _dataViewModel.HasKnownHeight(pointCode);
+        }
+
+        /// <summary>
+        /// Проверяет, включена ли точка как общая между ходами
+        /// </summary>
+        public bool IsSharedPointEnabled(string? pointCode)
+        {
+            return _dataViewModel.IsSharedPointEnabled(pointCode);
+        }
+
+        /// <summary>
         /// Обновляет выбранную точку для установки высоты
         /// </summary>
         public void UpdateSelectedPoint(string? pointCode)
@@ -347,6 +390,9 @@ namespace Nivtropy.ViewModels
             // Устанавливаем высоту в DataViewModel
             _dataViewModel.SetKnownHeight(SelectedPoint.Code, height);
 
+            // Привязываем репер к текущей системе
+            _benchmarkSystems[SelectedPoint.Code] = SelectedSystem?.Id ?? DEFAULT_SYSTEM_ID;
+
             // Очищаем поля ввода
             SelectedPoint = null;
             NewBenchmarkHeight = string.Empty;
@@ -364,6 +410,7 @@ namespace Nivtropy.ViewModels
                 return;
 
             _dataViewModel.ClearKnownHeight(benchmark.Code);
+            _benchmarkSystems.Remove(benchmark.Code);
             UpdateBenchmarks();
             UpdateRows();
         }
@@ -509,18 +556,32 @@ namespace Nivtropy.ViewModels
         }
 
         /// <summary>
-        /// Обновляет список реперов из DataViewModel
+        /// Обновляет список реперов из DataViewModel с фильтрацией по выбранной системе
         /// </summary>
         private void UpdateBenchmarks()
         {
             _benchmarks.Clear();
+
+            var selectedSystemId = SelectedSystem?.Id;
 
             foreach (var kvp in _dataViewModel.KnownHeights
                              .OrderBy(k => ParsePointCode(k.Key).isNumeric ? 0 : 1)
                              .ThenBy(k => ParsePointCode(k.Key).number)
                              .ThenBy(k => k.Key, StringComparer.OrdinalIgnoreCase))
             {
-                _benchmarks.Add(new BenchmarkItem(kvp.Key, kvp.Value));
+                // Определяем систему для этого репера
+                if (!_benchmarkSystems.TryGetValue(kvp.Key, out var benchmarkSystemId))
+                {
+                    // Если репер еще не привязан к системе, привязываем к системе по умолчанию
+                    benchmarkSystemId = DEFAULT_SYSTEM_ID;
+                    _benchmarkSystems[kvp.Key] = benchmarkSystemId;
+                }
+
+                // Показываем только реперы текущей системы
+                if (string.IsNullOrEmpty(selectedSystemId) || benchmarkSystemId == selectedSystemId)
+                {
+                    _benchmarks.Add(new BenchmarkItem(kvp.Key, kvp.Value, benchmarkSystemId));
+                }
             }
         }
 
@@ -535,56 +596,15 @@ namespace Nivtropy.ViewModels
             {
                 UpdateRows();
             }
-            else if (e.PropertyName == nameof(DataViewModel.KnownHeights) ||
-                     e.PropertyName == nameof(DataViewModel.KnownHeightsVersion))
-            {
-                UpdateRows();
-            }
-        }
-
-        private List<TraverseRow> GetTraverseRows()
-        {
-            if (_cachedTraverseRows == null || _cachedRecordsVersion != _dataViewModel.RecordsVersion)
-            {
-                _cachedTraverseRows = TraverseBuilder.Build(_dataViewModel.Records);
-                _cachedRecordsVersion = _dataViewModel.RecordsVersion;
-            }
-
-            return _cachedTraverseRows;
-        }
-
-        private static void ResetCalculatedState(IEnumerable<TraverseRow> items)
-        {
-            var seenSummaries = new HashSet<LineSummary>();
-
-            foreach (var row in items)
-            {
-                row.BackHeight = null;
-                row.ForeHeight = null;
-                row.BackHeightZ0 = null;
-                row.ForeHeightZ0 = null;
-                row.IsBackHeightKnown = false;
-                row.IsForeHeightKnown = false;
-                row.Correction = null;
-                row.BaselineCorrection = null;
-                row.CorrectionMode = CorrectionDisplayMode.None;
-                row.IsArmDifferenceExceeded = false;
-
-                if (row.LineSummary != null && seenSummaries.Add(row.LineSummary))
-                {
-                    row.LineSummary.SetClosures(Array.Empty<double>());
-                    row.LineSummary.IsArmDifferenceAccumulationExceeded = false;
-                }
-            }
         }
 
         private void UpdateRows()
         {
             _rows.Clear();
 
-            var items = GetTraverseRows();
+            var records = _dataViewModel.Records;
 
-            if (items.Count == 0)
+            if (records.Count == 0)
             {
                 Closure = null;
                 AllowableClosure = null;
@@ -598,80 +618,107 @@ namespace Nivtropy.ViewModels
                 return;
             }
 
-            ResetCalculatedState(items);
+            var items = TraverseBuilder.Build(records);
 
             // Группируем станции по ходам для корректного расчета поправок
             var traverseGroups = items.GroupBy(r => r.LineName).ToList();
 
+            // Инициализация систем для новых ходов
+            InitializeRunSystems();
+
             UpdateSharedPointsMetadata(_dataViewModel.Records);
 
-            // Доступные высоты точек: сначала известные вручную
-            _availableAdjustedHeightsCache.Clear();
-            _availableRawHeightsCache.Clear();
-
-            // Добавляем все известные высоты, включая точки с суффиксами ходов
-            foreach (var kvp in _dataViewModel.KnownHeights)
+            // Обрабатываем каждую систему отдельно с независимыми пространствами высот
+            foreach (var system in _systems.OrderBy(s => s.Order))
             {
-                _availableAdjustedHeightsCache[kvp.Key] = kvp.Value;
-                _availableRawHeightsCache[kvp.Key] = kvp.Value;
-            }
-
-            bool AnchorChecker(string code) => IsAnchorAllowed(code, _availableAdjustedHeightsCache.ContainsKey);
-
-            var processedGroups = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-            for (int iteration = 0; iteration < traverseGroups.Count; iteration++)
-            {
-                bool progress = false;
-
-                foreach (var group in traverseGroups)
+                // Получаем группы ходов для текущей системы (только активные)
+                var systemTraverseGroups = traverseGroups.Where(g =>
                 {
-                    if (processedGroups.Contains(group.Key))
-                        continue;
+                    var run = Runs.FirstOrDefault(r => r.DisplayName == g.Key);
+                    return run != null && run.SystemId == system.Id && run.IsActive;
+                }).ToList();
 
-                    var groupItems = group.ToList();
-                    bool hasAnchor = groupItems.Any(r =>
-                        (!string.IsNullOrWhiteSpace(r.BackCode) && AnchorChecker(r.BackCode!)) ||
-                        (!string.IsNullOrWhiteSpace(r.ForeCode) && AnchorChecker(r.ForeCode!)));
+                if (systemTraverseGroups.Count == 0)
+                    continue;
 
-                    if (!hasAnchor && iteration < traverseGroups.Count - 1)
-                        continue;
+                // Высоты для текущей системы (изолированные от других систем)
+                var availableAdjustedHeights = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
+                var availableRawHeights = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
 
-                    // Если к этому моменту высот нет ни у одной точки ни одного хода,
-                    // стартуем первый обработанный ход с 0 в первой точке
-                    if (!hasAnchor)
+                // Добавляем только реперы текущей системы
+                foreach (var kvp in _dataViewModel.KnownHeights)
+                {
+                    if (_benchmarkSystems.TryGetValue(kvp.Key, out var benchSystemId) && benchSystemId == system.Id)
                     {
-                        var firstCode = groupItems.Select(r => r.BackCode ?? r.ForeCode)
-                            .FirstOrDefault(c => !string.IsNullOrWhiteSpace(c));
-                        if (!string.IsNullOrWhiteSpace(firstCode))
-                        {
-                            _availableAdjustedHeightsCache[firstCode!] = 0.0;
-                            _availableRawHeightsCache[firstCode!] = 0.0;
-                            hasAnchor = true;
-                        }
+                        availableAdjustedHeights[kvp.Key] = kvp.Value;
+                        availableRawHeights[kvp.Key] = kvp.Value;
                     }
-
-                    CalculateCorrections(groupItems, AnchorChecker);
-                    CalculateHeightsForRun(groupItems, _availableAdjustedHeightsCache, _availableRawHeightsCache, group.Key);
-                    processedGroups.Add(group.Key);
-                    progress = true;
                 }
 
-                if (!progress)
-                    break;
+                bool AnchorChecker(string code) => IsAnchorAllowed(code, availableAdjustedHeights.ContainsKey);
+
+                var processedGroups = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+                // Обрабатываем ходы системы
+                for (int iteration = 0; iteration < systemTraverseGroups.Count; iteration++)
+                {
+                    bool progress = false;
+
+                    foreach (var group in systemTraverseGroups)
+                    {
+                        if (processedGroups.Contains(group.Key))
+                            continue;
+
+                        var groupItems = group.ToList();
+                        bool hasAnchor = groupItems.Any(r =>
+                            (!string.IsNullOrWhiteSpace(r.BackCode) && AnchorChecker(r.BackCode!)) ||
+                            (!string.IsNullOrWhiteSpace(r.ForeCode) && AnchorChecker(r.ForeCode!)));
+
+                        if (!hasAnchor && iteration < systemTraverseGroups.Count - 1)
+                            continue;
+
+                        // Если к этому моменту высот нет ни у одной точки ни одного хода в системе,
+                        // стартуем первый обработанный ход с 0 в первой точке
+                        if (!hasAnchor)
+                        {
+                            var firstCode = groupItems.Select(r => r.BackCode ?? r.ForeCode)
+                                .FirstOrDefault(c => !string.IsNullOrWhiteSpace(c));
+                            if (!string.IsNullOrWhiteSpace(firstCode))
+                            {
+                                availableAdjustedHeights[firstCode!] = 0.0;
+                                availableRawHeights[firstCode!] = 0.0;
+                                hasAnchor = true;
+                            }
+                        }
+
+                        CalculateCorrections(groupItems, AnchorChecker);
+                        CalculateHeightsForRun(groupItems, availableAdjustedHeights, availableRawHeights, group.Key);
+                        processedGroups.Add(group.Key);
+                        progress = true;
+                    }
+
+                    if (!progress)
+                        break;
+                }
+
+                // Обновляем накопление разности плеч для ходов текущей системы
+                UpdateArmDifferenceAccumulation(systemTraverseGroups, AnchorChecker);
             }
 
-            // Обновляем накопление разности плеч для каждого хода
-            UpdateArmDifferenceAccumulation(traverseGroups, AnchorChecker);
-
+            // Добавляем в таблицу только строки из активных ходов
             foreach (var row in items)
             {
-                _rows.Add(row);
+                var run = Runs.FirstOrDefault(r => r.DisplayName == row.LineName);
+                if (run != null && run.IsActive)
+                {
+                    _rows.Add(row);
+                }
             }
 
-            StationsCount = items.Count;
-            TotalBackDistance = items.Sum(r => r.HdBack_m ?? 0);
-            TotalForeDistance = items.Sum(r => r.HdFore_m ?? 0);
+            // Статистика считается только по активным ходам
+            StationsCount = _rows.Count;
+            TotalBackDistance = _rows.Sum(r => r.HdBack_m ?? 0);
+            TotalForeDistance = _rows.Sum(r => r.HdFore_m ?? 0);
             TotalAverageDistance = StationsCount > 0
                 ? (TotalBackDistance + TotalForeDistance) / 2.0
                 : 0;
@@ -845,6 +892,32 @@ namespace Nivtropy.ViewModels
             foreach (var item in ordered)
             {
                 _sharedPoints.Add(item);
+            }
+        }
+
+        /// <summary>
+        /// Инициализация систем для новых ходов
+        /// </summary>
+        private void InitializeRunSystems()
+        {
+            var defaultSystem = _systems.FirstOrDefault(s => s.Id == DEFAULT_SYSTEM_ID);
+            if (defaultSystem == null)
+                return;
+
+            foreach (var run in Runs)
+            {
+                // Если ход еще не привязан к системе, привязываем к системе по умолчанию
+                if (string.IsNullOrEmpty(run.SystemId))
+                {
+                    run.SystemId = DEFAULT_SYSTEM_ID;
+                }
+
+                // Добавляем ход в RunIndexes соответствующей системы
+                var system = _systems.FirstOrDefault(s => s.Id == run.SystemId);
+                if (system != null && !system.ContainsRun(run.Index))
+                {
+                    system.AddRun(run.Index);
+                }
             }
         }
 

@@ -1,4 +1,7 @@
 using System;
+using System.Collections.Generic;
+using System.Collections.Specialized;
+using System.ComponentModel;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
@@ -15,7 +18,7 @@ namespace Nivtropy.Views
     /// </summary>
     public partial class TraverseJournalView : UserControl
     {
-        private System.Collections.Generic.List<TraverseRow>? _currentTraverseRows;
+        private List<TraverseRow>? _currentTraverseRows;
         private TraverseCalculationViewModel? _currentViewModel;
         private ProfileStatistics? _currentStatistics;
 
@@ -36,6 +39,9 @@ namespace Nivtropy.Views
         private bool _showZ0 = true;
         private bool _showAnomalies = true;
         private double _sensitivitySigma = 2.5;
+
+        private TraverseCalculationViewModel? _subscribedCalculation;
+        private readonly List<SharedPointLinkItem> _subscribedSharedPoints = new();
 
         // Debouncing для отложенной перерисовки профиля
         private System.Windows.Threading.DispatcherTimer? _redrawTimer;
@@ -82,6 +88,131 @@ namespace Nivtropy.Views
                 if (ShowZ0CheckBox != null)
                     ShowZ0CheckBox.IsChecked = _savedShowZ0;
             };
+
+            // Подписка на изменения DataContext для отрисовки визуализации ходов
+            DataContextChanged += (s, e) =>
+            {
+                if (e.NewValue is TraverseJournalViewModel viewModel)
+                {
+                    _currentViewModel = viewModel.Calculation;
+                    SubscribeToCalculation(viewModel.Calculation);
+                    InitializeSystemsPanel();
+
+                    // Начальная отрисовка с задержкой (когда UI полностью загрузится)
+                    Dispatcher.BeginInvoke(new System.Action(() => DrawTraverseSystemVisualization()), System.Windows.Threading.DispatcherPriority.Loaded);
+                }
+            };
+
+            // Подписка на Loaded для начальной отрисовки визуализации
+            Loaded += (s, e) =>
+            {
+                if (TraverseVisualizationCanvas != null)
+                {
+                    TraverseVisualizationCanvas.SizeChanged += (_, __) => DrawTraverseSystemVisualization();
+                }
+                DrawTraverseSystemVisualization();
+            };
+        }
+
+        private void SubscribeToCalculation(TraverseCalculationViewModel calculation)
+        {
+            if (!ReferenceEquals(_subscribedCalculation, calculation))
+            {
+                UnsubscribeFromCalculation();
+                _subscribedCalculation = calculation;
+
+                calculation.PropertyChanged += CalculationOnPropertyChanged;
+                calculation.Systems.CollectionChanged += CalculationSystemsChanged;
+                calculation.Runs.CollectionChanged += CalculationRunsChanged;
+            }
+
+            SubscribeSharedPointHandlers(calculation.SharedPoints);
+        }
+
+        private void UnsubscribeFromCalculation()
+        {
+            if (_subscribedCalculation != null)
+            {
+                _subscribedCalculation.PropertyChanged -= CalculationOnPropertyChanged;
+                _subscribedCalculation.Systems.CollectionChanged -= CalculationSystemsChanged;
+                _subscribedCalculation.Runs.CollectionChanged -= CalculationRunsChanged;
+
+                _subscribedCalculation.SharedPoints.CollectionChanged -= SharedPointsOnCollectionChanged;
+            }
+
+            foreach (var item in _subscribedSharedPoints)
+            {
+                item.PropertyChanged -= SharedPointItemOnPropertyChanged;
+            }
+            _subscribedSharedPoints.Clear();
+            _subscribedCalculation = null;
+        }
+
+        private void CalculationOnPropertyChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == nameof(TraverseCalculationViewModel.Rows) ||
+                e.PropertyName == nameof(TraverseCalculationViewModel.SelectedSystem))
+            {
+                Dispatcher.BeginInvoke(new Action(DrawTraverseSystemVisualization));
+            }
+        }
+
+        private void CalculationSystemsChanged(object? sender, NotifyCollectionChangedEventArgs e)
+        {
+            Dispatcher.BeginInvoke(new Action(InitializeSystemsPanel));
+        }
+
+        private void CalculationRunsChanged(object? sender, NotifyCollectionChangedEventArgs e)
+        {
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                RefreshRunsList();
+                DrawTraverseSystemVisualization();
+            }));
+        }
+
+        private void SubscribeSharedPointHandlers(IEnumerable<SharedPointLinkItem> sharedPoints)
+        {
+            foreach (var item in _subscribedSharedPoints)
+            {
+                item.PropertyChanged -= SharedPointItemOnPropertyChanged;
+            }
+            _subscribedSharedPoints.Clear();
+
+            foreach (var item in sharedPoints)
+            {
+                item.PropertyChanged += SharedPointItemOnPropertyChanged;
+                _subscribedSharedPoints.Add(item);
+            }
+
+            if (_subscribedCalculation != null)
+            {
+                _subscribedCalculation.SharedPoints.CollectionChanged -= SharedPointsOnCollectionChanged;
+                _subscribedCalculation.SharedPoints.CollectionChanged += SharedPointsOnCollectionChanged;
+            }
+        }
+
+        private void SharedPointsOnCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+        {
+            if (sender is IEnumerable<SharedPointLinkItem> items)
+            {
+                SubscribeSharedPointHandlers(items);
+            }
+
+            Dispatcher.BeginInvoke(new Action(DrawTraverseSystemVisualization));
+        }
+
+        private void SharedPointItemOnPropertyChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == nameof(SharedPointLinkItem.IsEnabled))
+            {
+                Dispatcher.BeginInvoke(new Action(DrawTraverseSystemVisualization));
+            }
+        }
+
+        private void RunActivationChanged(object sender, RoutedEventArgs e)
+        {
+            DrawTraverseSystemVisualization();
         }
 
         private void ShowTraverseDetails_Click(object sender, RoutedEventArgs e)
@@ -1110,6 +1241,499 @@ namespace Nivtropy.Views
                     e.Handled = true;
                 }
             }
+        }
+
+        private TraverseCalculationViewModel? Calculation => _currentViewModel ?? (DataContext as TraverseJournalViewModel)?.Calculation;
+
+        private void InitializeSystemsPanel()
+        {
+            if (Calculation == null)
+                return;
+
+            SystemsListBox.ItemsSource = Calculation.Systems;
+
+            if (SystemsListBox.SelectedItem == null && Calculation.Systems.Count > 0)
+            {
+                SystemsListBox.SelectedIndex = 0;
+            }
+            else
+            {
+                RefreshRunsList();
+            }
+
+            DrawTraverseSystemVisualization();
+        }
+
+        private void SystemsListBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            RefreshRunsList();
+        }
+
+        private void RefreshRunsList()
+        {
+            if (Calculation == null)
+                return;
+
+            if (SystemsListBox.SelectedItem is TraverseSystem selectedSystem)
+            {
+                RunsHeaderText.Text = $"Ходы системы: {selectedSystem.Name}";
+
+                var runsInSystem = Calculation.Runs
+                    .Where(r => r.SystemId == selectedSystem.Id)
+                    .ToList();
+
+                RunsListBox.ItemsSource = runsInSystem;
+            }
+            else
+            {
+                RunsListBox.ItemsSource = null;
+                RunsHeaderText.Text = "Ходы системы";
+            }
+        }
+
+        private void CreateSystem_Click(object sender, RoutedEventArgs e)
+        {
+            if (Calculation == null)
+                return;
+
+            var dialog = new InputDialog("Создание системы", "Введите название системы:");
+            if (dialog.ShowDialog() == true && !string.IsNullOrWhiteSpace(dialog.ResponseText))
+            {
+                var newSystem = new TraverseSystem(
+                    Guid.NewGuid().ToString(),
+                    dialog.ResponseText,
+                    Calculation.Systems.Count
+                );
+
+                Calculation.Systems.Add(newSystem);
+                SystemsListBox.SelectedItem = newSystem;
+            }
+        }
+
+        private void RenameSystem_Click(object sender, RoutedEventArgs e)
+        {
+            if (Calculation == null)
+                return;
+
+            if (SystemsListBox.SelectedItem is TraverseSystem selectedSystem)
+            {
+                if (selectedSystem.Id == "system-default")
+                {
+                    MessageBox.Show(
+                        "Систему по умолчанию нельзя переименовать.",
+                        "Ошибка",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Warning);
+                    return;
+                }
+
+                var dialog = new InputDialog("Переименование системы", "Введите новое название:", selectedSystem.Name);
+                if (dialog.ShowDialog() == true && !string.IsNullOrWhiteSpace(dialog.ResponseText))
+                {
+                    selectedSystem.Name = dialog.ResponseText;
+
+                    SystemsListBox.Items.Refresh();
+                    RefreshRunsList();
+                }
+            }
+        }
+
+        private void DeleteSystem_Click(object sender, RoutedEventArgs e)
+        {
+            if (Calculation == null)
+                return;
+
+            if (SystemsListBox.SelectedItem is TraverseSystem selectedSystem)
+            {
+                if (selectedSystem.Id == "system-default")
+                {
+                    MessageBox.Show(
+                        "Систему по умолчанию нельзя удалить.",
+                        "Ошибка",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Warning);
+                    return;
+                }
+
+                var result = MessageBox.Show(
+                    $"Удалить систему '{selectedSystem.Name}'?\n\nВсе ходы будут перемещены в систему по умолчанию.",
+                    "Подтверждение удаления",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Question);
+
+                if (result == MessageBoxResult.Yes)
+                {
+                    var defaultSystem = Calculation.Systems.FirstOrDefault(s => s.Id == "system-default");
+                    if (defaultSystem == null)
+                        return;
+
+                    foreach (var run in Calculation.Runs.Where(r => r.SystemId == selectedSystem.Id))
+                    {
+                        run.SystemId = defaultSystem.Id;
+                        selectedSystem.RemoveRun(run.Index);
+                        defaultSystem.AddRun(run.Index);
+                    }
+
+                    Calculation.Systems.Remove(selectedSystem);
+                    SystemsListBox.SelectedItem = defaultSystem;
+                }
+            }
+        }
+
+        private void RefreshSystemsButton_Click(object sender, RoutedEventArgs e)
+        {
+            InitializeSystemsPanel();
+        }
+
+        /// <summary>
+        /// Отрисовка визуализации системы ходов с графом связей
+        /// </summary>
+        private void DrawTraverseSystemVisualization()
+        {
+            if (TraverseVisualizationCanvas == null)
+                return;
+
+            TraverseVisualizationCanvas.Children.Clear();
+
+            if (DataContext is not TraverseJournalViewModel viewModel)
+                return;
+
+            var calculation = viewModel.Calculation;
+            var runs = calculation.Runs.ToList();
+
+            if (runs.Count == 0)
+                return;
+
+            var canvasWidth = TraverseVisualizationCanvas.ActualWidth;
+            var canvasHeight = TraverseVisualizationCanvas.ActualHeight;
+
+            if (canvasWidth < 10 || canvasHeight < 10)
+                return;
+
+            // Палитра цветов для систем
+            var systemColors = new[]
+            {
+                Color.FromRgb(25, 118, 210),   // Синий
+                Color.FromRgb(56, 142, 60),    // Зелёный
+                Color.FromRgb(251, 140, 0),    // Оранжевый
+                Color.FromRgb(142, 36, 170),   // Фиолетовый
+                Color.FromRgb(0, 150, 136),    // Бирюзовый
+                Color.FromRgb(211, 47, 47)     // Красный
+            };
+
+            var runsBySystem = runs.GroupBy(r => r.SystemId ?? "default").ToList();
+            var runColors = new Dictionary<LineSummary, Color>();
+
+            int colorIndex = 0;
+            foreach (var systemGroup in runsBySystem)
+            {
+                var systemColor = systemColors[colorIndex % systemColors.Length];
+                foreach (var run in systemGroup)
+                {
+                    runColors[run] = systemColor;
+                }
+                colorIndex++;
+            }
+
+            // Собираем последовательность точек для каждого хода
+            var rows = calculation.Rows.ToList();
+            var pointsByRun = new Dictionary<LineSummary, List<string>>();
+            foreach (var run in runs)
+            {
+                var runRows = rows
+                    .Where(r => r.LineSummary?.Index == run.Index)
+                    .OrderBy(r => r.Index)
+                    .ToList();
+
+                var sequence = new List<string>();
+                foreach (var row in runRows)
+                {
+                    if (!string.IsNullOrWhiteSpace(row.BackCode))
+                    {
+                        var back = row.BackCode.Trim();
+                        if (sequence.Count == 0 || !string.Equals(sequence[^1], back, StringComparison.OrdinalIgnoreCase))
+                            sequence.Add(back);
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(row.ForeCode))
+                    {
+                        var fore = row.ForeCode.Trim();
+                        if (sequence.Count == 0 || !string.Equals(sequence[^1], fore, StringComparison.OrdinalIgnoreCase))
+                            sequence.Add(fore);
+                    }
+                }
+
+                if (sequence.Count == 0 && !string.IsNullOrWhiteSpace(run.StartLabel))
+                {
+                    sequence.Add(run.StartLabel.Trim());
+                    if (!string.Equals(run.StartLabel, run.EndLabel, StringComparison.OrdinalIgnoreCase)
+                        && !string.IsNullOrWhiteSpace(run.EndLabel))
+                    {
+                        sequence.Add(run.EndLabel.Trim());
+                    }
+                }
+
+                pointsByRun[run] = sequence;
+            }
+
+            // Общие точки (включенные) для связности
+            const double padding = 18;
+            double Clamp(double value, double min, double max) => Math.Max(min, Math.Min(max, value));
+            Point ClampPoint(Point p, double margin)
+            {
+                return new Point(
+                    Clamp(p.X, margin, canvasWidth - margin),
+                    Clamp(p.Y, margin, canvasHeight - margin));
+            }
+
+            double GetMaxRadius(Point c, double margin)
+            {
+                var dx = Math.Min(c.X - margin, canvasWidth - margin - c.X);
+                var dy = Math.Min(c.Y - margin, canvasHeight - margin - c.Y);
+                return Math.Max(0, Math.Min(dx, dy));
+            }
+
+            var runShapeRadius = runs.ToDictionary(
+                run => run,
+                run => 22 + Math.Max(pointsByRun.TryGetValue(run, out var seq) ? seq.Count : 0, 2) * 6);
+
+            var maxShapeRadius = runShapeRadius.Values.Count > 0 ? runShapeRadius.Values.Max() : 30;
+
+            var sharedPoints = calculation.SharedPoints.Where(p => p.IsEnabled).ToList();
+
+            var sharedPointPositions = new Dictionary<string, Point>(StringComparer.OrdinalIgnoreCase);
+            var center = new Point(canvasWidth / 2, canvasHeight / 2);
+            var drawableRadius = Math.Min(canvasWidth, canvasHeight) / 2 - (padding + maxShapeRadius);
+            var sharedRadius = Math.Max(24, drawableRadius);
+
+            for (int i = 0; i < sharedPoints.Count; i++)
+            {
+                var angle = 2 * Math.PI * i / Math.Max(1, sharedPoints.Count);
+                var point = new Point(
+                    center.X + sharedRadius * Math.Cos(angle),
+                    center.Y + sharedRadius * Math.Sin(angle));
+                sharedPointPositions[sharedPoints[i].Code] = ClampPoint(point, padding + 6);
+            }
+
+            // Центры ходов: для связанных — около средних общих точек, для несвязанных — отдельное кольцо
+            var runCenters = new Dictionary<LineSummary, Point>();
+            var orbitBase = Math.Min(canvasWidth, canvasHeight) / 2 - (padding + maxShapeRadius);
+            var orbitRadius = sharedPoints.Count > 0 ? Math.Max(18, sharedRadius * 0.82) : Math.Max(24, orbitBase);
+
+            for (int i = 0; i < runs.Count; i++)
+            {
+                var run = runs[i];
+                var sharedForRun = calculation.GetSharedPointsForRun(run)
+                    .Where(p => p.IsEnabled)
+                    .Select(p => p.Code)
+                    .ToList();
+
+                var anchors = sharedForRun
+                    .Where(code => sharedPointPositions.ContainsKey(code))
+                    .Select(code => sharedPointPositions[code])
+                    .ToList();
+
+                var shapeRadius = runShapeRadius.TryGetValue(run, out var r) ? r : 32;
+
+                if (anchors.Count > 0)
+                {
+                    var avgX = anchors.Average(p => p.X);
+                    var avgY = anchors.Average(p => p.Y);
+                    var basePoint = new Point(avgX, avgY);
+
+                    // Небольшое смещение, чтобы фигуры с одинаковыми общими точками не налегали друг на друга
+                    var jitterAngle = ((run.Index * 37) % 360) * Math.PI / 180.0;
+                    var jitterDistance = (anchors.Count > 1 ? 10 : 18) + (i % 3) * 3;
+                    var offset = new Vector(Math.Cos(jitterAngle) * jitterDistance, Math.Sin(jitterAngle) * jitterDistance);
+                    var proposed = basePoint + offset;
+                    var margin = padding + shapeRadius;
+                    runCenters[run] = ClampPoint(proposed, margin);
+                }
+                else
+                {
+                    var angle = 2 * Math.PI * i / Math.Max(1, runs.Count);
+                    var radius = orbitRadius + (sharedPoints.Count > 0 ? 24 : 0);
+                    var proposed = new Point(
+                        center.X + radius * Math.Cos(angle),
+                        center.Y + radius * Math.Sin(angle));
+                    var margin = padding + shapeRadius;
+                    runCenters[run] = ClampPoint(proposed, margin);
+                }
+            }
+
+            // Рисуем каждый ход как сглаженную фигуру
+            foreach (var run in runs)
+            {
+                if (!pointsByRun.TryGetValue(run, out var pointSequence) || pointSequence.Count < 2)
+                    continue;
+
+                var runColor = runColors.TryGetValue(run, out var c) ? c : Colors.SteelBlue;
+                var strokeColor = run.IsActive ? runColor : Color.FromRgb(140, 140, 140);
+                var fillColor = Colors.Transparent;
+
+                var centerPoint = runCenters[run];
+                var pointCount = Math.Max(pointSequence.Count, 2);
+                var shapeRadius = runShapeRadius.TryGetValue(run, out var radius) ? radius : 32;
+                shapeRadius = Math.Min(shapeRadius, GetMaxRadius(centerPoint, padding));
+
+                var vertices = new List<Point>();
+                for (int i = 0; i < pointSequence.Count; i++)
+                {
+                    var code = pointSequence[i];
+                    if (sharedPointPositions.TryGetValue(code, out var sharedPos))
+                    {
+                        vertices.Add(sharedPos);
+                        continue;
+                    }
+
+                    var angle = 2 * Math.PI * i / pointCount;
+                    var vertex = new Point(
+                        centerPoint.X + shapeRadius * Math.Cos(angle),
+                        centerPoint.Y + shapeRadius * Math.Sin(angle));
+                    vertices.Add(ClampPoint(vertex, padding));
+                }
+
+                bool isClosed = string.Equals(pointSequence.First(), pointSequence.Last(), StringComparison.OrdinalIgnoreCase);
+                var geometry = BuildSmoothGeometry(vertices, isClosed);
+
+                var path = new Path
+                {
+                    Data = geometry,
+                    Stroke = new SolidColorBrush(strokeColor),
+                    StrokeThickness = run.IsActive ? 2.2 : 1.5,
+                    Fill = new SolidColorBrush(fillColor),
+                    StrokeDashArray = run.IsActive ? null : new DoubleCollection { 3, 3 },
+                    StrokeLineJoin = PenLineJoin.Round,
+                    StrokeStartLineCap = PenLineCap.Round,
+                    StrokeEndLineCap = PenLineCap.Round,
+                    ToolTip = run.Tooltip
+                };
+
+                TraverseVisualizationCanvas.Children.Add(path);
+
+                // Подпись хода
+                var centroid = new Point(vertices.Average(v => v.X), vertices.Average(v => v.Y));
+                var label = new TextBlock
+                {
+                    Text = run.DisplayName,
+                    FontSize = 10,
+                    FontWeight = run.IsActive ? FontWeights.SemiBold : FontWeights.Normal,
+                    Foreground = new SolidColorBrush(strokeColor),
+                    Background = new SolidColorBrush(Color.FromArgb(210, 255, 255, 255))
+                };
+                Canvas.SetLeft(label, centroid.X - 18);
+                Canvas.SetTop(label, centroid.Y - 10);
+                TraverseVisualizationCanvas.Children.Add(label);
+
+                // Отрисовка точек фигуры
+                var sharedForRun = new HashSet<string>(calculation.GetSharedPointsForRun(run)
+                    .Where(p => p.IsEnabled)
+                    .Select(p => p.Code), StringComparer.OrdinalIgnoreCase);
+
+                for (int i = 0; i < pointSequence.Count; i++)
+                {
+                    var code = pointSequence[i];
+                    var pointPos = vertices[i];
+
+                    bool isShared = sharedForRun.Contains(code);
+                    bool hasKnownHeight = calculation.HasKnownHeight(code) || isShared;
+
+                    var pointColor = hasKnownHeight
+                        ? Colors.Black
+                        : isShared
+                            ? Colors.OrangeRed
+                            : Color.FromArgb(220, runColor.R, runColor.G, runColor.B);
+
+                    var node = new Ellipse
+                    {
+                        Width = hasKnownHeight ? 11 : 9,
+                        Height = hasKnownHeight ? 11 : 9,
+                        Fill = new SolidColorBrush(pointColor),
+                        Stroke = Brushes.White,
+                        StrokeThickness = 2,
+                        ToolTip = $"{code}\n{(hasKnownHeight ? "Известная" : isShared ? "Общая" : "Точка хода" )}"
+                    };
+
+                    Canvas.SetLeft(node, pointPos.X - node.Width / 2);
+                    Canvas.SetTop(node, pointPos.Y - node.Height / 2);
+                    TraverseVisualizationCanvas.Children.Add(node);
+
+                    var pointLabel = new TextBlock
+                    {
+                        Text = code,
+                        FontSize = 8,
+                        FontWeight = FontWeights.SemiBold,
+                        Foreground = Brushes.Black,
+                        Background = new SolidColorBrush(Color.FromArgb(200, 255, 255, 255))
+                    };
+
+                    Canvas.SetLeft(pointLabel, pointPos.X + 8);
+                    Canvas.SetTop(pointLabel, pointPos.Y - 10);
+                    TraverseVisualizationCanvas.Children.Add(pointLabel);
+                }
+            }
+        }
+
+        private static StreamGeometry BuildSmoothGeometry(IReadOnlyList<Point> points, bool isClosed)
+        {
+            var geometry = new StreamGeometry();
+            if (points.Count == 0)
+                return geometry;
+
+            using (var context = geometry.Open())
+            {
+                context.BeginFigure(points[0], true, isClosed);
+
+                if (points.Count == 1)
+                    return geometry;
+
+                Point GetPoint(int index)
+                {
+                    if (index < 0)
+                        return points[0];
+                    if (index >= points.Count)
+                        return points[^1];
+                    return points[index];
+                }
+
+                for (int i = 0; i < points.Count - 1; i++)
+                {
+                    var p0 = GetPoint(i - 1);
+                    var p1 = GetPoint(i);
+                    var p2 = GetPoint(i + 1);
+                    var p3 = GetPoint(i + 2);
+
+                    if (!isClosed)
+                    {
+                        if (i == 0)
+                            p0 = p1;
+                        if (i == points.Count - 2)
+                            p3 = p2;
+                    }
+
+                    var cp1 = new Point(p1.X + (p2.X - p0.X) / 6, p1.Y + (p2.Y - p0.Y) / 6);
+                    var cp2 = new Point(p2.X - (p3.X - p1.X) / 6, p2.Y - (p3.Y - p1.Y) / 6);
+
+                    context.BezierTo(cp1, cp2, p2, true, true);
+                }
+
+                if (isClosed)
+                {
+                    var pLast = points[^1];
+                    var pFirst = points[0];
+                    var pNext = points.Count > 1 ? points[1] : pFirst;
+
+                    var cp1 = new Point(pLast.X + (pFirst.X - GetPoint(points.Count - 2).X) / 6,
+                        pLast.Y + (pFirst.Y - GetPoint(points.Count - 2).Y) / 6);
+                    var cp2 = new Point(pFirst.X - (pNext.X - pLast.X) / 6,
+                        pFirst.Y - (pNext.Y - pLast.Y) / 6);
+
+                    context.BezierTo(cp1, cp2, pFirst, true, true);
+                }
+            }
+
+            geometry.Freeze();
+            return geometry;
         }
     }
 }

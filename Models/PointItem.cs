@@ -41,10 +41,11 @@ namespace Nivtropy.Models
     /// </summary>
     public class BenchmarkItem
     {
-        public BenchmarkItem(string code, double height)
+        public BenchmarkItem(string code, double height, string? systemId = null)
         {
             Code = code;
             Height = height;
+            SystemId = systemId;
         }
 
         /// <summary>
@@ -56,6 +57,11 @@ namespace Nivtropy.Models
         /// Известная высота (м)
         /// </summary>
         public double Height { get; }
+
+        /// <summary>
+        /// ID системы, к которой принадлежит репер
+        /// </summary>
+        public string? SystemId { get; }
 
         /// <summary>
         /// Отображаемое имя репера
