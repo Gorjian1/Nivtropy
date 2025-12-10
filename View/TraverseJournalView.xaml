@@ -151,18 +151,6 @@
                                             </Button.Template>
                                         </Button>
 
-                                        <!-- Checkbox активности хода -->
-                                        <CheckBox IsChecked="{Binding Items[0].LineSummary.IsActive, Mode=TwoWay}"
-                                                  ToolTip="Активен (участвует в расчётах и экспорте)"
-                                                  Margin="0,0,8,0"
-                                                  VerticalAlignment="Center">
-                                            <CheckBox.Style>
-                                                <Style TargetType="CheckBox">
-                                                    <Setter Property="Foreground" Value="#202020" />
-                                                </Style>
-                                            </CheckBox.Style>
-                                        </CheckBox>
-
                                         <TextBlock Text="{Binding Name}" FontWeight="SemiBold" Foreground="#202020" />
                                         <TextBlock Text=" • Станций: " Margin="12,0,0,0" Foreground="#707070" />
                                         <TextBlock Text="{Binding ItemCount, Converter={StaticResource JournalStationCountConverter}}" FontWeight="SemiBold" Foreground="#202020" />
@@ -953,21 +941,14 @@
                     <Border.Effect>
                         <DropShadowEffect Color="#40000000" BlurRadius="4" ShadowDepth="1" Direction="270" Opacity="0.3"/>
                     </Border.Effect>
-                    <Grid>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="*" />
-                            <RowDefinition Height="Auto" />
-                        </Grid.RowDefinitions>
-
-                        <TextBlock Grid.Row="0"
-                                   Text="Управление ходами"
+                    <StackPanel>
+                        <TextBlock Text="Управление ходами"
                                    FontWeight="SemiBold"
                                    FontSize="12"
                                    Foreground="#2B579A"
                                    Margin="0,0,0,10" />
 
-                        <Grid Grid.Row="1">
+                        <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="240" />
                                 <ColumnDefinition Width="12" />
@@ -987,7 +968,6 @@
                                     <Grid.RowDefinitions>
                                         <RowDefinition Height="Auto" />
                                         <RowDefinition Height="*" />
-                                        <RowDefinition Height="Auto" />
                                     </Grid.RowDefinitions>
 
                                     <!-- Заголовок -->
@@ -1032,39 +1012,6 @@
                                             </DataTemplate>
                                         </ListBox.ItemTemplate>
                                     </ListBox>
-
-                                    <!-- Кнопки управления системами -->
-                                    <StackPanel Grid.Row="2"
-                                                Orientation="Horizontal"
-                                                HorizontalAlignment="Center"
-                                                Margin="8">
-                                        <Button Content="➕ Создать"
-                                                Click="CreateSystem_Click"
-                                                Padding="10,4"
-                                                Margin="0,0,4,0"
-                                                FontSize="10"
-                                                Background="White"
-                                                BorderBrush="#FFACACAC"
-                                                BorderThickness="1"
-                                                Cursor="Hand" />
-                                        <Button Content="✏ Переименовать"
-                                                Click="RenameSystem_Click"
-                                                Padding="10,4"
-                                                Margin="0,0,4,0"
-                                                FontSize="10"
-                                                Background="White"
-                                                BorderBrush="#FFACACAC"
-                                                BorderThickness="1"
-                                                Cursor="Hand" />
-                                        <Button Content="🗑 Удалить"
-                                                Click="DeleteSystem_Click"
-                                                Padding="10,4"
-                                                FontSize="10"
-                                                Background="White"
-                                                BorderBrush="#FFACACAC"
-                                                BorderThickness="1"
-                                                Cursor="Hand" />
-                                    </StackPanel>
                                 </Grid>
                             </Border>
 
@@ -1089,28 +1036,12 @@
                                             BorderBrush="#FFE0E0E0"
                                             BorderThickness="0,0,0,1"
                                             Padding="10,8">
-                                        <Grid>
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="Auto" />
-                                            </Grid.ColumnDefinitions>
-                                            <TextBlock Grid.Column="0"
-                                                       x:Name="RunsHeaderText"
-                                                       Text="Ходы системы"
-                                                       FontWeight="SemiBold"
-                                                       FontSize="12"
-                                                       Foreground="#2B579A"
-                                                       VerticalAlignment="Center" />
-                                            <ComboBox Grid.Column="1"
-                                                      x:Name="MoveToSystemComboBox"
-                                                      DisplayMemberPath="Name"
-                                                      FontSize="10"
-                                                      MinWidth="120"
-                                                      Height="24"
-                                                      Background="White"
-                                                      BorderBrush="#FFACACAC"
-                                                      ToolTip="Переместить выбранные ходы в другую систему" />
-                                        </Grid>
+                                        <TextBlock x:Name="RunsHeaderText"
+                                                   Text="Ходы системы"
+                                                   FontWeight="SemiBold"
+                                                   FontSize="12"
+                                                   Foreground="#2B579A"
+                                                   VerticalAlignment="Center" />
                                     </Border>
 
                                     <!-- Список ходов -->
@@ -1153,43 +1084,7 @@
                                 </Grid>
                             </Border>
                         </Grid>
-
-                        <!-- Нижняя панель: Кнопки -->
-                        <Border Grid.Row="2"
-                                Background="White"
-                                BorderBrush="#FFE0E0E0"
-                                BorderThickness="0,1,0,0"
-                                Padding="0"
-                                Margin="0,12,0,0">
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="Auto" />
-                                </Grid.ColumnDefinitions>
-
-                                <Button Grid.Column="0"
-                                        Content="⬆ Переместить в выбранную систему"
-                                        Click="MoveRuns_Click"
-                                        Padding="10,6"
-                                        FontSize="11"
-                                        HorizontalAlignment="Left"
-                                        Background="White"
-                                        BorderBrush="#FFACACAC"
-                                        BorderThickness="1"
-                                        Cursor="Hand" />
-
-                                <Button Grid.Column="1"
-                                        Content="Обновить"
-                                        Click="RefreshSystemsButton_Click"
-                                        Padding="20,6"
-                                        FontSize="11"
-                                        Background="White"
-                                        BorderBrush="#FFACACAC"
-                                        BorderThickness="1"
-                                        Cursor="Hand" />
-                            </Grid>
-                        </Border>
-                    </Grid>
+                    </StackPanel>
                 </Border>
 
                 <!-- СТРОКА 6: Общие точки между ходами -->

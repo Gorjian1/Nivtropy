@@ -1196,21 +1196,11 @@ namespace Nivtropy.Views
                     .ToList();
 
                 RunsListBox.ItemsSource = runsInSystem;
-
-                MoveToSystemComboBox.ItemsSource = Calculation.Systems
-                    .Where(s => s.Id != selectedSystem.Id)
-                    .ToList();
-
-                if (MoveToSystemComboBox.Items.Count > 0)
-                {
-                    MoveToSystemComboBox.SelectedIndex = 0;
-                }
             }
             else
             {
                 RunsListBox.ItemsSource = null;
                 RunsHeaderText.Text = "Ходы системы";
-                MoveToSystemComboBox.ItemsSource = null;
             }
         }
 
@@ -1301,53 +1291,6 @@ namespace Nivtropy.Views
                     SystemsListBox.SelectedItem = defaultSystem;
                 }
             }
-        }
-
-        private void MoveRuns_Click(object sender, RoutedEventArgs e)
-        {
-            if (Calculation == null)
-                return;
-
-            if (MoveToSystemComboBox.SelectedItem is not TraverseSystem targetSystem)
-            {
-                MessageBox.Show(
-                    "Выберите целевую систему для перемещения.",
-                    "Внимание",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Information);
-                return;
-            }
-
-            if (RunsListBox.SelectedItems.Count == 0)
-            {
-                MessageBox.Show(
-                    "Выберите ходы для перемещения.",
-                    "Внимание",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Information);
-                return;
-            }
-
-            if (SystemsListBox.SelectedItem is not TraverseSystem currentSystem)
-                return;
-
-            var selectedRuns = RunsListBox.SelectedItems.Cast<LineSummary>().ToList();
-
-            foreach (var run in selectedRuns)
-            {
-                currentSystem.RemoveRun(run.Index);
-                targetSystem.AddRun(run.Index);
-                run.SystemId = targetSystem.Id;
-            }
-
-            SystemsListBox.Items.Refresh();
-            RefreshRunsList();
-
-            MessageBox.Show(
-                $"Перемещено ходов: {selectedRuns.Count}",
-                "Успешно",
-                MessageBoxButton.OK,
-                MessageBoxImage.Information);
         }
 
         private void RefreshSystemsButton_Click(object sender, RoutedEventArgs e)
