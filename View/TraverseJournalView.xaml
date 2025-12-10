@@ -965,21 +965,51 @@
                                    Foreground="#2B579A"
                                    Margin="0,0,0,10" />
 
-                        <!-- Placeholder для визуализации -->
+                        <!-- Canvas для визуализации -->
                         <Border BorderBrush="#FFE0E0E0"
                                 BorderThickness="1"
                                 CornerRadius="3"
-                                Height="180"
+                                Height="200"
                                 Background="#FFFAFAFA">
-                            <TextBlock Text="Визуализация связей между ходами"
-                                       FontSize="11"
-                                       Foreground="#A0A0A0"
-                                       TextWrapping="Wrap"
-                                       TextAlignment="Center"
-                                       HorizontalAlignment="Center"
-                                       VerticalAlignment="Center"
-                                       Margin="20" />
+                            <Canvas x:Name="TraverseVisualizationCanvas"
+                                    ClipToBounds="True" />
                         </Border>
+
+                        <!-- Кнопка управления системами -->
+                        <Button Content="⚙ Управление системами"
+                                Margin="0,8,0,0"
+                                Padding="10,6"
+                                FontSize="11"
+                                HorizontalAlignment="Stretch"
+                                Cursor="Hand"
+                                ToolTip="Создание и редактирование систем ходов">
+                            <Button.Style>
+                                <Style TargetType="Button">
+                                    <Setter Property="Background">
+                                        <Setter.Value>
+                                            <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                                <GradientStop Color="#FFFFFFFF" Offset="0"/>
+                                                <GradientStop Color="#FFF0F0F0" Offset="1"/>
+                                            </LinearGradientBrush>
+                                        </Setter.Value>
+                                    </Setter>
+                                    <Setter Property="BorderBrush" Value="#FFACACAC" />
+                                    <Setter Property="BorderThickness" Value="1" />
+                                    <Style.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter Property="Background">
+                                                <Setter.Value>
+                                                    <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                                        <GradientStop Color="#FFFEFEFE" Offset="0"/>
+                                                        <GradientStop Color="#FFE5F1FB" Offset="1"/>
+                                                    </LinearGradientBrush>
+                                                </Setter.Value>
+                                            </Setter>
+                                        </Trigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Button.Style>
+                        </Button>
                     </StackPanel>
                 </Border>
 
