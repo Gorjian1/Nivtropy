@@ -1473,7 +1473,26 @@ namespace Nivtropy.Views
                     }
                 }
 
-                pointsByRun[run] = sequence;
+                // Убираем подряд идущие дубликаты и при необходимости замыкаем ход
+                var uniqueSequence = new List<string>();
+                string? lastCode = null;
+                foreach (var code in sequence)
+                {
+                    if (string.Equals(code, lastCode, StringComparison.OrdinalIgnoreCase))
+                        continue;
+
+                    uniqueSequence.Add(code);
+                    lastCode = code;
+                }
+
+                if (uniqueSequence.Count > 2
+                    && string.Equals(run.StartLabel, run.EndLabel, StringComparison.OrdinalIgnoreCase)
+                    && !string.Equals(uniqueSequence[0], uniqueSequence[^1], StringComparison.OrdinalIgnoreCase))
+                {
+                    uniqueSequence.Add(uniqueSequence[0]);
+                }
+
+                pointsByRun[run] = uniqueSequence;
             }
 
             // Общие точки (включенные) для связности
@@ -1561,6 +1580,37 @@ namespace Nivtropy.Views
                 }
             }
 
+            // Лёгкое раздвижение центров фигур, чтобы они меньше перекрывались
+            for (int iteration = 0; iteration < 18; iteration++)
+            {
+                foreach (var a in runs)
+                {
+                    foreach (var b in runs)
+                    {
+                        if (a == b) continue;
+
+                        var ca = runCenters[a];
+                        var cb = runCenters[b];
+                        var delta = cb - ca;
+                        var distance = delta.Length;
+                        var target = runShapeRadius[a] + runShapeRadius[b] + padding * 0.6;
+
+                        if (distance <= 0.01 || distance >= target)
+                            continue;
+
+                        delta.Normalize();
+                        var push = (target - distance) / 2;
+                        var shiftA = new Point(ca.X - delta.X * push, ca.Y - delta.Y * push);
+                        var shiftB = new Point(cb.X + delta.X * push, cb.Y + delta.Y * push);
+
+                        runCenters[a] = ClampPoint(shiftA, padding + runShapeRadius[a]);
+                        runCenters[b] = ClampPoint(shiftB, padding + runShapeRadius[b]);
+                    }
+                }
+            }
+
+            var drawnSharedPoints = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
             // Рисуем каждый ход как сглаженную фигуру
             foreach (var run in runs)
             {
@@ -1569,7 +1619,7 @@ namespace Nivtropy.Views
 
                 var runColor = runColors.TryGetValue(run, out var c) ? c : Colors.SteelBlue;
                 var strokeColor = run.IsActive ? runColor : Color.FromRgb(140, 140, 140);
-                var fillColor = Colors.Transparent;
+                var fillColor = Color.FromArgb(30, runColor.R, runColor.G, runColor.B);
 
                 var centerPoint = runCenters[run];
                 var pointCount = Math.Max(pointSequence.Count, 2);
@@ -1619,7 +1669,7 @@ namespace Nivtropy.Views
                     FontSize = 10,
                     FontWeight = run.IsActive ? FontWeights.SemiBold : FontWeights.Normal,
                     Foreground = new SolidColorBrush(strokeColor),
-                    Background = new SolidColorBrush(Color.FromArgb(210, 255, 255, 255))
+                    Background = new SolidColorBrush(Color.FromArgb(220, 255, 255, 255))
                 };
                 Canvas.SetLeft(label, centroid.X - 18);
                 Canvas.SetTop(label, centroid.Y - 10);
@@ -1644,32 +1694,42 @@ namespace Nivtropy.Views
                             ? Colors.OrangeRed
                             : Color.FromArgb(220, runColor.R, runColor.G, runColor.B);
 
-                    var node = new Ellipse
+                    if (!isShared || drawnSharedPoints.Add(code))
                     {
-                        Width = hasKnownHeight ? 11 : 9,
-                        Height = hasKnownHeight ? 11 : 9,
-                        Fill = new SolidColorBrush(pointColor),
-                        Stroke = Brushes.White,
-                        StrokeThickness = 2,
-                        ToolTip = $"{code}\n{(hasKnownHeight ? "Известная" : isShared ? "Общая" : "Точка хода" )}"
-                    };
+                        var node = new Ellipse
+                        {
+                            Width = hasKnownHeight ? 11 : 9,
+                            Height = hasKnownHeight ? 11 : 9,
+                            Fill = new SolidColorBrush(pointColor),
+                            Stroke = Brushes.White,
+                            StrokeThickness = 2,
+                            ToolTip = $"{code}\n{(hasKnownHeight ? "Известная" : isShared ? "Общая" : "Точка хода" )}"
+                        };
 
-                    Canvas.SetLeft(node, pointPos.X - node.Width / 2);
-                    Canvas.SetTop(node, pointPos.Y - node.Height / 2);
-                    TraverseVisualizationCanvas.Children.Add(node);
+                        Canvas.SetLeft(node, pointPos.X - node.Width / 2);
+                        Canvas.SetTop(node, pointPos.Y - node.Height / 2);
+                        TraverseVisualizationCanvas.Children.Add(node);
 
-                    var pointLabel = new TextBlock
-                    {
-                        Text = code,
-                        FontSize = 8,
-                        FontWeight = FontWeights.SemiBold,
-                        Foreground = Brushes.Black,
-                        Background = new SolidColorBrush(Color.FromArgb(200, 255, 255, 255))
-                    };
+                        var direction = pointPos - centerPoint;
+                        if (direction.Length < 0.001)
+                            direction = new Vector(0, -1);
+                        else
+                            direction.Normalize();
 
-                    Canvas.SetLeft(pointLabel, pointPos.X + 8);
-                    Canvas.SetTop(pointLabel, pointPos.Y - 10);
-                    TraverseVisualizationCanvas.Children.Add(pointLabel);
+                        var labelOffset = direction * (node.Width / 2 + 6);
+                        var pointLabel = new TextBlock
+                        {
+                            Text = code,
+                            FontSize = 8,
+                            FontWeight = FontWeights.SemiBold,
+                            Foreground = Brushes.Black,
+                            Background = new SolidColorBrush(Color.FromArgb(200, 255, 255, 255))
+                        };
+
+                        Canvas.SetLeft(pointLabel, pointPos.X + labelOffset.X - 6);
+                        Canvas.SetTop(pointLabel, pointPos.Y + labelOffset.Y - 8);
+                        TraverseVisualizationCanvas.Children.Add(pointLabel);
+                    }
                 }
             }
         }
