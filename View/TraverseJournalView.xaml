@@ -926,38 +926,11 @@
                     <StackPanel>
                         <!-- Заголовок с кнопкой управления -->
                         <Grid Margin="0,0,0,10">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-
-                            <TextBlock Grid.Column="0"
-                                       Text="Связи ходов"
+                            <TextBlock Text="Связи ходов"
                                        FontWeight="SemiBold"
                                        FontSize="12"
                                        Foreground="#2B579A"
                                        VerticalAlignment="Center" />
-
-                            <Button Grid.Column="1"
-                                    Content="⚙ Управление ходами"
-                                    Click="ManageSystems_Click"
-                                    Padding="8,4"
-                                    FontSize="10"
-                                    Cursor="Hand"
-                                    ToolTip="Создание и редактирование систем ходов">
-                                <Button.Style>
-                                    <Style TargetType="Button">
-                                        <Setter Property="Background" Value="White" />
-                                        <Setter Property="BorderBrush" Value="#FFACACAC" />
-                                        <Setter Property="BorderThickness" Value="1" />
-                                        <Style.Triggers>
-                                            <Trigger Property="IsMouseOver" Value="True">
-                                                <Setter Property="Background" Value="#FFE5F1FB" />
-                                            </Trigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </Button.Style>
-                            </Button>
                         </Grid>
 
                         <!-- Canvas для визуализации -->
@@ -969,64 +942,263 @@
                             <Canvas x:Name="TraverseVisualizationCanvas"
                                     ClipToBounds="True" />
                         </Border>
+
+                        <Border BorderBrush="#FFE0E0E0"
+                                BorderThickness="1"
+                                CornerRadius="3"
+                                Padding="10"
+                                Margin="0,10,0,0"
+                                Background="White">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="220" />
+                                    <ColumnDefinition Width="10" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="*" />
+                                </Grid.RowDefinitions>
+
+                                <TextBlock Grid.Column="0"
+                                           Grid.Row="0"
+                                           Text="Управление ходами"
+                                           FontWeight="SemiBold"
+                                           FontSize="12"
+                                           Foreground="#2B579A"
+                                           Margin="0,0,0,8" />
+
+                                <TextBlock Grid.Column="2"
+                                           Grid.Row="0"
+                                           Text="Выберите систему, перемещайте ходы и управляйте общими точками между ходами."
+                                           TextWrapping="Wrap"
+                                           Foreground="#707070"
+                                           FontSize="11"
+                                           Margin="0,0,0,8" />
+
+                                <Grid Grid.Row="1" Grid.Column="0">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="*" />
+                                        <RowDefinition Height="Auto" />
+                                    </Grid.RowDefinitions>
+
+                                    <Border Grid.Row="0"
+                                            Background="#FFF8F9FA"
+                                            BorderBrush="#FFE0E0E0"
+                                            BorderThickness="0,0,0,1"
+                                            Padding="8,6">
+                                        <TextBlock Text="Системы ходов"
+                                                   FontWeight="SemiBold"
+                                                   FontSize="12"
+                                                   Foreground="#2B579A" />
+                                    </Border>
+
+                                    <ListBox Grid.Row="1"
+                                             x:Name="SystemsListBox"
+                                             SelectionChanged="SystemsListBox_SelectionChanged"
+                                             BorderThickness="0"
+                                             ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                                        <ListBox.ItemTemplate>
+                                            <DataTemplate>
+                                                <Grid Margin="4,2">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                    </Grid.ColumnDefinitions>
+
+                                                    <TextBlock Grid.Column="0"
+                                                               Text="{Binding DisplayName}"
+                                                               FontSize="11"
+                                                               VerticalAlignment="Center"
+                                                               TextTrimming="CharacterEllipsis" />
+
+                                                    <TextBlock Grid.Column="1"
+                                                               Text="{Binding RunCount, StringFormat=({0})}"
+                                                               FontSize="10"
+                                                               Foreground="#707070"
+                                                               Margin="4,0,0,0"
+                                                               VerticalAlignment="Center" />
+                                                </Grid>
+                                            </DataTemplate>
+                                        </ListBox.ItemTemplate>
+                                    </ListBox>
+
+                                    <StackPanel Grid.Row="2"
+                                                Orientation="Horizontal"
+                                                HorizontalAlignment="Center"
+                                                Margin="8">
+                                        <Button Content="➕ Создать"
+                                                Click="CreateSystem_Click"
+                                                Padding="10,4"
+                                                Margin="0,0,4,0"
+                                                FontSize="10"
+                                                Background="White"
+                                                BorderBrush="#FFACACAC"
+                                                BorderThickness="1"
+                                                Cursor="Hand" />
+                                        <Button Content="✏ Переименовать"
+                                                Click="RenameSystem_Click"
+                                                Padding="10,4"
+                                                Margin="0,0,4,0"
+                                                FontSize="10"
+                                                Background="White"
+                                                BorderBrush="#FFACACAC"
+                                                BorderThickness="1"
+                                                Cursor="Hand" />
+                                        <Button Content="🗑 Удалить"
+                                                Click="DeleteSystem_Click"
+                                                Padding="10,4"
+                                                FontSize="10"
+                                                Background="White"
+                                                BorderBrush="#FFACACAC"
+                                                BorderThickness="1"
+                                                Cursor="Hand" />
+                                    </StackPanel>
+                                </Grid>
+
+                                <Grid Grid.Column="2" Grid.Row="1">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="*" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="*" />
+                                    </Grid.RowDefinitions>
+
+                                    <Grid Grid.Row="0" Margin="0,0,0,6">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0"
+                                                   x:Name="RunsHeaderText"
+                                                   Text="Ходы системы"
+                                                   FontWeight="SemiBold"
+                                                   FontSize="12"
+                                                   Foreground="#2B579A"
+                                                   VerticalAlignment="Center" />
+                                        <ComboBox Grid.Column="1"
+                                                  x:Name="MoveToSystemComboBox"
+                                                  DisplayMemberPath="Name"
+                                                  FontSize="10"
+                                                  MinWidth="120"
+                                                  Height="24"
+                                                  Background="White"
+                                                  BorderBrush="#FFACACAC"
+                                                  ToolTip="Переместить выбранные ходы в другую систему" />
+                                    </Grid>
+
+                                    <ListBox Grid.Row="1"
+                                             x:Name="RunsListBox"
+                                             SelectionMode="Extended"
+                                             SelectionChanged="RunsListBox_SelectionChanged"
+                                             BorderBrush="#FFE0E0E0"
+                                             BorderThickness="1"
+                                             ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                                        <ListBox.ItemTemplate>
+                                            <DataTemplate>
+                                                <Grid Margin="4,2">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto" />
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                    </Grid.ColumnDefinitions>
+
+                                                    <CheckBox Grid.Column="0"
+                                                              IsChecked="{Binding IsActive}"
+                                                              Margin="0,0,6,0"
+                                                              VerticalAlignment="Center"
+                                                              ToolTip="Активен" />
+
+                                                    <TextBlock Grid.Column="1"
+                                                               Text="{Binding Header}"
+                                                               FontSize="11"
+                                                               VerticalAlignment="Center"
+                                                               TextTrimming="CharacterEllipsis" />
+
+                                                    <TextBlock Grid.Column="2"
+                                                               Text="{Binding CombinedStats}"
+                                                               FontSize="9"
+                                                               Foreground="#707070"
+                                                               Margin="4,0,0,0"
+                                                               VerticalAlignment="Center" />
+                                                </Grid>
+                                            </DataTemplate>
+                                        </ListBox.ItemTemplate>
+                                    </ListBox>
+
+                                    <StackPanel Grid.Row="2"
+                                                Orientation="Horizontal"
+                                                HorizontalAlignment="Right"
+                                                Margin="0,6,0,6">
+                                        <Button Content="Переместить"
+                                                Click="MoveRuns_Click"
+                                                Padding="10,4"
+                                                FontSize="10"
+                                                Background="#0078D4"
+                                                Foreground="White"
+                                                BorderBrush="#FF005A9E"
+                                                BorderThickness="1"
+                                                Cursor="Hand" />
+                                    </StackPanel>
+
+                                    <Separator Grid.Row="3" Margin="0,4" />
+
+                                    <Border Grid.Row="4"
+                                            BorderBrush="#FFE0E0E0"
+                                            BorderThickness="1"
+                                            CornerRadius="4"
+                                            Padding="8"
+                                            Background="#FFFAFAFA">
+                                        <StackPanel>
+                                            <TextBlock Text="Общие точки выбранного хода"
+                                                       FontWeight="SemiBold"
+                                                       FontSize="11"
+                                                       Margin="0,0,0,6"
+                                                       x:Name="SharedPointsHeader" />
+                                            <ItemsControl x:Name="SharedPointsList"
+                                                          Margin="0,0,0,4">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <Border BorderBrush="#FFE0E0E0" BorderThickness="0,0,0,1" Padding="6,4">
+                                                            <Grid>
+                                                                <Grid.ColumnDefinitions>
+                                                                    <ColumnDefinition Width="Auto" />
+                                                                    <ColumnDefinition Width="*" />
+                                                                </Grid.ColumnDefinitions>
+                                                                <CheckBox Grid.Column="0"
+                                                                          IsChecked="{Binding IsEnabled, Mode=TwoWay}"
+                                                                          Content="{Binding Code}"
+                                                                          VerticalAlignment="Center"
+                                                                          ToolTip="Отметьте, если точка действительно общая между ходами" />
+                                                                <TextBlock Grid.Column="1"
+                                                                           Text="{Binding RunsDisplay}"
+                                                                           Margin="8,0,0,0"
+                                                                           VerticalAlignment="Center"
+                                                                           Foreground="#707070" />
+                                                            </Grid>
+                                                        </Border>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                            <TextBlock x:Name="SharedPointsEmptyText"
+                                                       Text="Выберите ход для просмотра одноимённых точек"
+                                                       Padding="6"
+                                                       HorizontalAlignment="Center"
+                                                       Foreground="#707070"
+                                                       Visibility="Collapsed" />
+                                        </StackPanel>
+                                    </Border>
+                                </Grid>
+                            </Grid>
+                        </Border>
                     </StackPanel>
                 </Border>
 
             </StackPanel>
         </ScrollViewer>
         <!-- Конец правой панели -->
-
-        <Popup x:Name="SharedPointsPopup"
-               Placement="Bottom"
-               StaysOpen="False"
-               AllowsTransparency="True">
-            <Border Background="White"
-                    BorderBrush="#FFB0B0B0"
-                    BorderThickness="1"
-                    CornerRadius="3"
-                    MinWidth="280">
-                <Border.Effect>
-                    <DropShadowEffect Color="Black" Opacity="0.3" BlurRadius="10" ShadowDepth="2" />
-                </Border.Effect>
-                <StackPanel>
-                    <TextBlock Text="Общие точки"
-                               FontWeight="SemiBold"
-                               Padding="8,6,8,4" />
-                    <Separator />
-                    <ScrollViewer MaxHeight="240" VerticalScrollBarVisibility="Auto">
-                        <ItemsControl x:Name="SharedPointsList">
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <Border BorderBrush="#FFE0E0E0" BorderThickness="0,0,0,1" Padding="8,6">
-                                        <Grid>
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="Auto" />
-                                                <ColumnDefinition Width="*" />
-                                            </Grid.ColumnDefinitions>
-                                            <CheckBox Grid.Column="0"
-                                                      IsChecked="{Binding IsEnabled, Mode=TwoWay}"
-                                                      Content="{Binding Code}"
-                                                      VerticalAlignment="Center" />
-                                            <TextBlock Grid.Column="1"
-                                                       Text="{Binding RunsDisplay}"
-                                                       Margin="8,0,0,0"
-                                                       VerticalAlignment="Center"
-                                                       Foreground="#707070" />
-                                        </Grid>
-                                    </Border>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-                    </ScrollViewer>
-                    <TextBlock x:Name="SharedPointsEmptyText"
-                               Text="Нет общих точек"
-                               Padding="12"
-                               HorizontalAlignment="Center"
-                               Foreground="#707070"
-                               Visibility="Collapsed" />
-                </StackPanel>
-            </Border>
-        </Popup>
 
         <!-- Popup для профиля хода -->
         <Popup x:Name="TraverseDetailsPopup"
