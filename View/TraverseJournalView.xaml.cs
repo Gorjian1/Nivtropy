@@ -1465,11 +1465,17 @@ namespace Nivtropy.Views
             foreach (var run in runs)
             {
                 var runRows = rows
-                    .Where(r => r.LineSummary?.Index == run.Index)
+                    .Where(r => r.LineSummary?.Index == run.Index || string.Equals(r.LineName, run.DisplayName, StringComparison.OrdinalIgnoreCase))
                     .OrderBy(r => r.Index)
                     .ToList();
 
                 var sequence = new List<string>();
+
+                if (!string.IsNullOrWhiteSpace(run.StartLabel))
+                {
+                    sequence.Add(run.StartLabel.Trim());
+                }
+
                 foreach (var row in runRows)
                 {
                     if (!string.IsNullOrWhiteSpace(row.BackCode))
@@ -1487,14 +1493,29 @@ namespace Nivtropy.Views
                     }
                 }
 
-                if (sequence.Count == 0 && !string.IsNullOrWhiteSpace(run.StartLabel))
+                if (sequence.Count == 1 && !string.IsNullOrWhiteSpace(run.EndLabel))
                 {
-                    sequence.Add(run.StartLabel.Trim());
-                    if (!string.Equals(run.StartLabel, run.EndLabel, StringComparison.OrdinalIgnoreCase)
-                        && !string.IsNullOrWhiteSpace(run.EndLabel))
-                    {
-                        sequence.Add(run.EndLabel.Trim());
-                    }
+                    var end = run.EndLabel.Trim();
+                    if (!string.Equals(sequence[0], end, StringComparison.OrdinalIgnoreCase))
+                        sequence.Add(end);
+                }
+
+                if (sequence.Count == 0)
+                {
+                    var anchors = calculation.GetSharedPointsForRun(run)
+                        .Select(p => p.Code)
+                        .Where(code => !string.IsNullOrWhiteSpace(code))
+                        .Select(code => code.Trim())
+                        .Distinct(StringComparer.OrdinalIgnoreCase)
+                        .ToList();
+
+                    if (anchors.Count > 0)
+                        sequence.AddRange(anchors);
+                }
+
+                if (sequence.Count == 0 && !string.IsNullOrWhiteSpace(run.EndLabel))
+                {
+                    sequence.Add(run.EndLabel.Trim());
                 }
 
                 // Убираем подряд идущие дубликаты и при необходимости замыкаем ход
@@ -1507,6 +1528,27 @@ namespace Nivtropy.Views
 
                     uniqueSequence.Add(code);
                     lastCode = code;
+                }
+
+                if (uniqueSequence.Count == 1)
+                {
+                    var extra = calculation.GetSharedPointsForRun(run)
+                        .Select(p => p.Code)
+                        .FirstOrDefault(code => !string.IsNullOrWhiteSpace(code) && !string.Equals(code.Trim(), uniqueSequence[0], StringComparison.OrdinalIgnoreCase));
+
+                    if (!string.IsNullOrWhiteSpace(extra))
+                    {
+                        uniqueSequence.Add(extra.Trim());
+                    }
+                    else if (!string.IsNullOrWhiteSpace(run.EndLabel) && !string.Equals(uniqueSequence[0], run.EndLabel, StringComparison.OrdinalIgnoreCase))
+                    {
+                        uniqueSequence.Add(run.EndLabel.Trim());
+                    }
+                }
+
+                if (uniqueSequence.Count == 0 && !string.IsNullOrWhiteSpace(run.StartLabel))
+                {
+                    uniqueSequence.Add(run.StartLabel.Trim());
                 }
 
                 if (uniqueSequence.Count > 2
@@ -1536,9 +1578,19 @@ namespace Nivtropy.Views
                 return Math.Max(0, Math.Min(dx, dy));
             }
 
+            double CalculateRunRadius(int pointCount)
+            {
+                var clamped = Math.Max(pointCount, 1);
+                var scaled = clamped <= 8
+                    ? 12 + clamped * 5
+                    : 12 + 8 * 5 + (clamped - 8) * 3.5;
+
+                return Math.Min(scaled, 120);
+            }
+
             var runShapeRadius = runs.ToDictionary(
                 run => run,
-                run => 22 + Math.Max(pointsByRun.TryGetValue(run, out var seq) ? seq.Count : 0, 2) * 6);
+                run => CalculateRunRadius(pointsByRun.TryGetValue(run, out var seq) ? seq.Count : 0));
 
             var maxShapeRadius = runShapeRadius.Values.Count > 0 ? runShapeRadius.Values.Max() : 30;
 
