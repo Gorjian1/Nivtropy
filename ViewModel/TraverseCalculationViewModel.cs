@@ -609,73 +609,97 @@ namespace Nivtropy.ViewModels
 
             UpdateSharedPointsMetadata(_dataViewModel.Records);
 
-            // Доступные высоты точек: сначала известные вручную
-            var availableAdjustedHeights = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
-            var availableRawHeights = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
-
-            // Добавляем все известные высоты, включая точки с суффиксами ходов
-            foreach (var kvp in _dataViewModel.KnownHeights)
+            // Обрабатываем каждую систему отдельно с независимыми пространствами высот
+            foreach (var system in _systems.OrderBy(s => s.Order))
             {
-                availableAdjustedHeights[kvp.Key] = kvp.Value;
-                availableRawHeights[kvp.Key] = kvp.Value;
-            }
-
-            bool AnchorChecker(string code) => IsAnchorAllowed(code, availableAdjustedHeights.ContainsKey);
-
-            var processedGroups = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-            for (int iteration = 0; iteration < traverseGroups.Count; iteration++)
-            {
-                bool progress = false;
-
-                foreach (var group in traverseGroups)
+                // Получаем группы ходов для текущей системы (только активные)
+                var systemTraverseGroups = traverseGroups.Where(g =>
                 {
-                    if (processedGroups.Contains(group.Key))
-                        continue;
+                    var run = Runs.FirstOrDefault(r => r.DisplayName == g.Key);
+                    return run != null && run.SystemId == system.Id && run.IsActive;
+                }).ToList();
 
-                    var groupItems = group.ToList();
-                    bool hasAnchor = groupItems.Any(r =>
-                        (!string.IsNullOrWhiteSpace(r.BackCode) && AnchorChecker(r.BackCode!)) ||
-                        (!string.IsNullOrWhiteSpace(r.ForeCode) && AnchorChecker(r.ForeCode!)));
+                if (systemTraverseGroups.Count == 0)
+                    continue;
 
-                    if (!hasAnchor && iteration < traverseGroups.Count - 1)
-                        continue;
+                // Высоты для текущей системы (изолированные от других систем)
+                var availableAdjustedHeights = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
+                var availableRawHeights = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
 
-                    // Если к этому моменту высот нет ни у одной точки ни одного хода,
-                    // стартуем первый обработанный ход с 0 в первой точке
-                    if (!hasAnchor)
+                // Добавляем только реперы текущей системы
+                foreach (var kvp in _dataViewModel.KnownHeights)
+                {
+                    if (_benchmarkSystems.TryGetValue(kvp.Key, out var benchSystemId) && benchSystemId == system.Id)
                     {
-                        var firstCode = groupItems.Select(r => r.BackCode ?? r.ForeCode)
-                            .FirstOrDefault(c => !string.IsNullOrWhiteSpace(c));
-                        if (!string.IsNullOrWhiteSpace(firstCode))
-                        {
-                            availableAdjustedHeights[firstCode!] = 0.0;
-                            availableRawHeights[firstCode!] = 0.0;
-                            hasAnchor = true;
-                        }
+                        availableAdjustedHeights[kvp.Key] = kvp.Value;
+                        availableRawHeights[kvp.Key] = kvp.Value;
                     }
-
-                    CalculateCorrections(groupItems, AnchorChecker);
-                    CalculateHeightsForRun(groupItems, availableAdjustedHeights, availableRawHeights, group.Key);
-                    processedGroups.Add(group.Key);
-                    progress = true;
                 }
 
-                if (!progress)
-                    break;
+                bool AnchorChecker(string code) => IsAnchorAllowed(code, availableAdjustedHeights.ContainsKey);
+
+                var processedGroups = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+                // Обрабатываем ходы системы
+                for (int iteration = 0; iteration < systemTraverseGroups.Count; iteration++)
+                {
+                    bool progress = false;
+
+                    foreach (var group in systemTraverseGroups)
+                    {
+                        if (processedGroups.Contains(group.Key))
+                            continue;
+
+                        var groupItems = group.ToList();
+                        bool hasAnchor = groupItems.Any(r =>
+                            (!string.IsNullOrWhiteSpace(r.BackCode) && AnchorChecker(r.BackCode!)) ||
+                            (!string.IsNullOrWhiteSpace(r.ForeCode) && AnchorChecker(r.ForeCode!)));
+
+                        if (!hasAnchor && iteration < systemTraverseGroups.Count - 1)
+                            continue;
+
+                        // Если к этому моменту высот нет ни у одной точки ни одного хода в системе,
+                        // стартуем первый обработанный ход с 0 в первой точке
+                        if (!hasAnchor)
+                        {
+                            var firstCode = groupItems.Select(r => r.BackCode ?? r.ForeCode)
+                                .FirstOrDefault(c => !string.IsNullOrWhiteSpace(c));
+                            if (!string.IsNullOrWhiteSpace(firstCode))
+                            {
+                                availableAdjustedHeights[firstCode!] = 0.0;
+                                availableRawHeights[firstCode!] = 0.0;
+                                hasAnchor = true;
+                            }
+                        }
+
+                        CalculateCorrections(groupItems, AnchorChecker);
+                        CalculateHeightsForRun(groupItems, availableAdjustedHeights, availableRawHeights, group.Key);
+                        processedGroups.Add(group.Key);
+                        progress = true;
+                    }
+
+                    if (!progress)
+                        break;
+                }
+
+                // Обновляем накопление разности плеч для ходов текущей системы
+                UpdateArmDifferenceAccumulation(systemTraverseGroups, AnchorChecker);
             }
 
-            // Обновляем накопление разности плеч для каждого хода
-            UpdateArmDifferenceAccumulation(traverseGroups, AnchorChecker);
-
+            // Добавляем в таблицу только строки из активных ходов
             foreach (var row in items)
             {
-                _rows.Add(row);
+                var run = Runs.FirstOrDefault(r => r.DisplayName == row.LineName);
+                if (run != null && run.IsActive)
+                {
+                    _rows.Add(row);
+                }
             }
 
-            StationsCount = items.Count;
-            TotalBackDistance = items.Sum(r => r.HdBack_m ?? 0);
-            TotalForeDistance = items.Sum(r => r.HdFore_m ?? 0);
+            // Статистика считается только по активным ходам
+            StationsCount = _rows.Count;
+            TotalBackDistance = _rows.Sum(r => r.HdBack_m ?? 0);
+            TotalForeDistance = _rows.Sum(r => r.HdFore_m ?? 0);
             TotalAverageDistance = StationsCount > 0
                 ? (TotalBackDistance + TotalForeDistance) / 2.0
                 : 0;
