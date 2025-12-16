@@ -1,6 +1,7 @@
 using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
@@ -189,9 +190,9 @@ namespace Nivtropy.ViewModels
                             }
                         }
 
-                        double? rb = !string.IsNullOrWhiteSpace(parts[4]) ? double.Parse(parts[4], System.Globalization.CultureInfo.InvariantCulture) : null;
-                        double? rf = !string.IsNullOrWhiteSpace(parts[5]) ? double.Parse(parts[5], System.Globalization.CultureInfo.InvariantCulture) : null;
-                        double? height = !string.IsNullOrWhiteSpace(parts[10]) ? double.Parse(parts[10], System.Globalization.CultureInfo.InvariantCulture) : null;
+                        double? rb = ParseNullableDouble(parts[4]);
+                        double? rf = ParseNullableDouble(parts[5]);
+                        double? height = ParseNullableDouble(parts[10]);
 
                         // Генерируем расстояния (5-15 метров)
                         double? hdBack = rb.HasValue ? 5.0 + _random.NextDouble() * 10.0 : null;
@@ -481,6 +482,28 @@ namespace Nivtropy.ViewModels
             field = value;
             OnPropertyChanged(propertyName);
             return true;
+        }
+
+        private double? ParseNullableDouble(string? value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+                return null;
+
+            var normalized = value.Trim()
+                .Replace(" ", string.Empty)
+                .Replace("\u00A0", string.Empty);
+
+            if (double.TryParse(normalized, NumberStyles.Float | NumberStyles.AllowThousands, CultureInfo.InvariantCulture, out var result))
+                return result;
+
+            var swapped = normalized.Replace(',', '.');
+            if (double.TryParse(swapped, NumberStyles.Float | NumberStyles.AllowThousands, CultureInfo.InvariantCulture, out result))
+                return result;
+
+            if (double.TryParse(normalized, NumberStyles.Float | NumberStyles.AllowThousands, new CultureInfo("ru-RU"), out result))
+                return result;
+
+            return null;
         }
     }
 }

@@ -108,18 +108,17 @@
                         </StackPanel>
                     </GroupBox>
 
-                    <!-- Место для будущего рисунка -->
-                    <GroupBox Header="Вид сверху (в разработке)" Margin="0,0,0,0">
-                        <Border Height="200"
+                    <!-- Визуализация профиля -->
+                    <GroupBox Header="Профиль сгенерированных данных" Margin="0,0,0,0">
+                        <Border Height="260"
                                Background="#FFF9F9F9"
                                BorderBrush="#FFE0E0E0"
                                BorderThickness="1"
                                Margin="8">
-                            <TextBlock Text="Визуализация будет добавлена позже"
-                                      VerticalAlignment="Center"
-                                      HorizontalAlignment="Center"
-                                      Foreground="#FF808080"
-                                      FontStyle="Italic" />
+                            <Canvas x:Name="GeneratedProfileCanvas"
+                                    Background="White"
+                                    ClipToBounds="True"
+                                    SizeChanged="GeneratedProfileCanvas_SizeChanged"/>
                         </Border>
                     </GroupBox>
                 </StackPanel>
