@@ -1,4 +1,6 @@
 using System.Collections.Specialized;
+using System.ComponentModel;
+using System.Linq;
 using System.Windows.Controls;
 using Nivtropy.Services.Visualization;
 using Nivtropy.ViewModels;
@@ -23,11 +25,13 @@ namespace Nivtropy.Views
             if (e.OldValue is DataGeneratorViewModel oldVm)
             {
                 oldVm.Measurements.CollectionChanged -= Measurements_CollectionChanged;
+                oldVm.PropertyChanged -= ViewModel_PropertyChanged;
             }
 
             if (e.NewValue is DataGeneratorViewModel newVm)
             {
                 newVm.Measurements.CollectionChanged += Measurements_CollectionChanged;
+                newVm.PropertyChanged += ViewModel_PropertyChanged;
             }
 
             RedrawProfile();
@@ -43,12 +47,25 @@ namespace Nivtropy.Views
             RedrawProfile();
         }
 
+        private void ViewModel_PropertyChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == nameof(DataGeneratorViewModel.SelectedLineName))
+            {
+                RedrawProfile();
+            }
+        }
+
         private void RedrawProfile()
         {
             if (ViewModel == null)
                 return;
 
-            _visualizationService.DrawProfile(GeneratedProfileCanvas, ViewModel.Measurements);
+            var selectedLine = ViewModel.SelectedLineName;
+            var measurements = string.IsNullOrWhiteSpace(selectedLine)
+                ? ViewModel.Measurements.ToList()
+                : ViewModel.Measurements.Where(m => m.LineName == selectedLine).ToList();
+
+            _visualizationService.DrawProfile(GeneratedProfileCanvas, measurements);
         }
     }
 }

@@ -20,25 +20,36 @@ namespace Nivtropy.ViewModels
     public class DataGeneratorViewModel : INotifyPropertyChanged
     {
         private readonly ObservableCollection<GeneratedMeasurement> _measurements = new();
+        private readonly ObservableCollection<string> _availableLines = new();
         private bool _formatNivelir = true;
         private double _stdDevMeasurement = 0.5; // СКО для измерений (мм)
         private double _stdDevGrossError = 2.0; // СКО для грубых ошибок (мм)
         private int _grossErrorFrequency = 10; // Частота грубых ошибок (каждая N-ная станция)
         private string _sourceFilePath = string.Empty;
+        private string? _selectedLineName;
         private Random _random = new Random();
 
         public event PropertyChangedEventHandler? PropertyChanged;
 
         public DataGeneratorViewModel()
         {
+            _measurements.CollectionChanged += (_, __) => RefreshAvailableLines();
         }
 
         public ObservableCollection<GeneratedMeasurement> Measurements => _measurements;
+
+        public ObservableCollection<string> AvailableLines => _availableLines;
 
         public bool FormatNivelir
         {
             get => _formatNivelir;
             set => SetField(ref _formatNivelir, value);
+        }
+
+        public string? SelectedLineName
+        {
+            get => _selectedLineName;
+            set => SetField(ref _selectedLineName, value);
         }
 
         public double StdDevMeasurement
@@ -470,6 +481,38 @@ namespace Nivtropy.ViewModels
                 MessageBoxImage.Information);
         }
 
+        private void RefreshAvailableLines()
+        {
+            var names = _measurements
+                .Select(m => m.LineName)
+                .Where(n => !string.IsNullOrWhiteSpace(n))
+                .Distinct()
+                .OrderBy(n => n)
+                .ToList();
+
+            bool changed = names.Count != _availableLines.Count || !_availableLines.SequenceEqual(names);
+            if (changed)
+            {
+                _availableLines.Clear();
+                foreach (var name in names)
+                {
+                    _availableLines.Add(name);
+                }
+            }
+
+            if (names.Count == 0)
+            {
+                if (SelectedLineName != null)
+                    SelectedLineName = null;
+                return;
+            }
+
+            if (SelectedLineName == null || !names.Contains(SelectedLineName))
+            {
+                SelectedLineName = names.First();
+            }
+        }
+
         private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
@@ -493,14 +536,20 @@ namespace Nivtropy.ViewModels
                 .Replace(" ", string.Empty)
                 .Replace("\u00A0", string.Empty);
 
-            if (double.TryParse(normalized, NumberStyles.Float | NumberStyles.AllowThousands, CultureInfo.InvariantCulture, out var result))
+            if (normalized.Contains(',') && !normalized.Contains('.'))
+            {
+                if (double.TryParse(normalized, NumberStyles.Float, new CultureInfo("ru-RU"), out var ruResult))
+                    return ruResult;
+            }
+
+            if (double.TryParse(normalized, NumberStyles.Float, CultureInfo.InvariantCulture, out var result))
                 return result;
 
             var swapped = normalized.Replace(',', '.');
-            if (double.TryParse(swapped, NumberStyles.Float | NumberStyles.AllowThousands, CultureInfo.InvariantCulture, out result))
+            if (double.TryParse(swapped, NumberStyles.Float, CultureInfo.InvariantCulture, out result))
                 return result;
 
-            if (double.TryParse(normalized, NumberStyles.Float | NumberStyles.AllowThousands, new CultureInfo("ru-RU"), out result))
+            if (double.TryParse(normalized, NumberStyles.Float, new CultureInfo("ru-RU"), out result))
                 return result;
 
             return null;
