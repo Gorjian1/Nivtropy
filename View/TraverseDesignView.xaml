@@ -6,123 +6,329 @@
              mc:Ignorable="d"
              d:DesignHeight="600"
              d:DesignWidth="1200">
-    <Grid Margin="12">
+    <UserControl.Resources>
+        <Style x:Key="CardGroupBox" TargetType="GroupBox">
+            <Setter Property="Margin" Value="0,0,0,12" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="GroupBox">
+                        <Border CornerRadius="6" BorderBrush="#D7DDE5" BorderThickness="1" Background="White" SnapsToDevicePixels="True">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="*" />
+                                </Grid.RowDefinitions>
+                                <Border Grid.Row="0" Background="#F5F8FA" Padding="10" CornerRadius="6,6,0,0" BorderBrush="#D7DDE5" BorderThickness="0,0,0,1">
+                                    <ContentPresenter ContentSource="Header" RecognizesAccessKey="True" />
+                                </Border>
+                                <Border Grid.Row="1" Padding="12">
+                                    <ContentPresenter />
+                                </Border>
+                            </Grid>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="CompactIconButton" TargetType="Button">
+            <Setter Property="Width" Value="36" />
+            <Setter Property="Height" Value="36" />
+            <Setter Property="Background" Value="#EFF2F6" />
+            <Setter Property="BorderBrush" Value="#D7DDE5" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Outer" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="4">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Outer" Property="Background" Value="#E2E8F0" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Outer" Property="Background" Value="#CBD5E0" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Outer" Property="Opacity" Value="0.6" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="AccentButton" TargetType="Button" BasedOn="{StaticResource CompactIconButton}">
+            <Setter Property="Background" Value="#0078D4" />
+            <Setter Property="BorderBrush" Value="#0063B1" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Outer" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="4">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Outer" Property="Background" Value="#0A84E6" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Outer" Property="Background" Value="#0A66C2" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Outer" Property="Opacity" Value="0.6" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style TargetType="DataGrid" x:Key="DesignDataGrid">
+            <Setter Property="RowHeaderWidth" Value="0" />
+            <Setter Property="GridLinesVisibility" Value="All" />
+            <Setter Property="VerticalGridLinesBrush" Value="#E1E5EA" />
+            <Setter Property="HorizontalGridLinesBrush" Value="#E1E5EA" />
+            <Setter Property="AutoGenerateColumns" Value="False" />
+            <Setter Property="CanUserAddRows" Value="False" />
+            <Setter Property="HeadersVisibility" Value="Column" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="CellStyle">
+                <Setter.Value>
+                    <Style TargetType="DataGridCell">
+                        <Setter Property="Padding" Value="6" />
+                        <Setter Property="TextBlock.TextAlignment" Value="Center" />
+                        <Setter Property="BorderThickness" Value="0" />
+                        <Setter Property="Background" Value="White" />
+                    </Style>
+                </Setter.Value>
+            </Setter>
+            <Setter Property="ColumnHeaderStyle">
+                <Setter.Value>
+                    <Style TargetType="DataGridColumnHeader">
+                        <Setter Property="Background" Value="White" />
+                        <Setter Property="Foreground" Value="#202020" />
+                        <Setter Property="FontWeight" Value="SemiBold" />
+                        <Setter Property="Padding" Value="8,10" />
+                        <Setter Property="HorizontalContentAlignment" Value="Center" />
+                        <Setter Property="BorderThickness" Value="0,0,0,2" />
+                        <Setter Property="BorderBrush" Value="#E1E1E1" />
+                    </Style>
+                </Setter.Value>
+            </Setter>
+            <Setter Property="RowStyle">
+                <Setter.Value>
+                    <Style TargetType="DataGridRow">
+                        <Setter Property="MinHeight" Value="32" />
+                        <Setter Property="Background" Value="White" />
+                    </Style>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </UserControl.Resources>
+
+    <Grid Background="#F3F6FA">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="7*" />
-            <ColumnDefinition Width="3*" MinWidth="300" />
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="3*" MinWidth="320" />
         </Grid.ColumnDefinitions>
 
         <!-- Левая панель: Таблица с данными -->
-        <GroupBox Grid.Column="0" Header="Сгенерированные данные измерений" Margin="0,0,8,0">
-            <Grid>
-                <!-- Таблица -->
-                <DataGrid
-                          ItemsSource="{Binding Measurements}"
-                          AutoGenerateColumns="False"
-                          CanUserAddRows="False"
-                          IsReadOnly="True"
-                          HeadersVisibility="Column"
-                          RowHeaderWidth="0"
-                          GridLinesVisibility="All"
-                          VerticalGridLinesBrush="#FFE0E0E0"
-                          HorizontalGridLinesBrush="#FFE0E0E0">
+        <Grid Grid.Column="0" Margin="12,12,0,12">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+
+            <TextBlock Grid.Row="0"
+                       Text="Проектирование ходов"
+                       FontSize="16"
+                       FontWeight="SemiBold"
+                       Margin="4,0,0,8"
+                       Foreground="#202020" />
+
+            <Border Grid.Row="1" BorderBrush="#D7DDE5" BorderThickness="1" Background="White" CornerRadius="6">
+                <DataGrid ItemsSource="{Binding Measurements}"
+                          SelectedItem="{Binding SelectedMeasurement, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                          Style="{StaticResource DesignDataGrid}"
+                          Language="ru-RU"
+                          Margin="0">
                     <DataGrid.Columns>
-                        <DataGridTextColumn Header="№" Binding="{Binding Index}" Width="50" />
-                        <DataGridTextColumn Header="Точка" Binding="{Binding PointCode}" Width="*" MinWidth="80" />
-                        <DataGridTextColumn Header="Station" Binding="{Binding StationCode}" Width="*" MinWidth="100" />
-                        <DataGridTextColumn Header="Rb, м" Binding="{Binding Rb_m, StringFormat=F4}" Width="100" />
-                        <DataGridTextColumn Header="Rf, м" Binding="{Binding Rf_m, StringFormat=F4}" Width="100" />
-                        <DataGridTextColumn Header="HD назад, м" Binding="{Binding HD_Back_m, StringFormat=F2}" Width="110" />
-                        <DataGridTextColumn Header="HD вперёд, м" Binding="{Binding HD_Fore_m, StringFormat=F2}" Width="110" />
-                        <DataGridTextColumn Header="Высота, м" Binding="{Binding Height_m, StringFormat=F4}" Width="100" />
+                        <DataGridTextColumn Header="№" Binding="{Binding Index}" Width="50" IsReadOnly="True" />
+                        <DataGridTextColumn Header="Точка" Binding="{Binding PointCode}" Width="*" MinWidth="80" IsReadOnly="True" />
+                        <DataGridTextColumn Header="Станция" Binding="{Binding StationCode}" Width="1.2*" MinWidth="120" IsReadOnly="True" />
+                        <DataGridTextColumn Header="Rb, м" Binding="{Binding Rb_m, StringFormat=F4}" Width="110" IsReadOnly="True" />
+                        <DataGridTextColumn Header="Rf, м" Binding="{Binding Rf_m, StringFormat=F4}" Width="110" IsReadOnly="True" />
+                        <DataGridTextColumn Header="HD назад, м" Width="115">
+                            <DataGridTextColumn.Binding>
+                                <Binding Path="HD_Back_m" Mode="TwoWay" UpdateSourceTrigger="PropertyChanged" StringFormat="F2" />
+                            </DataGridTextColumn.Binding>
+                        </DataGridTextColumn>
+                        <DataGridTextColumn Header="HD вперёд, м" Width="115">
+                            <DataGridTextColumn.Binding>
+                                <Binding Path="HD_Fore_m" Mode="TwoWay" UpdateSourceTrigger="PropertyChanged" StringFormat="F2" />
+                            </DataGridTextColumn.Binding>
+                        </DataGridTextColumn>
+                        <DataGridTextColumn Header="Высота, м" Width="120">
+                            <DataGridTextColumn.Binding>
+                                <Binding Path="Height_m" Mode="TwoWay" UpdateSourceTrigger="PropertyChanged" StringFormat="F4" />
+                            </DataGridTextColumn.Binding>
+                        </DataGridTextColumn>
                     </DataGrid.Columns>
                 </DataGrid>
-            </Grid>
-        </GroupBox>
+            </Border>
+        </Grid>
+
+        <Grid Grid.Column="1" Width="14" />
 
         <!-- Правая панель: Настройки и управление -->
-        <ScrollViewer Grid.Column="1" Margin="8,0,0,0" VerticalScrollBarVisibility="Auto">
+        <ScrollViewer Grid.Column="2" Margin="0,12,12,12" VerticalScrollBarVisibility="Auto">
             <StackPanel>
-                    <!-- Кнопки управления -->
-                    <GroupBox Header="Управление" Margin="0,0,0,16">
-                        <StackPanel Margin="8">
-                            <Button Content="Сгенерировать"
+                <!-- Кнопки управления -->
+                <GroupBox Header="Рабочие действия" Style="{StaticResource CardGroupBox}">
+                    <StackPanel>
+                        <Grid Margin="0,0,0,8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+
+                            <Button Grid.Column="0"
+                                    Height="38"
+                                    Command="{Binding OpenFileCommand}"
+                                    Background="#EFF2F6"
+                                    BorderBrush="#D7DDE5"
+                                    Cursor="Hand">
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                    <TextBlock Text="&#xE8E5;" FontFamily="Segoe MDL2 Assets" FontSize="14" Margin="0,0,6,0" />
+                                    <TextBlock Text="Импорт" />
+                                </StackPanel>
+                            </Button>
+
+                            <Button Grid.Column="1"
+                                    Height="38"
+                                    Margin="8,0,0,0"
                                     Command="{Binding GenerateCommand}"
-                                    Height="32"
-                                    Margin="0,0,0,8" />
-                            <Button Content="Экспортировать"
-                                    Command="{Binding ExportCommand}"
-                                    Height="32" />
+                                    Background="#0078D4"
+                                    BorderBrush="#0063B1"
+                                    Foreground="White"
+                                    Cursor="Hand">
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                    <TextBlock Text="&#xE72E;" FontFamily="Segoe MDL2 Assets" FontSize="14" Margin="0,0,6,0" />
+                                    <TextBlock Text="Генерация" />
+                                </StackPanel>
+                            </Button>
+                        </Grid>
+
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                            <Button Height="32" Padding="12,0" Command="{Binding ExportCommand}" Background="#EFF2F6" BorderBrush="#D7DDE5" Cursor="Hand">
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                    <TextBlock Text="&#xE898;" FontFamily="Segoe MDL2 Assets" FontSize="12" Margin="0,0,6,0" />
+                                    <TextBlock Text="Экспорт" />
+                                </StackPanel>
+                            </Button>
+                            <Button Height="32" Padding="12,0" Command="{Binding SmoothCommand}" Background="#EFF2F6" BorderBrush="#D7DDE5" Cursor="Hand" Margin="8,0,0,0">
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                    <TextBlock Text="&#xEC71;" FontFamily="Segoe MDL2 Assets" FontSize="12" Margin="0,0,6,0" />
+                                    <TextBlock Text="Сгладить" />
+                                </StackPanel>
+                            </Button>
                         </StackPanel>
-                    </GroupBox>
+                    </StackPanel>
+                </GroupBox>
 
-                    <!-- Формат экспорта -->
-                    <GroupBox Header="Формат экспорта" Margin="0,0,0,16">
-                        <StackPanel Margin="8">
-                            <RadioButton Content="Нивелир (*.txt)"
-                                        IsChecked="{Binding FormatNivelir}"
-                                        GroupName="ExportFormat" />
+                <!-- Настройки генерации -->
+                <GroupBox Header="Настройки генерации" Style="{StaticResource CardGroupBox}">
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                            <TextBlock Text="СКО для измерений:" VerticalAlignment="Center" Width="160" />
+                            <TextBox Text="{Binding StdDevMeasurement, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                    ToolTip="Стандартное отклонение для обычных измерений"
+                                    Width="70"
+                                    HorizontalContentAlignment="Center" />
+                            <TextBlock Text="мм" Margin="6,0,0,0" VerticalAlignment="Center" Foreground="#707070" />
                         </StackPanel>
-                    </GroupBox>
 
-                    <!-- Настройки генерации -->
-                    <GroupBox Header="Настройки генерации" Margin="0,0,0,16">
-                        <StackPanel Margin="8">
-                            <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                                <TextBlock Text="СКО для измерений:" VerticalAlignment="Center" Width="150" />
-                                <TextBox Text="{Binding StdDevMeasurement, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                        ToolTip="Стандартное отклонение для обычных измерений"
-                                        Width="60" />
-                                <TextBlock Text="мм" Margin="4,0,0,0" VerticalAlignment="Center" />
-                            </StackPanel>
-
-                            <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                                <TextBlock Text="СКО для грубых ошибок:" VerticalAlignment="Center" Width="150" />
-                                <TextBox Text="{Binding StdDevGrossError, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                        ToolTip="Стандартное отклонение для грубых ошибок"
-                                        Width="60" />
-                                <TextBlock Text="мм" Margin="4,0,0,0" VerticalAlignment="Center" />
-                            </StackPanel>
-
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="Частота грубых ошибок:" VerticalAlignment="Center" Width="150" />
-                                <TextBox Text="{Binding GrossErrorFrequency, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                        ToolTip="Каждая N-ная станция будет иметь грубую ошибку (0 = отключить)"
-                                        Width="60" />
-                            </StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                            <TextBlock Text="СКО для грубых ошибок:" VerticalAlignment="Center" Width="160" />
+                            <TextBox Text="{Binding StdDevGrossError, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                    ToolTip="Стандартное отклонение для грубых ошибок"
+                                    Width="70"
+                                    HorizontalContentAlignment="Center" />
+                            <TextBlock Text="мм" Margin="6,0,0,0" VerticalAlignment="Center" Foreground="#707070" />
                         </StackPanel>
-                    </GroupBox>
 
-                    <!-- Источник данных -->
-                    <GroupBox Header="Источник данных" Margin="0,0,0,16">
-                        <StackPanel Margin="8">
-                            <TextBlock Text="Файл с результатами расчётов:" Margin="0,0,0,4" FontWeight="SemiBold" />
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="Частота грубых ошибок:" VerticalAlignment="Center" Width="160" />
+                            <TextBox Text="{Binding GrossErrorFrequency, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                    ToolTip="Каждая N-ная станция будет иметь грубую ошибку (0 = отключить)"
+                                    Width="70"
+                                    HorizontalContentAlignment="Center" />
+                        </StackPanel>
+                    </StackPanel>
+                </GroupBox>
+
+                <!-- Источник данных -->
+                <GroupBox Header="Источник данных" Style="{StaticResource CardGroupBox}">
+                    <StackPanel>
+                        <TextBlock Text="Файл с результатами расчётов:" Margin="0,0,0,6" FontWeight="SemiBold" />
+                        <Border Background="#F5F8FA" BorderBrush="#D7DDE5" BorderThickness="1" Padding="8" CornerRadius="4" Margin="0,0,0,8">
                             <TextBlock Text="{Binding SourceFilePath, TargetNullValue=Не выбран}"
                                       TextWrapping="Wrap"
-                                      Foreground="#FF606060"
-                                      Margin="0,0,0,8" />
-                            <Button Content="Открыть файл"
-                                   Command="{Binding OpenFileCommand}"
-                                   HorizontalAlignment="Stretch"
-                                   Height="30" />
-                        </StackPanel>
-                    </GroupBox>
-
-                    <!-- Место для будущего рисунка -->
-                    <GroupBox Header="Вид сверху (в разработке)" Margin="0,0,0,0">
-                        <Border Height="200"
-                               Background="#FFF9F9F9"
-                               BorderBrush="#FFE0E0E0"
-                               BorderThickness="1"
-                               Margin="8">
-                            <TextBlock Text="Визуализация будет добавлена позже"
-                                      VerticalAlignment="Center"
-                                      HorizontalAlignment="Center"
-                                      Foreground="#FF808080"
-                                      FontStyle="Italic" />
+                                      Foreground="#505050" />
                         </Border>
-                    </GroupBox>
-                </StackPanel>
-            </ScrollViewer>
+                    </StackPanel>
+                </GroupBox>
+
+                <!-- Визуализация профиля -->
+                <GroupBox Header="Профиль сгенерированных данных" Style="{StaticResource CardGroupBox}" Margin="0">
+                    <StackPanel>
+                        <Border Background="#F5F8FA" BorderBrush="#D7DDE5" BorderThickness="1" CornerRadius="4" Padding="10" Margin="0,0,0,8">
+                            <DockPanel LastChildFill="True" VerticalAlignment="Center">
+                                <StackPanel Orientation="Horizontal" DockPanel.Dock="Left" VerticalAlignment="Center">
+                                    <TextBlock Text="Ход:" VerticalAlignment="Center" />
+                                    <ComboBox ItemsSource="{Binding AvailableLines}"
+                                              SelectedItem="{Binding SelectedLineName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                              Width="180"
+                                              Margin="8,0,0,0"
+                                              IsReadOnly="True"
+                                              IsEditable="False" />
+                                </StackPanel>
+
+                                <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" VerticalAlignment="Center">
+                                    <Button Style="{StaticResource CompactIconButton}"
+                                            ToolTip="Сбросить к исходным значениям"
+                                            Command="{Binding ResetEditsCommand}">
+                                        <TextBlock Text="&#xE777;" FontFamily="Segoe MDL2 Assets" FontSize="14" />
+                                    </Button>
+
+                                    <Button Style="{StaticResource CompactIconButton}" ToolTip="Сдвиг по горизонтали" Command="{Binding HorizontalNudgeCommand}" Margin="8,0,0,0">
+                                        <TextBlock Text="&#xE92F;" FontFamily="Segoe MDL2 Assets" FontSize="14" />
+                                    </Button>
+
+                                    <Button Style="{StaticResource CompactIconButton}" ToolTip="Сдвиг по вертикали" Command="{Binding VerticalNudgeCommand}" Margin="8,0,0,0">
+                                        <TextBlock Text="&#xE931;" FontFamily="Segoe MDL2 Assets" FontSize="14" />
+                                    </Button>
+                                </StackPanel>
+                            </DockPanel>
+                        </Border>
+
+                        <Border Height="260"
+                               Background="#FFFDFE" BorderBrush="#D7DDE5" BorderThickness="1" CornerRadius="6">
+                            <Canvas x:Name="GeneratedProfileCanvas"
+                                    Background="White"
+                                    ClipToBounds="True"
+                                    Margin="6"
+                                    SizeChanged="GeneratedProfileCanvas_SizeChanged" />
+                        </Border>
+                    </StackPanel>
+                </GroupBox>
+            </StackPanel>
+        </ScrollViewer>
     </Grid>
 </UserControl>

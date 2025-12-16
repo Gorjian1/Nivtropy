@@ -347,8 +347,41 @@ namespace Nivtropy.Services.Visualization
                 var pointCount = Math.Max(pointSequence.Count, 2);
                 var shapeRadius = actualRunRadius.TryGetValue(run, out var radius) ? radius : 32;
 
-                var vertices = new List<Point>();
                 var rotationOffset = runRotationOffsets.TryGetValue(run, out var offset) ? offset : 0.0;
+                var rotationAngleDiffs = new List<double>();
+
+                for (int i = 0; i < pointSequence.Count; i++)
+                {
+                    var code = pointSequence[i];
+                    if (!sharedPointPositions.TryGetValue(code, out var sharedPos))
+                        continue;
+
+                    var desiredAngle = 2 * Math.PI * i / pointCount;
+                    var actualAngle = Math.Atan2(sharedPos.Y - centerPoint.Y, sharedPos.X - centerPoint.X);
+                    if (double.IsNaN(actualAngle))
+                        continue;
+
+                    var diff = NormalizeAngle(actualAngle - desiredAngle);
+                    rotationAngleDiffs.Add(diff);
+                }
+
+                if (rotationAngleDiffs.Count > 0)
+                {
+                    double sumSin = 0, sumCos = 0;
+                    foreach (var diff in rotationAngleDiffs)
+                    {
+                        sumSin += Math.Sin(diff);
+                        sumCos += Math.Cos(diff);
+                    }
+
+                    var avg = Math.Atan2(sumSin, sumCos);
+                    if (avg < 0)
+                        avg += 2 * Math.PI;
+
+                    rotationOffset = avg;
+                }
+
+                var vertices = new List<Point>();
 
                 for (int i = 0; i < pointSequence.Count; i++)
                 {
@@ -525,6 +558,15 @@ namespace Nivtropy.Services.Visualization
 
             geometry.Freeze();
             return geometry;
+        }
+
+        private static double NormalizeAngle(double angle)
+        {
+            var twoPi = 2 * Math.PI;
+            angle %= twoPi;
+            if (angle < 0)
+                angle += twoPi;
+            return angle;
         }
 
         private Point ClampPoint(Point p, double margin, double canvasWidth, double canvasHeight)
