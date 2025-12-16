@@ -101,7 +101,6 @@
                                     Background="#2563EB"
                                     Foreground="White"
                                     BorderBrush="#1D4ED8"
-                                    CornerRadius="6"
                                     Margin="0,0,6,0">
                                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                                     <TextBlock Text="&#xE7FC;" FontFamily="Segoe MDL2 Assets" Margin="0,0,6,0" />
@@ -114,7 +113,6 @@
                                     Background="#F3F4F6"
                                     Foreground="#111827"
                                     BorderBrush="#D1D5DB"
-                                    CornerRadius="6"
                                     Margin="6,0,0,0">
                                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                                     <TextBlock Text="&#xEDE0;" FontFamily="Segoe MDL2 Assets" Margin="0,0,6,0" />
@@ -162,7 +160,7 @@
                 <Border Background="#FFFFFF" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="8" Padding="14" Margin="0,0,0,12">
                     <StackPanel>
                         <TextBlock Text="Действия" FontSize="13" FontWeight="SemiBold" Foreground="#0F172A" Margin="0,0,0,12" />
-                        <Button Command="{Binding SmoothCommand}" Height="34" Background="#F3F4F6" BorderBrush="#E4E7EC" Foreground="#1D2939" CornerRadius="6">
+                        <Button Command="{Binding SmoothCommand}" Height="34" Background="#F3F4F6" BorderBrush="#E4E7EC" Foreground="#1D2939">
                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                                 <TextBlock Text="&#xF4A9;" FontFamily="Segoe MDL2 Assets" Margin="0,0,6,0" />
                                 <TextBlock Text="Сгладить выбранное" />
