@@ -1,6 +1,7 @@
 using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
@@ -189,9 +190,9 @@ namespace Nivtropy.ViewModels
                             }
                         }
 
-                        double? rb = !string.IsNullOrWhiteSpace(parts[4]) ? double.Parse(parts[4], System.Globalization.CultureInfo.InvariantCulture) : null;
-                        double? rf = !string.IsNullOrWhiteSpace(parts[5]) ? double.Parse(parts[5], System.Globalization.CultureInfo.InvariantCulture) : null;
-                        double? height = !string.IsNullOrWhiteSpace(parts[10]) ? double.Parse(parts[10], System.Globalization.CultureInfo.InvariantCulture) : null;
+                        double? rb = ParseNullableDouble(parts[4]);
+                        double? rf = ParseNullableDouble(parts[5]);
+                        double? height = ParseNullableDouble(parts[10]);
 
                         // Генерируем расстояния (5-15 метров)
                         double? hdBack = rb.HasValue ? 5.0 + _random.NextDouble() * 10.0 : null;
@@ -467,6 +468,29 @@ namespace Nivtropy.ViewModels
                 "Экспорт завершён",
                 MessageBoxButton.OK,
                 MessageBoxImage.Information);
+        }
+
+        private double? ParseNullableDouble(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return null;
+            }
+
+            // Поддерживаем как запятую, так и точку в качестве разделителя дробной части
+            var normalized = value.Replace(',', '.');
+
+            if (double.TryParse(normalized, NumberStyles.Any, CultureInfo.InvariantCulture, out var invariantResult))
+            {
+                return invariantResult;
+            }
+
+            if (double.TryParse(value, NumberStyles.Any, CultureInfo.GetCultureInfo("ru-RU"), out var ruResult))
+            {
+                return ruResult;
+            }
+
+            return null;
         }
 
         private void OnPropertyChanged([CallerMemberName] string? propertyName = null)

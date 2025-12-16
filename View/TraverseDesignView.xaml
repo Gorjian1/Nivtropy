@@ -108,19 +108,30 @@
                         </StackPanel>
                     </GroupBox>
 
-                    <!-- Место для будущего рисунка -->
-                    <GroupBox Header="Вид сверху (в разработке)" Margin="0,0,0,0">
-                        <Border Height="200"
-                               Background="#FFF9F9F9"
-                               BorderBrush="#FFE0E0E0"
-                               BorderThickness="1"
-                               Margin="8">
-                            <TextBlock Text="Визуализация будет добавлена позже"
-                                      VerticalAlignment="Center"
-                                      HorizontalAlignment="Center"
-                                      Foreground="#FF808080"
-                                      FontStyle="Italic" />
-                        </Border>
+                    <!-- Визуализация профиля сгенерированных данных -->
+                    <GroupBox Header="Профиль высот" Margin="0,0,0,0">
+                        <Grid Margin="8">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" />
+                            </Grid.RowDefinitions>
+
+                            <TextBlock Text="Показаны точки с заполненным столбцом \"Высота, м\""
+                                       Foreground="#606060"
+                                       Margin="0,0,0,6" />
+
+                            <Border Grid.Row="1"
+                                    Background="#FFF9F9F9"
+                                    BorderBrush="#FFE0E0E0"
+                                    BorderThickness="1">
+                                <Canvas x:Name="GeneratedProfileCanvas"
+                                        Height="220"
+                                        Margin="8"
+                                        Background="White"
+                                        ClipToBounds="True"
+                                        SizeChanged="GeneratedProfileCanvas_SizeChanged" />
+                            </Border>
+                        </Grid>
                     </GroupBox>
                 </StackPanel>
             </ScrollViewer>
