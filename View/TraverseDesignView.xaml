@@ -18,23 +18,36 @@
                 <!-- Таблица -->
                 <DataGrid
                           ItemsSource="{Binding Measurements}"
+                          SelectedItem="{Binding SelectedMeasurement, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                           AutoGenerateColumns="False"
                           CanUserAddRows="False"
-                          IsReadOnly="True"
                           HeadersVisibility="Column"
                           RowHeaderWidth="0"
                           GridLinesVisibility="All"
                           VerticalGridLinesBrush="#FFE0E0E0"
-                          HorizontalGridLinesBrush="#FFE0E0E0">
+                          HorizontalGridLinesBrush="#FFE0E0E0"
+                          Language="ru-RU">
                     <DataGrid.Columns>
-                        <DataGridTextColumn Header="№" Binding="{Binding Index}" Width="50" />
-                        <DataGridTextColumn Header="Точка" Binding="{Binding PointCode}" Width="*" MinWidth="80" />
-                        <DataGridTextColumn Header="Station" Binding="{Binding StationCode}" Width="*" MinWidth="100" />
-                        <DataGridTextColumn Header="Rb, м" Binding="{Binding Rb_m, StringFormat=F4}" Width="100" />
-                        <DataGridTextColumn Header="Rf, м" Binding="{Binding Rf_m, StringFormat=F4}" Width="100" />
-                        <DataGridTextColumn Header="HD назад, м" Binding="{Binding HD_Back_m, StringFormat=F2}" Width="110" />
-                        <DataGridTextColumn Header="HD вперёд, м" Binding="{Binding HD_Fore_m, StringFormat=F2}" Width="110" />
-                        <DataGridTextColumn Header="Высота, м" Binding="{Binding Height_m, StringFormat=F4}" Width="100" />
+                        <DataGridTextColumn Header="№" Binding="{Binding Index}" Width="50" IsReadOnly="True" />
+                        <DataGridTextColumn Header="Точка" Binding="{Binding PointCode}" Width="*" MinWidth="80" IsReadOnly="True" />
+                        <DataGridTextColumn Header="Station" Binding="{Binding StationCode}" Width="*" MinWidth="100" IsReadOnly="True" />
+                        <DataGridTextColumn Header="Rb, м" Binding="{Binding Rb_m, StringFormat=F4}" Width="100" IsReadOnly="True" />
+                        <DataGridTextColumn Header="Rf, м" Binding="{Binding Rf_m, StringFormat=F4}" Width="100" IsReadOnly="True" />
+                        <DataGridTextColumn Header="HD назад, м" Width="110">
+                            <DataGridTextColumn.Binding>
+                                <Binding Path="HD_Back_m" Mode="TwoWay" UpdateSourceTrigger="PropertyChanged" StringFormat="F2" />
+                            </DataGridTextColumn.Binding>
+                        </DataGridTextColumn>
+                        <DataGridTextColumn Header="HD вперёд, м" Width="110">
+                            <DataGridTextColumn.Binding>
+                                <Binding Path="HD_Fore_m" Mode="TwoWay" UpdateSourceTrigger="PropertyChanged" StringFormat="F2" />
+                            </DataGridTextColumn.Binding>
+                        </DataGridTextColumn>
+                        <DataGridTextColumn Header="Высота, м" Width="100">
+                            <DataGridTextColumn.Binding>
+                                <Binding Path="Height_m" Mode="TwoWay" UpdateSourceTrigger="PropertyChanged" StringFormat="F4" />
+                            </DataGridTextColumn.Binding>
+                        </DataGridTextColumn>
                     </DataGrid.Columns>
                 </DataGrid>
             </Grid>
@@ -52,6 +65,10 @@
                                     Margin="0,0,0,8" />
                             <Button Content="Экспортировать"
                                     Command="{Binding ExportCommand}"
+                                    Height="32"
+                                    Margin="0,0,0,8" />
+                            <Button Content="Сгладить"
+                                    Command="{Binding SmoothCommand}"
                                     Height="32" />
                         </StackPanel>
                     </GroupBox>
@@ -108,18 +125,29 @@
                         </StackPanel>
                     </GroupBox>
 
-                    <!-- Место для будущего рисунка -->
-                    <GroupBox Header="Вид сверху (в разработке)" Margin="0,0,0,0">
-                        <Border Height="200"
+                    <!-- Отображение -->
+                    <GroupBox Header="Отображение" Margin="0,0,0,16">
+                        <StackPanel Margin="8">
+                            <TextBlock Text="Ход для визуализации:" Margin="0,0,0,4" />
+                            <ComboBox ItemsSource="{Binding AvailableLines}"
+                                      SelectedItem="{Binding SelectedLineName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                      MinWidth="200"
+                                      IsReadOnly="True"
+                                      IsEditable="False" />
+                        </StackPanel>
+                    </GroupBox>
+
+                    <!-- Визуализация профиля -->
+                    <GroupBox Header="Профиль сгенерированных данных" Margin="0,0,0,0">
+                        <Border Height="260"
                                Background="#FFF9F9F9"
                                BorderBrush="#FFE0E0E0"
                                BorderThickness="1"
                                Margin="8">
-                            <TextBlock Text="Визуализация будет добавлена позже"
-                                      VerticalAlignment="Center"
-                                      HorizontalAlignment="Center"
-                                      Foreground="#FF808080"
-                                      FontStyle="Italic" />
+                            <Canvas x:Name="GeneratedProfileCanvas"
+                                    Background="White"
+                                    ClipToBounds="True"
+                                    SizeChanged="GeneratedProfileCanvas_SizeChanged"/>
                         </Border>
                     </GroupBox>
                 </StackPanel>

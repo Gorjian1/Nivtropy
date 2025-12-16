@@ -1,6 +1,7 @@
 using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
@@ -19,25 +20,50 @@ namespace Nivtropy.ViewModels
     public class DataGeneratorViewModel : INotifyPropertyChanged
     {
         private readonly ObservableCollection<GeneratedMeasurement> _measurements = new();
+        private readonly ObservableCollection<string> _availableLines = new();
         private bool _formatNivelir = true;
         private double _stdDevMeasurement = 0.5; // СКО для измерений (мм)
         private double _stdDevGrossError = 2.0; // СКО для грубых ошибок (мм)
         private int _grossErrorFrequency = 10; // Частота грубых ошибок (каждая N-ная станция)
         private string _sourceFilePath = string.Empty;
+        private string? _selectedLineName;
+        private GeneratedMeasurement? _selectedMeasurement;
         private Random _random = new Random();
+        private RelayCommand? _smoothCommand;
 
         public event PropertyChangedEventHandler? PropertyChanged;
 
         public DataGeneratorViewModel()
         {
+            _measurements.CollectionChanged += (_, __) => RefreshAvailableLines();
         }
 
         public ObservableCollection<GeneratedMeasurement> Measurements => _measurements;
+
+        public ObservableCollection<string> AvailableLines => _availableLines;
 
         public bool FormatNivelir
         {
             get => _formatNivelir;
             set => SetField(ref _formatNivelir, value);
+        }
+
+        public string? SelectedLineName
+        {
+            get => _selectedLineName;
+            set => SetField(ref _selectedLineName, value);
+        }
+
+        public GeneratedMeasurement? SelectedMeasurement
+        {
+            get => _selectedMeasurement;
+            set
+            {
+                if (SetField(ref _selectedMeasurement, value))
+                {
+                    CommandManager.InvalidateRequerySuggested();
+                }
+            }
         }
 
         public double StdDevMeasurement
@@ -67,6 +93,7 @@ namespace Nivtropy.ViewModels
         public ICommand OpenFileCommand => new RelayCommand(_ => OpenFile());
         public ICommand GenerateCommand => new RelayCommand(_ => Generate(), _ => !string.IsNullOrEmpty(SourceFilePath));
         public ICommand ExportCommand => new RelayCommand(_ => Export(), _ => Measurements.Count > 0);
+        public ICommand SmoothCommand => _smoothCommand ??= new RelayCommand(_ => SmoothSelectedMeasurement(), _ => SelectedMeasurement != null);
 
         private void OpenFile()
         {
@@ -189,9 +216,9 @@ namespace Nivtropy.ViewModels
                             }
                         }
 
-                        double? rb = !string.IsNullOrWhiteSpace(parts[4]) ? double.Parse(parts[4], System.Globalization.CultureInfo.InvariantCulture) : null;
-                        double? rf = !string.IsNullOrWhiteSpace(parts[5]) ? double.Parse(parts[5], System.Globalization.CultureInfo.InvariantCulture) : null;
-                        double? height = !string.IsNullOrWhiteSpace(parts[10]) ? double.Parse(parts[10], System.Globalization.CultureInfo.InvariantCulture) : null;
+                        double? rb = ParseNullableDouble(parts[4]);
+                        double? rf = ParseNullableDouble(parts[5]);
+                        double? height = ParseNullableDouble(parts[10]);
 
                         // Генерируем расстояния (5-15 метров)
                         double? hdBack = rb.HasValue ? 5.0 + _random.NextDouble() * 10.0 : null;
@@ -369,6 +396,53 @@ namespace Nivtropy.ViewModels
             }
         }
 
+        private void SmoothSelectedMeasurement()
+        {
+            if (SelectedMeasurement == null)
+                return;
+
+            var target = SelectedMeasurement;
+            var lineMeasurements = _measurements
+                .Where(m => m.LineName == target.LineName)
+                .OrderBy(m => m.Index)
+                .ToList();
+
+            var targetIndex = lineMeasurements.IndexOf(target);
+            if (targetIndex < 0)
+                return;
+
+            void PullHeight(int neighborIndex, double influence)
+            {
+                var neighbor = lineMeasurements[neighborIndex];
+                if (neighbor.Height_m.HasValue && target.Height_m.HasValue)
+                {
+                    neighbor.Height_m = neighbor.Height_m.Value * (1 - influence) + target.Height_m.Value * influence;
+                }
+            }
+
+            // Ближайшие точки подтягиваем сильнее
+            if (targetIndex > 0)
+            {
+                PullHeight(targetIndex - 1, 0.5);
+            }
+
+            if (targetIndex < lineMeasurements.Count - 1)
+            {
+                PullHeight(targetIndex + 1, 0.5);
+            }
+
+            // Отдалённые точки слегка корректируем для плавности
+            if (targetIndex > 1)
+            {
+                PullHeight(targetIndex - 2, 0.25);
+            }
+
+            if (targetIndex < lineMeasurements.Count - 2)
+            {
+                PullHeight(targetIndex + 2, 0.25);
+            }
+        }
+
         private void ExportToNivelir()
         {
             var saveFileDialog = new SaveFileDialog
@@ -469,6 +543,38 @@ namespace Nivtropy.ViewModels
                 MessageBoxImage.Information);
         }
 
+        private void RefreshAvailableLines()
+        {
+            var names = _measurements
+                .Select(m => m.LineName)
+                .Where(n => !string.IsNullOrWhiteSpace(n))
+                .Distinct()
+                .OrderBy(n => n)
+                .ToList();
+
+            bool changed = names.Count != _availableLines.Count || !_availableLines.SequenceEqual(names);
+            if (changed)
+            {
+                _availableLines.Clear();
+                foreach (var name in names)
+                {
+                    _availableLines.Add(name);
+                }
+            }
+
+            if (names.Count == 0)
+            {
+                if (SelectedLineName != null)
+                    SelectedLineName = null;
+                return;
+            }
+
+            if (SelectedLineName == null || !names.Contains(SelectedLineName))
+            {
+                SelectedLineName = names.First();
+            }
+        }
+
         private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
@@ -481,6 +587,34 @@ namespace Nivtropy.ViewModels
             field = value;
             OnPropertyChanged(propertyName);
             return true;
+        }
+
+        private double? ParseNullableDouble(string? value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+                return null;
+
+            var normalized = value.Trim()
+                .Replace(" ", string.Empty)
+                .Replace("\u00A0", string.Empty);
+
+            if (normalized.Contains(',') && !normalized.Contains('.'))
+            {
+                if (double.TryParse(normalized, NumberStyles.Float, new CultureInfo("ru-RU"), out var ruResult))
+                    return ruResult;
+            }
+
+            if (double.TryParse(normalized, NumberStyles.Float, CultureInfo.InvariantCulture, out var result))
+                return result;
+
+            var swapped = normalized.Replace(',', '.');
+            if (double.TryParse(swapped, NumberStyles.Float, CultureInfo.InvariantCulture, out result))
+                return result;
+
+            if (double.TryParse(normalized, NumberStyles.Float, new CultureInfo("ru-RU"), out result))
+                return result;
+
+            return null;
         }
     }
 }
