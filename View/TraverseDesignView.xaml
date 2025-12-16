@@ -3,6 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:converters="clr-namespace:Nivtropy.Converters"
              mc:Ignorable="d"
              d:DesignHeight="600"
              d:DesignWidth="1200">
@@ -20,21 +21,59 @@
                           ItemsSource="{Binding Measurements}"
                           AutoGenerateColumns="False"
                           CanUserAddRows="False"
-                          IsReadOnly="True"
                           HeadersVisibility="Column"
                           RowHeaderWidth="0"
                           GridLinesVisibility="All"
                           VerticalGridLinesBrush="#FFE0E0E0"
                           HorizontalGridLinesBrush="#FFE0E0E0">
                     <DataGrid.Columns>
-                        <DataGridTextColumn Header="№" Binding="{Binding Index}" Width="50" />
-                        <DataGridTextColumn Header="Точка" Binding="{Binding PointCode}" Width="*" MinWidth="80" />
-                        <DataGridTextColumn Header="Station" Binding="{Binding StationCode}" Width="*" MinWidth="100" />
-                        <DataGridTextColumn Header="Rb, м" Binding="{Binding Rb_m, StringFormat=F4}" Width="100" />
-                        <DataGridTextColumn Header="Rf, м" Binding="{Binding Rf_m, StringFormat=F4}" Width="100" />
-                        <DataGridTextColumn Header="HD назад, м" Binding="{Binding HD_Back_m, StringFormat=F2}" Width="110" />
-                        <DataGridTextColumn Header="HD вперёд, м" Binding="{Binding HD_Fore_m, StringFormat=F2}" Width="110" />
-                        <DataGridTextColumn Header="Высота, м" Binding="{Binding Height_m, StringFormat=F4}" Width="100" />
+                        <DataGridTextColumn Header="№" Binding="{Binding Index}" Width="50" IsReadOnly="True" />
+                        <DataGridTextColumn Header="Точка" Binding="{Binding PointCode}" Width="*" MinWidth="80" IsReadOnly="True" />
+                        <DataGridTextColumn Header="Station" Binding="{Binding StationCode}" Width="*" MinWidth="100" IsReadOnly="True" />
+                        <DataGridTextColumn Header="Rb, м" Binding="{Binding Rb_m, StringFormat=F4}" Width="100" IsReadOnly="True" />
+                        <DataGridTextColumn Header="Rf, м" Binding="{Binding Rf_m, StringFormat=F4}" Width="100" IsReadOnly="True" />
+                        <DataGridTextColumn Header="HD назад, м" Width="110">
+                            <DataGridTextColumn.Binding>
+                                <Binding Path="HD_Back_m"
+                                         Mode="TwoWay"
+                                         UpdateSourceTrigger="PropertyChanged"
+                                         StringFormat="F2"
+                                         ValidatesOnExceptions="True"
+                                         NotifyOnValidationError="True">
+                                    <Binding.ValidationRules>
+                                        <converters:NumericValidationRule AllowNull="True" MaxDecimalPlaces="2" />
+                                    </Binding.ValidationRules>
+                                </Binding>
+                            </DataGridTextColumn.Binding>
+                        </DataGridTextColumn>
+                        <DataGridTextColumn Header="HD вперёд, м" Width="110">
+                            <DataGridTextColumn.Binding>
+                                <Binding Path="HD_Fore_m"
+                                         Mode="TwoWay"
+                                         UpdateSourceTrigger="PropertyChanged"
+                                         StringFormat="F2"
+                                         ValidatesOnExceptions="True"
+                                         NotifyOnValidationError="True">
+                                    <Binding.ValidationRules>
+                                        <converters:NumericValidationRule AllowNull="True" MaxDecimalPlaces="2" />
+                                    </Binding.ValidationRules>
+                                </Binding>
+                            </DataGridTextColumn.Binding>
+                        </DataGridTextColumn>
+                        <DataGridTextColumn Header="Высота, м" Width="100">
+                            <DataGridTextColumn.Binding>
+                                <Binding Path="Height_m"
+                                         Mode="TwoWay"
+                                         UpdateSourceTrigger="PropertyChanged"
+                                         StringFormat="F4"
+                                         ValidatesOnExceptions="True"
+                                         NotifyOnValidationError="True">
+                                    <Binding.ValidationRules>
+                                        <converters:NumericValidationRule AllowNull="True" MaxDecimalPlaces="4" />
+                                    </Binding.ValidationRules>
+                                </Binding>
+                            </DataGridTextColumn.Binding>
+                        </DataGridTextColumn>
                     </DataGrid.Columns>
                 </DataGrid>
             </Grid>
