@@ -30,12 +30,19 @@ namespace Nivtropy.ViewModels
         private GeneratedMeasurement? _selectedMeasurement;
         private Random _random = new Random();
         private RelayCommand? _smoothCommand;
+        private RelayCommand? _resetEditsCommand;
+        private RelayCommand? _moveHorizontalCommand;
+        private RelayCommand? _moveVerticalCommand;
 
         public event PropertyChangedEventHandler? PropertyChanged;
 
         public DataGeneratorViewModel()
         {
-            _measurements.CollectionChanged += (_, __) => RefreshAvailableLines();
+            _measurements.CollectionChanged += (_, __) =>
+            {
+                RefreshAvailableLines();
+                CommandManager.InvalidateRequerySuggested();
+            };
         }
 
         public ObservableCollection<GeneratedMeasurement> Measurements => _measurements;
@@ -51,7 +58,13 @@ namespace Nivtropy.ViewModels
         public string? SelectedLineName
         {
             get => _selectedLineName;
-            set => SetField(ref _selectedLineName, value);
+            set
+            {
+                if (SetField(ref _selectedLineName, value))
+                {
+                    CommandManager.InvalidateRequerySuggested();
+                }
+            }
         }
 
         public GeneratedMeasurement? SelectedMeasurement
@@ -87,13 +100,22 @@ namespace Nivtropy.ViewModels
         public string SourceFilePath
         {
             get => _sourceFilePath;
-            set => SetField(ref _sourceFilePath, value);
+            set
+            {
+                if (SetField(ref _sourceFilePath, value))
+                {
+                    CommandManager.InvalidateRequerySuggested();
+                }
+            }
         }
 
         public ICommand OpenFileCommand => new RelayCommand(_ => OpenFile());
         public ICommand GenerateCommand => new RelayCommand(_ => Generate(), _ => !string.IsNullOrEmpty(SourceFilePath));
         public ICommand ExportCommand => new RelayCommand(_ => Export(), _ => Measurements.Count > 0);
         public ICommand SmoothCommand => _smoothCommand ??= new RelayCommand(_ => SmoothSelectedMeasurement(), _ => SelectedMeasurement != null);
+        public ICommand ResetEditsCommand => _resetEditsCommand ??= new RelayCommand(_ => ResetEdits(), _ => Measurements.Any());
+        public ICommand MoveHorizontalCommand => _moveHorizontalCommand ??= new RelayCommand(_ => { }, _ => Measurements.Any());
+        public ICommand MoveVerticalCommand => _moveVerticalCommand ??= new RelayCommand(_ => { }, _ => Measurements.Any());
 
         private void OpenFile()
         {
@@ -440,6 +462,21 @@ namespace Nivtropy.ViewModels
             if (targetIndex < lineMeasurements.Count - 2)
             {
                 PullHeight(targetIndex + 2, 0.25);
+            }
+        }
+
+        private void ResetEdits()
+        {
+            var targetLine = SelectedLineName;
+            var targets = string.IsNullOrWhiteSpace(targetLine)
+                ? _measurements.AsEnumerable()
+                : _measurements.Where(m => m.LineName == targetLine);
+
+            foreach (var measurement in targets)
+            {
+                measurement.Height_m = measurement.OriginalHeight;
+                measurement.HD_Back_m = measurement.OriginalHD_Back;
+                measurement.HD_Fore_m = measurement.OriginalHD_Fore;
             }
         }
 
