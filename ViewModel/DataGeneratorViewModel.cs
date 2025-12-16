@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Globalization;
 using System.IO;
@@ -21,6 +23,7 @@ namespace Nivtropy.ViewModels
     {
         private readonly ObservableCollection<GeneratedMeasurement> _measurements = new();
         private readonly ObservableCollection<string> _availableLines = new();
+        private readonly HashSet<GeneratedMeasurement> _trackedMeasurements = new();
         private bool _formatNivelir = true;
         private double _stdDevMeasurement = 0.5; // СКО для измерений (мм)
         private double _stdDevGrossError = 2.0; // СКО для грубых ошибок (мм)
@@ -28,6 +31,8 @@ namespace Nivtropy.ViewModels
         private string _sourceFilePath = string.Empty;
         private string? _selectedLineName;
         private GeneratedMeasurement? _selectedMeasurement;
+        private double? _profileMinHeight;
+        private double? _profileMaxHeight;
         private Random _random = new Random();
         private RelayCommand? _smoothCommand;
         private RelayCommand? _resetEditsCommand;
@@ -38,11 +43,7 @@ namespace Nivtropy.ViewModels
 
         public DataGeneratorViewModel()
         {
-            _measurements.CollectionChanged += (_, __) =>
-            {
-                RefreshAvailableLines();
-                CommandManager.InvalidateRequerySuggested();
-            };
+            _measurements.CollectionChanged += Measurements_CollectionChanged;
         }
 
         public ObservableCollection<GeneratedMeasurement> Measurements => _measurements;
@@ -62,6 +63,7 @@ namespace Nivtropy.ViewModels
             {
                 if (SetField(ref _selectedLineName, value))
                 {
+                    UpdateProfileStats();
                     CommandManager.InvalidateRequerySuggested();
                 }
             }
@@ -116,6 +118,18 @@ namespace Nivtropy.ViewModels
         public ICommand ResetEditsCommand => _resetEditsCommand ??= new RelayCommand(_ => ResetEdits(), _ => Measurements.Any());
         public ICommand MoveHorizontalCommand => _moveHorizontalCommand ??= new RelayCommand(_ => { }, _ => Measurements.Any());
         public ICommand MoveVerticalCommand => _moveVerticalCommand ??= new RelayCommand(_ => { }, _ => Measurements.Any());
+
+        public double? ProfileMinHeight
+        {
+            get => _profileMinHeight;
+            private set => SetField(ref _profileMinHeight, value);
+        }
+
+        public double? ProfileMaxHeight
+        {
+            get => _profileMaxHeight;
+            private set => SetField(ref _profileMaxHeight, value);
+        }
 
         private void OpenFile()
         {
@@ -610,6 +624,98 @@ namespace Nivtropy.ViewModels
             {
                 SelectedLineName = names.First();
             }
+        }
+
+        private void Measurements_CollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+        {
+            if (e.NewItems != null)
+            {
+                foreach (GeneratedMeasurement measurement in e.NewItems)
+                {
+                    TrackMeasurement(measurement);
+                }
+            }
+
+            if (e.OldItems != null)
+            {
+                foreach (GeneratedMeasurement measurement in e.OldItems)
+                {
+                    UntrackMeasurement(measurement);
+                }
+            }
+
+            if (e.Action == NotifyCollectionChangedAction.Reset)
+            {
+                ResetTracking();
+            }
+
+            RefreshAvailableLines();
+            UpdateProfileStats();
+            CommandManager.InvalidateRequerySuggested();
+        }
+
+        private void Measurement_PropertyChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == nameof(GeneratedMeasurement.Height_m)
+                || e.PropertyName == nameof(GeneratedMeasurement.HD_Back_m)
+                || e.PropertyName == nameof(GeneratedMeasurement.HD_Fore_m))
+            {
+                UpdateProfileStats();
+            }
+        }
+
+        private void TrackMeasurement(GeneratedMeasurement measurement)
+        {
+            if (_trackedMeasurements.Add(measurement))
+            {
+                measurement.PropertyChanged += Measurement_PropertyChanged;
+            }
+        }
+
+        private void UntrackMeasurement(GeneratedMeasurement measurement)
+        {
+            if (_trackedMeasurements.Remove(measurement))
+            {
+                measurement.PropertyChanged -= Measurement_PropertyChanged;
+            }
+        }
+
+        private void ResetTracking()
+        {
+            foreach (var measurement in _trackedMeasurements.ToList())
+            {
+                measurement.PropertyChanged -= Measurement_PropertyChanged;
+            }
+
+            _trackedMeasurements.Clear();
+
+            foreach (var measurement in _measurements)
+            {
+                TrackMeasurement(measurement);
+            }
+        }
+
+        private void UpdateProfileStats()
+        {
+            var filtered = string.IsNullOrWhiteSpace(SelectedLineName)
+                ? _measurements
+                : _measurements.Where(m => m.LineName == SelectedLineName);
+
+            var heights = filtered
+                .Select(m => m.Height_m)
+                .Where(h => h.HasValue)
+                .Select(h => h!.Value)
+                .ToList();
+
+            if (heights.Count == 0)
+            {
+                ProfileMinHeight = null;
+                ProfileMaxHeight = null;
+                return;
+            }
+
+            ProfileMinHeight = heights.Min();
+            ProfileMaxHeight = heights.Max();
         }
 
         private void OnPropertyChanged([CallerMemberName] string? propertyName = null)

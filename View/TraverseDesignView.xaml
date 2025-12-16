@@ -160,10 +160,16 @@
                 <Border Background="#FFFFFF" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="8" Padding="14" Margin="0,0,0,12">
                     <StackPanel>
                         <TextBlock Text="Действия" FontSize="13" FontWeight="SemiBold" Foreground="#0F172A" Margin="0,0,0,12" />
-                        <Button Command="{Binding SmoothCommand}" Height="34" Background="#F3F4F6" BorderBrush="#E4E7EC" Foreground="#1D2939">
+                        <Button Command="{Binding SmoothCommand}" Height="34" Background="#F3F4F6" BorderBrush="#E4E7EC" Foreground="#1D2939" Margin="0,0,0,8">
                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                                 <TextBlock Text="&#xF4A9;" FontFamily="Segoe MDL2 Assets" Margin="0,0,6,0" />
                                 <TextBlock Text="Сгладить выбранное" />
+                            </StackPanel>
+                        </Button>
+                        <Button Command="{Binding ResetEditsCommand}" Height="34" Background="#F3F4F6" BorderBrush="#E4E7EC" Foreground="#1D2939">
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                <TextBlock Text="&#xE777;" FontFamily="Segoe MDL2 Assets" Margin="0,0,6,0" />
+                                <TextBlock Text="Сбросить правки" />
                             </StackPanel>
                         </Button>
                     </StackPanel>
@@ -190,21 +196,25 @@
                                           Padding="4,2" />
                             </StackPanel>
 
-                            <Button Command="{Binding ResetEditsCommand}"
-                                    Grid.Column="1"
-                                    Height="30"
-                                    Margin="0,0,8,0"
-                                    Padding="10,0"
-                                    Background="#F3F4F6"
-                                    BorderBrush="#E4E7EC"
-                                    Foreground="#1D2939">
-                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                                    <TextBlock Text="&#xE777;" FontFamily="Segoe MDL2 Assets" Margin="0,0,6,0" />
-                                    <TextBlock Text="Сбросить правки" />
+                            <StackPanel Grid.Column="1" Orientation="Vertical" Margin="0,0,12,0" VerticalAlignment="Center">
+                                <TextBlock Text="Мин" FontSize="11" Foreground="#6B7280" />
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <TextBlock Text="&#xE972;" FontFamily="Segoe MDL2 Assets" Foreground="#9CA3AF" Margin="0,0,6,0" />
+                                    <TextBlock Text="{Binding ProfileMinHeight, StringFormat=F3, TargetNullValue=—}" Foreground="#111827" />
+                                    <TextBlock Text=" м" Foreground="#6B7280" />
                                 </StackPanel>
-                            </Button>
+                            </StackPanel>
 
-                            <StackPanel Orientation="Horizontal" Grid.Column="2" Margin="0,0,8,0" VerticalAlignment="Center">
+                            <StackPanel Grid.Column="2" Orientation="Vertical" Margin="0,0,12,0" VerticalAlignment="Center">
+                                <TextBlock Text="Макс" FontSize="11" Foreground="#6B7280" />
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <TextBlock Text="&#xE973;" FontFamily="Segoe MDL2 Assets" Foreground="#9CA3AF" Margin="0,0,6,0" />
+                                    <TextBlock Text="{Binding ProfileMaxHeight, StringFormat=F3, TargetNullValue=—}" Foreground="#111827" />
+                                    <TextBlock Text=" м" Foreground="#6B7280" />
+                                </StackPanel>
+                            </StackPanel>
+
+                            <StackPanel Orientation="Horizontal" Grid.Column="3" Margin="0,0,8,0" VerticalAlignment="Center">
                                 <Button Command="{Binding MoveHorizontalCommand}"
                                         Width="36"
                                         Height="30"
