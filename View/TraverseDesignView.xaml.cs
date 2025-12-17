@@ -219,27 +219,16 @@ namespace Nivtropy.Views
                 : distance;
 
             const double minGap = 0.01;
-            var minDistance = previousDistance + minGap;
+            var minDistance = previousDistance + minGap * 2;
             var maxDistance = Math.Max(minDistance, nextDistance - minGap);
-
-            var startBack = _dragStartBack ?? measurement.HD_Back_m ?? 0;
-            var startFore = _dragStartFore ?? measurement.HD_Fore_m ?? 0;
 
             var desiredDistance = Math.Clamp(constrainedDistance, minDistance, maxDistance);
             var desiredTotal = Math.Max(minGap * 2, desiredDistance - previousDistance);
 
-            // Redistribute distances so moving left grows HD_Back and shrinking HD_Fore, and vice versa.
-            var delta = desiredDistance - startDistance;
-            var tentativeBack = startBack - delta;
-            var newBack = Math.Clamp(tentativeBack, minGap, desiredTotal - minGap);
-            var newFore = Math.Max(desiredTotal - newBack, minGap);
-
-            // If clamping back forced the fore below the minimum, rebalance to keep totals consistent.
-            if (newFore < minGap)
-            {
-                newFore = minGap;
-                newBack = Math.Max(desiredTotal - newFore, minGap);
-            }
+            // Двигаем точку за счёт двух общих расстояний между соседними точками: HD_Back и HD_Fore
+            // увеличиваются или уменьшаются совместно, чтобы сохранять симметричное влияние слева и справа.
+            var newBack = Math.Max(minGap, desiredTotal / 2);
+            var newFore = Math.Max(minGap, desiredTotal - newBack);
 
             var newDistance = previousDistance + newBack + newFore;
 
