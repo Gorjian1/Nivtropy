@@ -204,9 +204,6 @@ namespace Nivtropy.Views
 
             var measurement = visual.Point.Measurement;
             var previousDistance = visual.Index == 0 ? 0 : _lastRenderResult.Points[visual.Index - 1].Point.Distance;
-            var nextDistance = visual.Index < _lastRenderResult.Points.Count - 1
-                ? _lastRenderResult.Points[visual.Index + 1].Point.Distance
-                : _lastRenderResult.Transform.TotalDistance;
             var constraint = ViewModel.DragConstraintMode;
 
             var constrainedHeight = constraint == DragConstraintMode.LockVertical
@@ -219,14 +216,15 @@ namespace Nivtropy.Views
                 : distance;
 
             const double minGap = 0.01;
-            var minDistance = previousDistance + minGap;
-            var maxDistance = Math.Max(minDistance, nextDistance - minGap);
-
             var startBack = _dragStartBack ?? measurement.HD_Back_m ?? 0;
             var startFore = _dragStartFore ?? measurement.HD_Fore_m ?? 0;
 
+            var minDistance = previousDistance + minGap;
+            var currentTotal = Math.Max(minGap * 2, startBack + startFore);
+            var maxDistance = Math.Max(minDistance, previousDistance + currentTotal - minGap);
+
             var desiredDistance = Math.Clamp(constrainedDistance, minDistance, maxDistance);
-            var desiredTotal = Math.Max(minGap * 2, desiredDistance - previousDistance);
+            var desiredTotal = Math.Max(minGap * 2, Math.Min(currentTotal, desiredDistance - previousDistance));
 
             // Redistribute distances so moving left grows HD_Back and shrinking HD_Fore, and vice versa.
             var delta = desiredDistance - startDistance;
