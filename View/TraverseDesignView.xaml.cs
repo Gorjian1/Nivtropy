@@ -213,50 +213,34 @@ namespace Nivtropy.Views
                 ? (_dragStartHeight ?? visual.Point.Height)
                 : height;
 
+            var startDistance = _dragStartDistance ?? visual.Point.Distance;
             var constrainedDistance = constraint == DragConstraintMode.LockHorizontal
-                ? (_dragStartDistance ?? visual.Point.Distance)
+                ? startDistance
                 : distance;
 
             const double minGap = 0.01;
             var minDistance = previousDistance + minGap;
             var maxDistance = Math.Max(minDistance, nextDistance - minGap);
 
-            if (constraint != DragConstraintMode.LockHorizontal)
-            {
-                constrainedDistance = Math.Clamp(constrainedDistance, minDistance, maxDistance);
-            }
+            var startBack = _dragStartBack ?? measurement.HD_Back_m ?? 0;
+            var startFore = _dragStartFore ?? measurement.HD_Fore_m ?? 0;
+            var startTotal = Math.Max(startBack + startFore, minGap);
 
-            double newStationLength;
-            double newBack;
-            double newFore;
+            // Keep the total station length constant while redistributing between back and fore.
+            var rawDelta = constrainedDistance - startDistance;
+            var deltaMin = Math.Max(minGap - startFore, minDistance - startDistance);
+            var deltaMax = Math.Min(startBack - minGap, maxDistance - startDistance);
+            var clampedDelta = Math.Clamp(rawDelta, deltaMin, deltaMax);
 
-            if (constraint == DragConstraintMode.LockHorizontal)
-            {
-                var startBack = _dragStartBack ?? measurement.HD_Back_m ?? 0;
-                var startFore = _dragStartFore ?? measurement.HD_Fore_m ?? 0;
-                newBack = Math.Max(startBack, 0);
-                newFore = Math.Max(startFore, 0);
-                newStationLength = Math.Max(newBack + newFore, minGap);
-                constrainedDistance = previousDistance + newStationLength;
-            }
-            else
-            {
-                newStationLength = Math.Max(constrainedDistance - previousDistance, minGap);
-
-                var baseBack = _dragStartBack ?? measurement.HD_Back_m ?? newStationLength / 2;
-                var baseFore = _dragStartFore ?? measurement.HD_Fore_m ?? newStationLength / 2;
-                var total = Math.Max(baseBack + baseFore, 0.001);
-
-                var backRatio = baseBack / total;
-                newBack = newStationLength * backRatio;
-                newFore = Math.Max(newStationLength - newBack, 0);
-            }
+            var newBack = Math.Max(startBack - clampedDelta, minGap);
+            var newFore = Math.Max(startTotal - newBack, minGap);
+            var newDistance = startDistance + clampedDelta;
 
             measurement.Height_m = Math.Round(constrainedHeight, 3);
             measurement.HD_Back_m = Math.Round(newBack, 3);
             measurement.HD_Fore_m = Math.Round(newFore, 3);
 
-            visual.Point.Distance = previousDistance + newStationLength;
+            visual.Point.Distance = newDistance;
             visual.Point.Height = measurement.Height_m ?? constrainedHeight;
 
             UpdateVisualPosition(visual, visual.Point.Distance, visual.Point.Height);
