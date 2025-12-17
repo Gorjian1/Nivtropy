@@ -28,6 +28,8 @@ namespace Nivtropy.Views
         private double? _dragStartHeight;
         private double? _dragStartBack;
         private double? _dragStartFore;
+        private double? _dragStartNextBack;
+        private double? _dragStartNextFore;
 
         public TraverseDesignView()
         {
@@ -152,6 +154,13 @@ namespace Nivtropy.Views
                 _dragStartHeight = visual.Point.Height;
                 _dragStartBack = visual.Point.Measurement.HD_Back_m;
                 _dragStartFore = visual.Point.Measurement.HD_Fore_m;
+
+                if (visual.Index + 1 < (_lastRenderResult?.Points.Count ?? 0))
+                {
+                    var nextMeasurement = _lastRenderResult!.Points[visual.Index + 1].Point.Measurement;
+                    _dragStartNextBack = nextMeasurement.HD_Back_m;
+                    _dragStartNextFore = nextMeasurement.HD_Fore_m;
+                }
                 ellipse.CaptureMouse();
                 e.Handled = true;
             }
@@ -220,34 +229,54 @@ namespace Nivtropy.Views
 
             const double minGap = 0.01;
             var minDistance = previousDistance + minGap;
-            var maxDistance = Math.Max(minDistance, nextDistance - minGap);
+            var maxDistance = nextDistance - minGap;
 
-            var startBack = _dragStartBack ?? measurement.HD_Back_m ?? 0;
-            var startFore = _dragStartFore ?? measurement.HD_Fore_m ?? 0;
-
-            var desiredDistance = Math.Clamp(constrainedDistance, minDistance, maxDistance);
-            var desiredTotal = Math.Max(minGap * 2, desiredDistance - previousDistance);
-
-            // Redistribute distances so moving left grows HD_Back and shrinking HD_Fore, and vice versa.
-            var delta = desiredDistance - startDistance;
-            var tentativeBack = startBack - delta;
-            var newBack = Math.Clamp(tentativeBack, minGap, desiredTotal - minGap);
-            var newFore = Math.Max(desiredTotal - newBack, minGap);
-
-            // If clamping back forced the fore below the minimum, rebalance to keep totals consistent.
-            if (newFore < minGap)
+            double desiredDistance;
+            if (maxDistance <= minDistance)
             {
-                newFore = minGap;
-                newBack = Math.Max(desiredTotal - newFore, minGap);
+                desiredDistance = (previousDistance + nextDistance) / 2.0;
+            }
+            else
+            {
+                desiredDistance = Math.Clamp(constrainedDistance, minDistance, maxDistance);
             }
 
-            var newDistance = previousDistance + newBack + newFore;
+            var spanBetweenNeighbors = Math.Max(minGap * 2, nextDistance - previousDistance);
+            var desiredToPrev = desiredDistance - previousDistance;
+            var desiredToNext = spanBetweenNeighbors - desiredToPrev;
+
+            var startBack = _dragStartBack ?? measurement.HD_Back_m ?? minGap;
+            var startFore = _dragStartFore ?? measurement.HD_Fore_m ?? minGap;
+            var startTotalCurrent = Math.Max(minGap * 2, startBack + startFore);
+
+            var ratioBackCurrent = startBack / startTotalCurrent;
+            var ratioForeCurrent = startFore / startTotalCurrent;
+
+            var newBack = Math.Max(minGap, desiredToPrev * ratioBackCurrent);
+            var newFore = Math.Max(minGap, desiredToPrev * ratioForeCurrent);
 
             measurement.Height_m = Math.Round(constrainedHeight, 3);
             measurement.HD_Back_m = Math.Round(newBack, 3);
             measurement.HD_Fore_m = Math.Round(newFore, 3);
 
-            visual.Point.Distance = newDistance;
+            if (visual.Index + 1 < _lastRenderResult.Points.Count)
+            {
+                var nextMeasurement = _lastRenderResult.Points[visual.Index + 1].Point.Measurement;
+                var startNextBack = _dragStartNextBack ?? nextMeasurement.HD_Back_m ?? minGap;
+                var startNextFore = _dragStartNextFore ?? nextMeasurement.HD_Fore_m ?? minGap;
+                var startTotalNext = Math.Max(minGap * 2, startNextBack + startNextFore);
+
+                var ratioNextBack = startNextBack / startTotalNext;
+                var ratioNextFore = startNextFore / startTotalNext;
+
+                var newNextBack = Math.Max(minGap, desiredToNext * ratioNextBack);
+                var newNextFore = Math.Max(minGap, desiredToNext * ratioNextFore);
+
+                nextMeasurement.HD_Back_m = Math.Round(newNextBack, 3);
+                nextMeasurement.HD_Fore_m = Math.Round(newNextFore, 3);
+            }
+
+            visual.Point.Distance = previousDistance + desiredToPrev;
             visual.Point.Height = measurement.Height_m ?? constrainedHeight;
 
             UpdateVisualPosition(visual, visual.Point.Distance, visual.Point.Height);
@@ -283,6 +312,8 @@ namespace Nivtropy.Views
             _dragStartHeight = null;
             _dragStartBack = null;
             _dragStartFore = null;
+            _dragStartNextBack = null;
+            _dragStartNextFore = null;
             RedrawProfile();
         }
 

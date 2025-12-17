@@ -13,6 +13,7 @@ using System.Windows.Input;
 using ClosedXML.Excel;
 using Microsoft.Win32;
 using Nivtropy.Models;
+using Nivtropy.Services.Statistics;
 
 namespace Nivtropy.ViewModels
 {
@@ -21,6 +22,7 @@ namespace Nivtropy.ViewModels
     /// </summary>
     public class DataGeneratorViewModel : INotifyPropertyChanged
     {
+        private readonly IProfileStatisticsService _profileStatisticsService = new ProfileStatisticsService();
         private readonly ObservableCollection<GeneratedMeasurement> _measurements = new();
         private readonly ObservableCollection<string> _availableLines = new();
         private readonly HashSet<GeneratedMeasurement> _trackedMeasurements = new();
@@ -196,7 +198,8 @@ namespace Nivtropy.ViewModels
             var dlg = new OpenFileDialog
             {
                 Title = "Открыть файл с результатами расчётов",
-                Filter = "Excel файлы (*.xlsx)|*.xlsx|CSV файлы (*.csv)|*.csv|Все файлы (*.*)|*.*"
+                Filter = "CSV файлы (*.csv)|*.csv|Excel файлы (*.xlsx)|*.xlsx|Все файлы (*.*)|*.*",
+                DefaultExt = ".csv"
             };
 
             if (dlg.ShowDialog() == true)
@@ -803,9 +806,11 @@ namespace Nivtropy.ViewModels
 
             if (!_profileRangeCustomized || !_profileMinHeight.HasValue || !_profileMaxHeight.HasValue)
             {
+                var (minHeight, maxHeight) = _profileStatisticsService.CalculateExtendedRange(heights);
+
                 _isUpdatingProfileStats = true;
-                ProfileMinHeight = heights.Min();
-                ProfileMaxHeight = heights.Max();
+                ProfileMinHeight = minHeight;
+                ProfileMaxHeight = maxHeight;
                 _profileRangeCustomized = false;
                 _isUpdatingProfileStats = false;
             }

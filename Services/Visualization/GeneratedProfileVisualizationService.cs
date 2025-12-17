@@ -70,6 +70,9 @@ namespace Nivtropy.Services.Visualization
             var points = new List<ProfilePoint>();
             double cumulative = 0;
 
+            // Каждый круг на профиле соответствует измерению из таблицы генератора.
+            // Положение точки определяется накопленной суммой HD_Back + HD_Fore,
+            // поэтому изменение этих расстояний в измерении передвигает точку вдоль оси X.
             foreach (var m in measurements)
             {
                 if (!m.Height_m.HasValue)
