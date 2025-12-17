@@ -805,8 +805,14 @@ namespace Nivtropy.ViewModels
             if (!_profileRangeCustomized || !_profileMinHeight.HasValue || !_profileMaxHeight.HasValue)
             {
                 _isUpdatingProfileStats = true;
-                ProfileMinHeight = heights.Min();
-                ProfileMaxHeight = heights.Max();
+
+                var rawMin = heights.Min();
+                var rawMax = heights.Max();
+                var range = Math.Max(rawMax - rawMin, 1e-3);
+                var padding = range / 2.0;
+
+                ProfileMinHeight = rawMin - padding;
+                ProfileMaxHeight = rawMax + padding;
                 _profileRangeCustomized = false;
                 _isUpdatingProfileStats = false;
             }
