@@ -196,7 +196,8 @@ namespace Nivtropy.ViewModels
             var dlg = new OpenFileDialog
             {
                 Title = "Открыть файл с результатами расчётов",
-                Filter = "Excel файлы (*.xlsx)|*.xlsx|CSV файлы (*.csv)|*.csv|Все файлы (*.*)|*.*"
+                Filter = "CSV файлы (*.csv)|*.csv|Excel файлы (*.xlsx)|*.xlsx|Все файлы (*.*)|*.*",
+                DefaultExt = "csv"
             };
 
             if (dlg.ShowDialog() == true)

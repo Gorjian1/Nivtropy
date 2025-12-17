@@ -228,20 +228,23 @@ namespace Nivtropy.Views
             var desiredDistance = Math.Clamp(constrainedDistance, minDistance, maxDistance);
             var desiredTotal = Math.Max(minGap * 2, desiredDistance - previousDistance);
 
-            // Redistribute distances so moving left grows HD_Back and shrinking HD_Fore, and vice versa.
-            var delta = desiredDistance - startDistance;
-            var tentativeBack = startBack - delta;
-            var newBack = Math.Clamp(tentativeBack, minGap, desiredTotal - minGap);
+            var startTotal = Math.Max(startBack + startFore, minGap * 2);
+            var scale = desiredTotal / startTotal;
+
+            var newBack = Math.Clamp(startBack * scale, minGap, desiredTotal - minGap);
             var newFore = Math.Max(desiredTotal - newBack, minGap);
 
-            // If clamping back forced the fore below the minimum, rebalance to keep totals consistent.
-            if (newFore < minGap)
+            // Если после минимальных ограничений сумма изменилась, подгоняем вторую сторону,
+            // чтобы сохранить целевую длину участка.
+            var adjustedTotal = newBack + newFore;
+            if (Math.Abs(adjustedTotal - desiredTotal) > 1e-6)
             {
-                newFore = minGap;
-                newBack = Math.Max(desiredTotal - newFore, minGap);
+                var correction = desiredTotal - adjustedTotal;
+                newFore = Math.Max(minGap, newFore + correction);
+                newBack = Math.Max(minGap, desiredTotal - newFore);
             }
 
-            var newDistance = previousDistance + newBack + newFore;
+            var newDistance = previousDistance + desiredTotal;
 
             measurement.Height_m = Math.Round(constrainedHeight, 3);
             measurement.HD_Back_m = Math.Round(newBack, 3);
