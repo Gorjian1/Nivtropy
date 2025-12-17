@@ -31,7 +31,8 @@ namespace Nivtropy.Services.Visualization
                 return null;
             }
 
-            var points = CollectPoints(measurements);
+            var pointsResult = CollectPoints(measurements);
+            var points = pointsResult.Points;
             if (points.Count < 2)
             {
                 DrawPlaceholder(canvas, "Недостаточно высот для построения профиля");
@@ -52,7 +53,7 @@ namespace Nivtropy.Services.Visualization
             }
 
             var heightRange = Math.Max(maxHeight - minHeight, 1e-3);
-            var totalDistance = Math.Max(points.Max(p => p.Distance), 1.0);
+            var totalDistance = Math.Max(pointsResult.TotalDistance, 1.0);
 
             var plotWidth = Math.Max(canvas.ActualWidth - 2 * Margin, 10);
             var plotHeight = Math.Max(canvas.ActualHeight - 2 * Margin, 10);
@@ -65,7 +66,7 @@ namespace Nivtropy.Services.Visualization
             return new ProfileRenderResult(visuals, transform);
         }
 
-        private List<ProfilePoint> CollectPoints(IEnumerable<GeneratedMeasurement> measurements)
+        private (List<ProfilePoint> Points, double TotalDistance) CollectPoints(IEnumerable<GeneratedMeasurement> measurements)
         {
             var points = new List<ProfilePoint>();
             double cumulative = 0;
@@ -75,17 +76,22 @@ namespace Nivtropy.Services.Visualization
                 if (!m.Height_m.HasValue)
                     continue;
 
-                var stationLength = (m.HD_Back_m ?? 0) + (m.HD_Fore_m ?? 0);
-                if (stationLength <= 0)
+                var back = m.HD_Back_m ?? 0;
+                var fore = m.HD_Fore_m ?? 0;
+
+                if (back <= 0 && fore <= 0)
                 {
-                    stationLength = 1.0; // Фолбэк, чтобы расстояние росло даже без HD
+                    back = 0.5;
+                    fore = 0.5;
                 }
 
-                cumulative += stationLength;
-                points.Add(new ProfilePoint(cumulative, m.Height_m.Value, m.PointCode, m));
+                var pointDistance = cumulative + Math.Max(back, 0);
+                points.Add(new ProfilePoint(pointDistance, m.Height_m.Value, m.PointCode, m));
+
+                cumulative = pointDistance + Math.Max(fore, 0);
             }
 
-            return points;
+            return (points, Math.Max(cumulative, points.Count > 0 ? points.Max(p => p.Distance) : 0));
         }
 
         private void DrawGrid(Canvas canvas, double plotWidth, double plotHeight, double minHeight, double maxHeight, double totalDistance)

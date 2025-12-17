@@ -214,27 +214,23 @@ namespace Nivtropy.Views
                 : height;
 
             var startDistance = _dragStartDistance ?? visual.Point.Distance;
-            var constrainedDistance = constraint == DragConstraintMode.LockHorizontal
+            var intendedDistance = constraint == DragConstraintMode.LockHorizontal
                 ? startDistance
                 : distance;
 
             const double minGap = 0.01;
             var minDistance = previousDistance + minGap;
             var maxDistance = Math.Max(minDistance, nextDistance - minGap);
+            var clampedDistance = Math.Clamp(intendedDistance, minDistance, maxDistance);
 
             var startBack = _dragStartBack ?? measurement.HD_Back_m ?? 0;
             var startFore = _dragStartFore ?? measurement.HD_Fore_m ?? 0;
-            var startTotal = Math.Max(startBack + startFore, minGap);
+            var startTotal = Math.Max(startBack + startFore, 2 * minGap);
 
-            // Keep the total station length constant while redistributing between back and fore.
-            var rawDelta = constrainedDistance - startDistance;
-            var deltaMin = Math.Max(minGap - startFore, minDistance - startDistance);
-            var deltaMax = Math.Min(startBack - minGap, maxDistance - startDistance);
-            var clampedDelta = Math.Clamp(rawDelta, deltaMin, deltaMax);
-
-            var newBack = Math.Max(startBack - clampedDelta, minGap);
+            var desiredBack = clampedDistance - previousDistance;
+            var newBack = Math.Clamp(desiredBack, minGap, startTotal - minGap);
             var newFore = Math.Max(startTotal - newBack, minGap);
-            var newDistance = startDistance + clampedDelta;
+            var newDistance = previousDistance + newBack;
 
             measurement.Height_m = Math.Round(constrainedHeight, 3);
             measurement.HD_Back_m = Math.Round(newBack, 3);
