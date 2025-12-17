@@ -33,6 +33,9 @@ namespace Nivtropy.ViewModels
         private GeneratedMeasurement? _selectedMeasurement;
         private double? _profileMinHeight;
         private double? _profileMaxHeight;
+        private bool _profileRangeCustomized;
+        private bool _isUpdatingProfileStats;
+        private DragConstraintMode _dragConstraintMode = DragConstraintMode.Free;
         private Random _random = new Random();
         private RelayCommand? _smoothCommand;
         private RelayCommand? _resetEditsCommand;
@@ -116,19 +119,76 @@ namespace Nivtropy.ViewModels
         public ICommand ExportCommand => new RelayCommand(_ => Export(), _ => Measurements.Count > 0);
         public ICommand SmoothCommand => _smoothCommand ??= new RelayCommand(_ => SmoothSelectedMeasurement(), _ => SelectedMeasurement != null);
         public ICommand ResetEditsCommand => _resetEditsCommand ??= new RelayCommand(_ => ResetEdits(), _ => Measurements.Any());
-        public ICommand MoveHorizontalCommand => _moveHorizontalCommand ??= new RelayCommand(_ => { }, _ => Measurements.Any());
-        public ICommand MoveVerticalCommand => _moveVerticalCommand ??= new RelayCommand(_ => { }, _ => Measurements.Any());
+        public ICommand MoveHorizontalCommand => _moveHorizontalCommand ??= new RelayCommand(param => SetHorizontalConstraint(param), _ => Measurements.Any());
+        public ICommand MoveVerticalCommand => _moveVerticalCommand ??= new RelayCommand(param => SetVerticalConstraint(param), _ => Measurements.Any());
 
         public double? ProfileMinHeight
         {
             get => _profileMinHeight;
-            private set => SetField(ref _profileMinHeight, value);
+            set
+            {
+                if (SetField(ref _profileMinHeight, value) && !_isUpdatingProfileStats)
+                {
+                    _profileRangeCustomized = true;
+                }
+            }
         }
 
         public double? ProfileMaxHeight
         {
             get => _profileMaxHeight;
-            private set => SetField(ref _profileMaxHeight, value);
+            set
+            {
+                if (SetField(ref _profileMaxHeight, value) && !_isUpdatingProfileStats)
+                {
+                    _profileRangeCustomized = true;
+                }
+            }
+        }
+
+        public DragConstraintMode DragConstraintMode
+        {
+            get => _dragConstraintMode;
+            set
+            {
+                if (SetField(ref _dragConstraintMode, value))
+                {
+                    OnPropertyChanged(nameof(IsHorizontalDragConstraint));
+                    OnPropertyChanged(nameof(IsVerticalDragConstraint));
+                }
+            }
+        }
+
+        public bool IsHorizontalDragConstraint
+        {
+            get => DragConstraintMode == DragConstraintMode.HorizontalOnly;
+            set
+            {
+                if (value)
+                {
+                    DragConstraintMode = DragConstraintMode.HorizontalOnly;
+                }
+                else if (DragConstraintMode == DragConstraintMode.HorizontalOnly)
+                {
+                    DragConstraintMode = DragConstraintMode.Free;
+                }
+            }
+        }
+
+        public bool IsVerticalDragConstraint
+        {
+            get => DragConstraintMode == DragConstraintMode.VerticalOnly;
+            set
+            {
+                if (value)
+                {
+                    DragConstraintMode = DragConstraintMode.VerticalOnly;
+                }
+                else if (DragConstraintMode == DragConstraintMode.VerticalOnly)
+                {
+                    DragConstraintMode = DragConstraintMode.Free;
+                }
+            }
         }
 
         private void OpenFile()
@@ -494,6 +554,30 @@ namespace Nivtropy.ViewModels
             }
         }
 
+        private void SetHorizontalConstraint(object? state)
+        {
+            if (state is bool isChecked && isChecked)
+            {
+                DragConstraintMode = DragConstraintMode.HorizontalOnly;
+            }
+            else if (DragConstraintMode == DragConstraintMode.HorizontalOnly)
+            {
+                DragConstraintMode = DragConstraintMode.Free;
+            }
+        }
+
+        private void SetVerticalConstraint(object? state)
+        {
+            if (state is bool isChecked && isChecked)
+            {
+                DragConstraintMode = DragConstraintMode.VerticalOnly;
+            }
+            else if (DragConstraintMode == DragConstraintMode.VerticalOnly)
+            {
+                DragConstraintMode = DragConstraintMode.Free;
+            }
+        }
+
         private void ExportToNivelir()
         {
             var saveFileDialog = new SaveFileDialog
@@ -709,13 +793,22 @@ namespace Nivtropy.ViewModels
 
             if (heights.Count == 0)
             {
+                _isUpdatingProfileStats = true;
                 ProfileMinHeight = null;
                 ProfileMaxHeight = null;
+                _profileRangeCustomized = false;
+                _isUpdatingProfileStats = false;
                 return;
             }
 
-            ProfileMinHeight = heights.Min();
-            ProfileMaxHeight = heights.Max();
+            if (!_profileRangeCustomized || !_profileMinHeight.HasValue || !_profileMaxHeight.HasValue)
+            {
+                _isUpdatingProfileStats = true;
+                ProfileMinHeight = heights.Min();
+                ProfileMaxHeight = heights.Max();
+                _profileRangeCustomized = false;
+                _isUpdatingProfileStats = false;
+            }
         }
 
         private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
@@ -759,5 +852,12 @@ namespace Nivtropy.ViewModels
 
             return null;
         }
+    }
+
+    public enum DragConstraintMode
+    {
+        Free,
+        HorizontalOnly,
+        VerticalOnly
     }
 }
