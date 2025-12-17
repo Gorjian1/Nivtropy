@@ -27,7 +27,8 @@ namespace Nivtropy.Views
         private double? _dragStartDistance;
         private double? _dragStartHeight;
         private double? _dragStartBack;
-        private double? _dragStartFore;
+        private double? _dragStartPrevFore;
+        private GeneratedMeasurement? _dragPrevMeasurement;
 
         public TraverseDesignView()
         {
@@ -151,7 +152,10 @@ namespace Nivtropy.Views
                 _dragStartDistance = visual.Point.Distance;
                 _dragStartHeight = visual.Point.Height;
                 _dragStartBack = visual.Point.Measurement.HD_Back_m;
-                _dragStartFore = visual.Point.Measurement.HD_Fore_m;
+                _dragPrevMeasurement = visual.Index > 0
+                    ? _lastRenderResult?.Points[visual.Index - 1].Point.Measurement
+                    : null;
+                _dragStartPrevFore = _dragPrevMeasurement?.HD_Fore_m;
                 ellipse.CaptureMouse();
                 e.Handled = true;
             }
@@ -204,6 +208,9 @@ namespace Nivtropy.Views
 
             var measurement = visual.Point.Measurement;
             var previousDistance = visual.Index == 0 ? 0 : _lastRenderResult.Points[visual.Index - 1].Point.Distance;
+            var nextDistance = visual.Index < _lastRenderResult.Points.Count - 1
+                ? _lastRenderResult.Points[visual.Index + 1].Point.Distance
+                : (double?)null;
             var constraint = ViewModel.DragConstraintMode;
 
             var constrainedHeight = constraint == DragConstraintMode.LockVertical
@@ -217,33 +224,39 @@ namespace Nivtropy.Views
 
             const double minGap = 0.01;
             var startBack = _dragStartBack ?? measurement.HD_Back_m ?? 0;
-            var startFore = _dragStartFore ?? measurement.HD_Fore_m ?? 0;
+            var startPrevFore = _dragStartPrevFore ?? _dragPrevMeasurement?.HD_Fore_m ?? 0;
 
+            var startSegment = Math.Max(minGap * 2, startPrevFore + startBack);
             var minDistance = previousDistance + minGap;
-            var currentTotal = Math.Max(minGap * 2, startBack + startFore);
-            var maxDistance = Math.Max(minDistance, previousDistance + currentTotal - minGap);
+            var maxDistance = nextDistance.HasValue
+                ? Math.Max(minDistance, nextDistance.Value - minGap)
+                : Math.Max(minDistance, previousDistance + startSegment * 3);
 
             var desiredDistance = Math.Clamp(constrainedDistance, minDistance, maxDistance);
-            var desiredTotal = Math.Max(minGap * 2, Math.Min(currentTotal, desiredDistance - previousDistance));
+            var desiredSegment = Math.Max(minGap, desiredDistance - previousDistance);
 
-            // Redistribute distances so moving left grows HD_Back and shrinking HD_Fore, and vice versa.
-            var delta = desiredDistance - startDistance;
-            var tentativeBack = startBack - delta;
-            var newBack = Math.Clamp(tentativeBack, minGap, desiredTotal - minGap);
-            var newFore = Math.Max(desiredTotal - newBack, minGap);
+            // Distribute the segment between two shared HDs: fore of the previous station and back of the current one.
+            var ratioPrevFore = startSegment > 0 ? startPrevFore / startSegment : 0.5;
+            ratioPrevFore = Math.Clamp(ratioPrevFore, 0.05, 0.95);
 
-            // If clamping back forced the fore below the minimum, rebalance to keep totals consistent.
-            if (newFore < minGap)
+            var newPrevFore = Math.Max(minGap, desiredSegment * ratioPrevFore);
+            var newBack = Math.Max(minGap, desiredSegment - newPrevFore);
+
+            // Rebalance if clamping the segment caused one side to shrink below the minimum threshold.
+            if (newPrevFore < minGap)
             {
-                newFore = minGap;
-                newBack = Math.Max(desiredTotal - newFore, minGap);
+                newPrevFore = minGap;
+                newBack = Math.Max(desiredSegment - newPrevFore, minGap);
             }
 
-            var newDistance = previousDistance + newBack + newFore;
+            var newDistance = previousDistance + newPrevFore + newBack;
 
             measurement.Height_m = Math.Round(constrainedHeight, 3);
             measurement.HD_Back_m = Math.Round(newBack, 3);
-            measurement.HD_Fore_m = Math.Round(newFore, 3);
+            if (_dragPrevMeasurement != null)
+            {
+                _dragPrevMeasurement.HD_Fore_m = Math.Round(newPrevFore, 3);
+            }
 
             visual.Point.Distance = newDistance;
             visual.Point.Height = measurement.Height_m ?? constrainedHeight;
@@ -280,7 +293,8 @@ namespace Nivtropy.Views
             _dragStartDistance = null;
             _dragStartHeight = null;
             _dragStartBack = null;
-            _dragStartFore = null;
+            _dragStartPrevFore = null;
+            _dragPrevMeasurement = null;
             RedrawProfile();
         }
 
