@@ -221,25 +221,27 @@
                             </StackPanel>
 
                             <StackPanel Orientation="Horizontal" Grid.Column="3" Margin="0,0,8,0" VerticalAlignment="Center">
-                                <Button Command="{Binding MoveHorizontalCommand}"
-                                        Width="36"
-                                        Height="30"
-                                        Margin="0,0,8,0"
-                                        Background="#EEF2F7"
-                                        BorderBrush="#D0D7E6"
-                                        Foreground="#1D2939"
-                                        ToolTip="Горизонтальное перемещение">
+                                <ToggleButton Command="{Binding MoveHorizontalCommand}"
+                                              IsChecked="{Binding IsHorizontalRestriction, Mode=OneWay}"
+                                              Width="36"
+                                              Height="30"
+                                              Margin="0,0,8,0"
+                                              Background="#EEF2F7"
+                                              BorderBrush="#D0D7E6"
+                                              Foreground="#1D2939"
+                                              ToolTip="Горизонтальное перемещение">
                                     <TextBlock Text="&#xE76F;" FontFamily="Segoe MDL2 Assets" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                </Button>
-                                <Button Command="{Binding MoveVerticalCommand}"
-                                        Width="36"
-                                        Height="30"
-                                        Background="#EEF2F7"
-                                        BorderBrush="#D0D7E6"
-                                        Foreground="#1D2939"
-                                        ToolTip="Вертикальное перемещение">
+                                </ToggleButton>
+                                <ToggleButton Command="{Binding MoveVerticalCommand}"
+                                              IsChecked="{Binding IsVerticalRestriction, Mode=OneWay}"
+                                              Width="36"
+                                              Height="30"
+                                              Background="#EEF2F7"
+                                              BorderBrush="#D0D7E6"
+                                              Foreground="#1D2939"
+                                              ToolTip="Вертикальное перемещение">
                                     <TextBlock Text="&#xE784;" FontFamily="Segoe MDL2 Assets" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                </Button>
+                                </ToggleButton>
                             </StackPanel>
                         </Grid>
 

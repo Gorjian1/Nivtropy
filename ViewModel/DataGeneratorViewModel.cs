@@ -35,6 +35,7 @@ namespace Nivtropy.ViewModels
         private double? _profileMaxHeight;
         private bool _profileRangeCustomized;
         private bool _isUpdatingProfileStats;
+        private DragRestrictionMode _dragRestriction = DragRestrictionMode.Free;
         private Random _random = new Random();
         private RelayCommand? _smoothCommand;
         private RelayCommand? _resetEditsCommand;
@@ -118,8 +119,8 @@ namespace Nivtropy.ViewModels
         public ICommand ExportCommand => new RelayCommand(_ => Export(), _ => Measurements.Count > 0);
         public ICommand SmoothCommand => _smoothCommand ??= new RelayCommand(_ => SmoothSelectedMeasurement(), _ => SelectedMeasurement != null);
         public ICommand ResetEditsCommand => _resetEditsCommand ??= new RelayCommand(_ => ResetEdits(), _ => Measurements.Any());
-        public ICommand MoveHorizontalCommand => _moveHorizontalCommand ??= new RelayCommand(_ => { }, _ => Measurements.Any());
-        public ICommand MoveVerticalCommand => _moveVerticalCommand ??= new RelayCommand(_ => { }, _ => Measurements.Any());
+        public ICommand MoveHorizontalCommand => _moveHorizontalCommand ??= new RelayCommand(_ => ToggleRestriction(DragRestrictionMode.HorizontalOnly), _ => Measurements.Any());
+        public ICommand MoveVerticalCommand => _moveVerticalCommand ??= new RelayCommand(_ => ToggleRestriction(DragRestrictionMode.VerticalOnly), _ => Measurements.Any());
 
         public double? ProfileMinHeight
         {
@@ -144,6 +145,23 @@ namespace Nivtropy.ViewModels
                 }
             }
         }
+
+        public DragRestrictionMode DragRestriction
+        {
+            get => _dragRestriction;
+            private set
+            {
+                if (SetField(ref _dragRestriction, value))
+                {
+                    OnPropertyChanged(nameof(IsHorizontalRestriction));
+                    OnPropertyChanged(nameof(IsVerticalRestriction));
+                }
+            }
+        }
+
+        public bool IsHorizontalRestriction => DragRestriction == DragRestrictionMode.HorizontalOnly;
+
+        public bool IsVerticalRestriction => DragRestriction == DragRestrictionMode.VerticalOnly;
 
         private void OpenFile()
         {
@@ -508,6 +526,13 @@ namespace Nivtropy.ViewModels
             }
         }
 
+        private void ToggleRestriction(DragRestrictionMode mode)
+        {
+            DragRestriction = DragRestriction == mode
+                ? DragRestrictionMode.Free
+                : mode;
+        }
+
         private void ExportToNivelir()
         {
             var saveFileDialog = new SaveFileDialog
@@ -782,5 +807,12 @@ namespace Nivtropy.ViewModels
 
             return null;
         }
+    }
+
+    public enum DragRestrictionMode
+    {
+        Free,
+        HorizontalOnly,
+        VerticalOnly
     }
 }

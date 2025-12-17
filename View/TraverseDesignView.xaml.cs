@@ -24,6 +24,8 @@ namespace Nivtropy.Views
         private ProfileRenderResult? _lastRenderResult;
         private ProfilePointVisual? _draggingPoint;
         private bool _isDragging;
+        private double _dragStartDistance;
+        private double _dragStartHeight;
 
         public TraverseDesignView()
         {
@@ -144,6 +146,8 @@ namespace Nivtropy.Views
             {
                 _draggingPoint = visual;
                 _isDragging = true;
+                _dragStartDistance = visual.Point.Distance;
+                _dragStartHeight = visual.Point.Height;
                 ellipse.CaptureMouse();
                 e.Handled = true;
             }
@@ -168,6 +172,15 @@ namespace Nivtropy.Views
 
             var newDistance = transform.CanvasToDistance(position.X);
             var newHeight = transform.CanvasToHeight(position.Y);
+
+            if (ViewModel?.DragRestriction == DragRestrictionMode.HorizontalOnly)
+            {
+                newHeight = _dragStartHeight;
+            }
+            else if (ViewModel?.DragRestriction == DragRestrictionMode.VerticalOnly)
+            {
+                newDistance = _dragStartDistance;
+            }
 
             ApplyDragUpdate(_draggingPoint, newDistance, newHeight);
         }
