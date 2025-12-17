@@ -103,7 +103,7 @@
                                     BorderBrush="#1D4ED8"
                                     Margin="0,0,6,0">
                                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                                    <TextBlock Text="&#xE7FC;" FontFamily="Segoe MDL2 Assets" Margin="0,0,6,0" />
+                                    <TextBlock Text="&#xE768;" FontFamily="Segoe MDL2 Assets" Margin="0,0,6,0" />
                                     <TextBlock Text="Генерация" />
                                 </StackPanel>
                             </Button>
@@ -115,7 +115,7 @@
                                     BorderBrush="#D1D5DB"
                                     Margin="6,0,0,0">
                                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                                    <TextBlock Text="&#xEDE0;" FontFamily="Segoe MDL2 Assets" Margin="0,0,6,0" />
+                                    <TextBlock Text="&#xE105;" FontFamily="Segoe MDL2 Assets" Margin="0,0,6,0" />
                                     <TextBlock Text="Экспорт" />
                                 </StackPanel>
                             </Button>
@@ -162,13 +162,13 @@
                         <TextBlock Text="Действия" FontSize="13" FontWeight="SemiBold" Foreground="#0F172A" Margin="0,0,0,12" />
                         <Button Command="{Binding SmoothCommand}" Height="34" Background="#F3F4F6" BorderBrush="#E4E7EC" Foreground="#1D2939" Margin="0,0,0,8">
                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                                <TextBlock Text="&#xF4A9;" FontFamily="Segoe MDL2 Assets" Margin="0,0,6,0" />
+                                <TextBlock Text="&#xE9D2;" FontFamily="Segoe MDL2 Assets" Margin="0,0,6,0" />
                                 <TextBlock Text="Сгладить выбранное" />
                             </StackPanel>
                         </Button>
                         <Button Command="{Binding ResetEditsCommand}" Height="34" Background="#F3F4F6" BorderBrush="#E4E7EC" Foreground="#1D2939">
                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                                <TextBlock Text="&#xE777;" FontFamily="Segoe MDL2 Assets" Margin="0,0,6,0" />
+                                <TextBlock Text="&#xE7A7;" FontFamily="Segoe MDL2 Assets" Margin="0,0,6,0" />
                                 <TextBlock Text="Сбросить правки" />
                             </StackPanel>
                         </Button>
@@ -200,8 +200,11 @@
                                 <TextBlock Text="Мин" FontSize="11" Foreground="#6B7280" />
                                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                     <TextBlock Text="&#xE972;" FontFamily="Segoe MDL2 Assets" Foreground="#9CA3AF" Margin="0,0,6,0" />
-                                    <TextBlock Text="{Binding ProfileMinHeight, StringFormat=F3, TargetNullValue=—}" Foreground="#111827" />
-                                    <TextBlock Text=" м" Foreground="#6B7280" />
+                                    <TextBox Text="{Binding ProfileMinHeight, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, StringFormat=F3}"
+                                             Width="80"
+                                             Padding="6,2"
+                                             HorizontalContentAlignment="Right" />
+                                    <TextBlock Text=" м" Foreground="#6B7280" Margin="6,0,0,0" />
                                 </StackPanel>
                             </StackPanel>
 
@@ -209,31 +212,38 @@
                                 <TextBlock Text="Макс" FontSize="11" Foreground="#6B7280" />
                                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                     <TextBlock Text="&#xE973;" FontFamily="Segoe MDL2 Assets" Foreground="#9CA3AF" Margin="0,0,6,0" />
-                                    <TextBlock Text="{Binding ProfileMaxHeight, StringFormat=F3, TargetNullValue=—}" Foreground="#111827" />
-                                    <TextBlock Text=" м" Foreground="#6B7280" />
+                                    <TextBox Text="{Binding ProfileMaxHeight, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, StringFormat=F3}"
+                                             Width="80"
+                                             Padding="6,2"
+                                             HorizontalContentAlignment="Right" />
+                                    <TextBlock Text=" м" Foreground="#6B7280" Margin="6,0,0,0" />
                                 </StackPanel>
                             </StackPanel>
 
                             <StackPanel Orientation="Horizontal" Grid.Column="3" Margin="0,0,8,0" VerticalAlignment="Center">
-                                <Button Command="{Binding MoveHorizontalCommand}"
-                                        Width="36"
-                                        Height="30"
-                                        Margin="0,0,8,0"
-                                        Background="#EEF2F7"
-                                        BorderBrush="#D0D7E6"
-                                        Foreground="#1D2939"
-                                        ToolTip="Горизонтальное перемещение (в разработке)">
-                                    <TextBlock Text="&#xE909;" FontFamily="Segoe MDL2 Assets" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                </Button>
-                                <Button Command="{Binding MoveVerticalCommand}"
-                                        Width="36"
-                                        Height="30"
-                                        Background="#EEF2F7"
-                                        BorderBrush="#D0D7E6"
-                                        Foreground="#1D2939"
-                                        ToolTip="Вертикальное перемещение (в разработке)">
-                                    <TextBlock Text="&#xE908;" FontFamily="Segoe MDL2 Assets" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                </Button>
+                                <ToggleButton IsChecked="{Binding IsHorizontalDragConstraint, Mode=TwoWay}"
+                                              Command="{Binding MoveHorizontalCommand}"
+                                              CommandParameter="{Binding IsChecked, RelativeSource={RelativeSource Self}}"
+                                              Width="36"
+                                              Height="30"
+                                              Margin="0,0,8,0"
+                                              Background="#EEF2F7"
+                                              BorderBrush="#D0D7E6"
+                                              Foreground="#1D2939"
+                                              ToolTip="Горизонтальное перемещение">
+                                    <TextBlock Text="&#xE76F;" FontFamily="Segoe MDL2 Assets" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                </ToggleButton>
+                                <ToggleButton IsChecked="{Binding IsVerticalDragConstraint, Mode=TwoWay}"
+                                              Command="{Binding MoveVerticalCommand}"
+                                              CommandParameter="{Binding IsChecked, RelativeSource={RelativeSource Self}}"
+                                              Width="36"
+                                              Height="30"
+                                              Background="#EEF2F7"
+                                              BorderBrush="#D0D7E6"
+                                              Foreground="#1D2939"
+                                              ToolTip="Вертикальное перемещение">
+                                    <TextBlock Text="&#xE784;" FontFamily="Segoe MDL2 Assets" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                </ToggleButton>
                             </StackPanel>
                         </Grid>
 
@@ -245,7 +255,10 @@
                             <Canvas x:Name="GeneratedProfileCanvas"
                                     Background="White"
                                     ClipToBounds="True"
-                                    SizeChanged="GeneratedProfileCanvas_SizeChanged"/>
+                                    SizeChanged="GeneratedProfileCanvas_SizeChanged"
+                                    MouseMove="GeneratedProfileCanvas_MouseMove"
+                                    MouseLeftButtonUp="GeneratedProfileCanvas_MouseLeftButtonUp"
+                                    MouseLeave="GeneratedProfileCanvas_MouseLeave"/>
                         </Border>
                     </StackPanel>
                 </Border>
