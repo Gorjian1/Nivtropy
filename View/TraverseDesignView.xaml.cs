@@ -204,33 +204,47 @@ namespace Nivtropy.Views
 
             var measurement = visual.Point.Measurement;
             var previousDistance = visual.Index == 0 ? 0 : _lastRenderResult.Points[visual.Index - 1].Point.Distance;
+            var nextDistance = visual.Index < _lastRenderResult.Points.Count - 1
+                ? _lastRenderResult.Points[visual.Index + 1].Point.Distance
+                : _lastRenderResult.Transform.TotalDistance;
             var constraint = ViewModel.DragConstraintMode;
 
-            double constrainedDistance = constraint == DragConstraintMode.VerticalOnly
-                ? (_dragStartDistance ?? distance)
+            var constrainedHeight = constraint == DragConstraintMode.LockVertical
+                ? (_dragStartHeight ?? visual.Point.Height)
+                : height;
+
+            var constrainedDistance = constraint == DragConstraintMode.LockHorizontal
+                ? (_dragStartDistance ?? visual.Point.Distance)
                 : distance;
 
-            double constrainedHeight = constraint == DragConstraintMode.HorizontalOnly
-                ? (_dragStartHeight ?? height)
-                : height;
+            const double minGap = 0.01;
+            var minDistance = previousDistance + minGap;
+            var maxDistance = Math.Max(minDistance, nextDistance - minGap);
+
+            if (constraint != DragConstraintMode.LockHorizontal)
+            {
+                constrainedDistance = Math.Clamp(constrainedDistance, minDistance, maxDistance);
+            }
 
             double newStationLength;
             double newBack;
             double newFore;
 
-            if (constraint == DragConstraintMode.VerticalOnly)
+            if (constraint == DragConstraintMode.LockHorizontal)
             {
-                newBack = Math.Max(_dragStartBack ?? measurement.HD_Back_m ?? 0, 0);
-                newFore = Math.Max(_dragStartFore ?? measurement.HD_Fore_m ?? 0, 0);
-                newStationLength = Math.Max(newBack + newFore, 0.01);
+                var startBack = _dragStartBack ?? measurement.HD_Back_m ?? 0;
+                var startFore = _dragStartFore ?? measurement.HD_Fore_m ?? 0;
+                newBack = Math.Max(startBack, 0);
+                newFore = Math.Max(startFore, 0);
+                newStationLength = Math.Max(newBack + newFore, minGap);
                 constrainedDistance = previousDistance + newStationLength;
             }
             else
             {
-                newStationLength = Math.Max(constrainedDistance - previousDistance, 0.01);
+                newStationLength = Math.Max(constrainedDistance - previousDistance, minGap);
 
-                var baseBack = measurement.HD_Back_m ?? _dragStartBack ?? newStationLength / 2;
-                var baseFore = measurement.HD_Fore_m ?? _dragStartFore ?? newStationLength / 2;
+                var baseBack = _dragStartBack ?? measurement.HD_Back_m ?? newStationLength / 2;
+                var baseFore = _dragStartFore ?? measurement.HD_Fore_m ?? newStationLength / 2;
                 var total = Math.Max(baseBack + baseFore, 0.001);
 
                 var backRatio = baseBack / total;

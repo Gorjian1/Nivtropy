@@ -161,14 +161,14 @@ namespace Nivtropy.ViewModels
 
         public bool IsHorizontalDragConstraint
         {
-            get => DragConstraintMode == DragConstraintMode.HorizontalOnly;
+            get => DragConstraintMode == DragConstraintMode.LockHorizontal;
             set
             {
                 if (value)
                 {
-                    DragConstraintMode = DragConstraintMode.HorizontalOnly;
+                    DragConstraintMode = DragConstraintMode.LockHorizontal;
                 }
-                else if (DragConstraintMode == DragConstraintMode.HorizontalOnly)
+                else if (DragConstraintMode == DragConstraintMode.LockHorizontal)
                 {
                     DragConstraintMode = DragConstraintMode.Free;
                 }
@@ -177,14 +177,14 @@ namespace Nivtropy.ViewModels
 
         public bool IsVerticalDragConstraint
         {
-            get => DragConstraintMode == DragConstraintMode.VerticalOnly;
+            get => DragConstraintMode == DragConstraintMode.LockVertical;
             set
             {
                 if (value)
                 {
-                    DragConstraintMode = DragConstraintMode.VerticalOnly;
+                    DragConstraintMode = DragConstraintMode.LockVertical;
                 }
-                else if (DragConstraintMode == DragConstraintMode.VerticalOnly)
+                else if (DragConstraintMode == DragConstraintMode.LockVertical)
                 {
                     DragConstraintMode = DragConstraintMode.Free;
                 }
@@ -558,9 +558,9 @@ namespace Nivtropy.ViewModels
         {
             if (state is bool isChecked && isChecked)
             {
-                DragConstraintMode = DragConstraintMode.HorizontalOnly;
+                DragConstraintMode = DragConstraintMode.LockHorizontal;
             }
-            else if (DragConstraintMode == DragConstraintMode.HorizontalOnly)
+            else if (DragConstraintMode == DragConstraintMode.LockHorizontal)
             {
                 DragConstraintMode = DragConstraintMode.Free;
             }
@@ -570,9 +570,9 @@ namespace Nivtropy.ViewModels
         {
             if (state is bool isChecked && isChecked)
             {
-                DragConstraintMode = DragConstraintMode.VerticalOnly;
+                DragConstraintMode = DragConstraintMode.LockVertical;
             }
-            else if (DragConstraintMode == DragConstraintMode.VerticalOnly)
+            else if (DragConstraintMode == DragConstraintMode.LockVertical)
             {
                 DragConstraintMode = DragConstraintMode.Free;
             }
@@ -857,7 +857,13 @@ namespace Nivtropy.ViewModels
     public enum DragConstraintMode
     {
         Free,
-        HorizontalOnly,
-        VerticalOnly
+        /// <summary>
+        /// Ограничивает горизонтальное перемещение (двигаем только высоту).
+        /// </summary>
+        LockHorizontal,
+        /// <summary>
+        /// Ограничивает вертикальное перемещение (двигаем только расстояние).
+        /// </summary>
+        LockVertical
     }
 }
