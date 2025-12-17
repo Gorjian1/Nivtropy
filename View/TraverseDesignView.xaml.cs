@@ -228,17 +228,17 @@ namespace Nivtropy.Views
             var desiredDistance = Math.Clamp(constrainedDistance, minDistance, maxDistance);
             var desiredTotal = Math.Max(minGap * 2, desiredDistance - previousDistance);
 
-            // Redistribute distances so moving left grows HD_Back and shrinking HD_Fore, and vice versa.
+            // Horizontal shift redistributes HD_Back/HD_Fore inversely while keeping the total between stations.
             var delta = desiredDistance - startDistance;
-            var tentativeBack = startBack - delta;
-            var newBack = Math.Clamp(tentativeBack, minGap, desiredTotal - minGap);
-            var newFore = Math.Max(desiredTotal - newBack, minGap);
+            var tentativeFore = startFore - delta;
+            var newFore = Math.Clamp(tentativeFore, minGap, desiredTotal - minGap);
+            var newBack = Math.Max(desiredTotal - newFore, minGap);
 
-            // If clamping back forced the fore below the minimum, rebalance to keep totals consistent.
-            if (newFore < minGap)
+            // If clamping fore caused back to violate the minimum gap, rebalance within the total budget.
+            if (newBack < minGap)
             {
-                newFore = minGap;
-                newBack = Math.Max(desiredTotal - newFore, minGap);
+                newBack = minGap;
+                newFore = Math.Max(desiredTotal - newBack, minGap);
             }
 
             var newDistance = previousDistance + newBack + newFore;
