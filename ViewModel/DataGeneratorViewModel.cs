@@ -33,6 +33,8 @@ namespace Nivtropy.ViewModels
         private GeneratedMeasurement? _selectedMeasurement;
         private double? _profileMinHeight;
         private double? _profileMaxHeight;
+        private bool _profileRangeCustomized;
+        private bool _isUpdatingProfileStats;
         private Random _random = new Random();
         private RelayCommand? _smoothCommand;
         private RelayCommand? _resetEditsCommand;
@@ -122,13 +124,25 @@ namespace Nivtropy.ViewModels
         public double? ProfileMinHeight
         {
             get => _profileMinHeight;
-            private set => SetField(ref _profileMinHeight, value);
+            set
+            {
+                if (SetField(ref _profileMinHeight, value) && !_isUpdatingProfileStats)
+                {
+                    _profileRangeCustomized = true;
+                }
+            }
         }
 
         public double? ProfileMaxHeight
         {
             get => _profileMaxHeight;
-            private set => SetField(ref _profileMaxHeight, value);
+            set
+            {
+                if (SetField(ref _profileMaxHeight, value) && !_isUpdatingProfileStats)
+                {
+                    _profileRangeCustomized = true;
+                }
+            }
         }
 
         private void OpenFile()
@@ -709,13 +723,22 @@ namespace Nivtropy.ViewModels
 
             if (heights.Count == 0)
             {
+                _isUpdatingProfileStats = true;
                 ProfileMinHeight = null;
                 ProfileMaxHeight = null;
+                _profileRangeCustomized = false;
+                _isUpdatingProfileStats = false;
                 return;
             }
 
-            ProfileMinHeight = heights.Min();
-            ProfileMaxHeight = heights.Max();
+            if (!_profileRangeCustomized || !_profileMinHeight.HasValue || !_profileMaxHeight.HasValue)
+            {
+                _isUpdatingProfileStats = true;
+                ProfileMinHeight = heights.Min();
+                ProfileMaxHeight = heights.Max();
+                _profileRangeCustomized = false;
+                _isUpdatingProfileStats = false;
+            }
         }
 
         private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
