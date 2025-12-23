@@ -26,8 +26,9 @@ namespace Nivtropy
             // Настройка Dependency Injection
             var services = new ServiceCollection();
 
-            // Регистрация сервисов и ViewModels
+            // Регистрация сервисов, менеджеров и ViewModels
             services.AddApplicationServices();
+            services.AddManagers();
             services.AddViewModels();
 
             // Создание контейнера

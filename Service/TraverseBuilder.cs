@@ -144,15 +144,5 @@ namespace Nivtropy.Services
             return list;
         }
 
-        /// <summary>
-        /// Статический метод для обратной совместимости со старым кодом
-        /// Рекомендуется использовать инстансный метод Build через DI
-        /// </summary>
-        [Obsolete("Используйте инстансный метод Build через Dependency Injection")]
-        public static List<TraverseRow> BuildStatic(IEnumerable<MeasurementRecord> records, LineSummary? run = null)
-        {
-            var builder = new TraverseBuilder();
-            return builder.Build(records, run);
-        }
     }
 }

@@ -18,6 +18,7 @@ namespace Nivtropy.ViewModels
     {
         private readonly DataViewModel _dataViewModel;
         private readonly SettingsViewModel _settingsViewModel;
+        private readonly ITraverseBuilder _traverseBuilder;
         private readonly ObservableCollection<TraverseRow> _rows = new();
         private readonly ObservableCollection<PointItem> _availablePoints = new();
         private readonly ObservableCollection<BenchmarkItem> _benchmarks = new();
@@ -70,10 +71,11 @@ namespace Nivtropy.ViewModels
         private string? _newBenchmarkHeight;
         private TraverseSystem? _selectedSystem;
 
-        public TraverseCalculationViewModel(DataViewModel dataViewModel, SettingsViewModel settingsViewModel)
+        public TraverseCalculationViewModel(DataViewModel dataViewModel, SettingsViewModel settingsViewModel, ITraverseBuilder traverseBuilder)
         {
             _dataViewModel = dataViewModel;
             _settingsViewModel = settingsViewModel;
+            _traverseBuilder = traverseBuilder;
             ((INotifyCollectionChanged)_dataViewModel.Records).CollectionChanged += OnRecordsCollectionChanged;
             ((INotifyCollectionChanged)_dataViewModel.Runs).CollectionChanged += (_, __) => OnPropertyChanged(nameof(Runs));
             _dataViewModel.PropertyChanged += DataViewModelOnPropertyChanged;
@@ -618,7 +620,7 @@ namespace Nivtropy.ViewModels
                 return;
             }
 
-            var items = TraverseBuilder.BuildStatic(records);
+            var items = _traverseBuilder.Build(records);
 
             // Группируем станции по ходам для корректного расчета поправок
             var traverseGroups = items.GroupBy(r => r.LineName).ToList();

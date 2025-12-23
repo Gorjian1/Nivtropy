@@ -1,10 +1,12 @@
 using Microsoft.Extensions.DependencyInjection;
 using Nivtropy.Services;
 using Nivtropy.Services.Export;
+using Nivtropy.Services.Logging;
 using Nivtropy.Services.Statistics;
 using Nivtropy.Services.Tolerance;
 using Nivtropy.Services.Visualization;
 using Nivtropy.ViewModels;
+using Nivtropy.ViewModels.Managers;
 
 namespace Nivtropy.Services
 {
@@ -19,6 +21,9 @@ namespace Nivtropy.Services
         /// </summary>
         public static IServiceCollection AddApplicationServices(this IServiceCollection services)
         {
+            // Сервис логирования
+            services.AddSingleton<ILoggerService, FileLoggerService>();
+
             // Сервисы парсинга и построения данных
             services.AddSingleton<IDataParser, DatParser>();
             services.AddSingleton<ITraverseBuilder, TraverseBuilder>();
@@ -50,6 +55,18 @@ namespace Nivtropy.Services
             services.AddTransient<TraverseCalculationViewModel>();
             services.AddTransient<TraverseJournalViewModel>();
             services.AddTransient<MainViewModel>();
+
+            return services;
+        }
+
+        /// <summary>
+        /// Регистрирует менеджеры приложения
+        /// </summary>
+        public static IServiceCollection AddManagers(this IServiceCollection services)
+        {
+            services.AddTransient<BenchmarkManager>();
+            services.AddTransient<SharedPointsManager>();
+            services.AddTransient<TraverseSystemsManager>();
 
             return services;
         }

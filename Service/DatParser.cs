@@ -8,6 +8,7 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Nivtropy.Models;
+using Nivtropy.Services.Logging;
 
 namespace Nivtropy.Services
 {
@@ -17,8 +18,16 @@ namespace Nivtropy.Services
     /// </summary>
     public class DatParser : IDataParser
     {
+        private readonly ILoggerService? _logger;
         private static readonly CultureInfo CI = CultureInfo.InvariantCulture;
         private static readonly string[] CandidateEncodings = { "utf-8", "windows-1251", "cp1251", "latin1", "utf-16" };
+
+        public DatParser() : this(null) { }
+
+        public DatParser(ILoggerService? logger)
+        {
+            _logger = logger;
+        }
 
         private static readonly Dictionary<string, string[]> DefaultSynonyms = new(StringComparer.OrdinalIgnoreCase)
         {
@@ -327,7 +336,7 @@ namespace Nivtropy.Services
             return null;
         }
 
-        private static string ReadTextSmart(string path)
+        private string ReadTextSmart(string path)
         {
             Exception? last = null;
             foreach (var encName in CandidateEncodings)
@@ -337,12 +346,19 @@ namespace Nivtropy.Services
                     var enc = Encoding.GetEncoding(encName);
                     return File.ReadAllText(path, enc);
                 }
-                catch (Exception ex) { last = ex; }
+                catch (Exception ex)
+                {
+                    _logger?.LogWarning($"Не удалось прочитать файл в кодировке {encName}: {ex.Message}");
+                    last = ex;
+                }
             }
-            throw last ?? new IOException("Не удалось прочитать файл в известных кодировках.");
+
+            var errorMessage = "Не удалось прочитать файл в известных кодировках.";
+            _logger?.LogError(errorMessage, last);
+            throw last ?? new IOException(errorMessage);
         }
 
-        private static Dictionary<string, HashSet<string>> LoadSynonyms(string dataPath, string? synonymsConfigPath)
+        private Dictionary<string, HashSet<string>> LoadSynonyms(string dataPath, string? synonymsConfigPath)
         {
             var map = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
             foreach (var kvp in DefaultSynonyms)
@@ -378,9 +394,10 @@ namespace Nivtropy.Services
                         }
                     }
                 }
-                catch (Exception)
+                catch (Exception ex)
                 {
                     // Неверный конфиг не должен ронять парсер — оставляем значения по умолчанию
+                    _logger?.LogWarning($"Не удалось загрузить конфигурацию синонимов из {configPath}: {ex.Message}");
                 }
             }
 
