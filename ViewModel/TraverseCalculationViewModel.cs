@@ -1396,25 +1396,6 @@ namespace Nivtropy.ViewModels
             var adjusted = new Dictionary<string, double>(availableAdjustedHeights, StringComparer.OrdinalIgnoreCase);
             var raw = new Dictionary<string, double>(availableRawHeights, StringComparer.OrdinalIgnoreCase);
 
-            // Вспомогательная функция для поиска высоты с учётом отвязки
-            bool TryGetHeightForRun(Dictionary<string, double> dict, string? pointCode, out double height)
-            {
-                height = 0;
-                if (string.IsNullOrWhiteSpace(pointCode))
-                    return false;
-
-                // Если точка отвязана - ищем версию с суффиксом хода
-                if (!_dataViewModel.IsSharedPointEnabled(pointCode))
-                {
-                    var codeWithRun = _dataViewModel.GetPointCodeForRun(pointCode, runName);
-                    if (dict.TryGetValue(codeWithRun, out height))
-                        return true;
-                }
-
-                // Иначе ищем обычную точку
-                return dict.TryGetValue(pointCode, out height);
-            }
-
             // Обновляем локальные словари с учётом отвязанных точек
             var pointsInRun = items.SelectMany(r => new[] { r.BackCode, r.ForeCode })
                 .Where(c => !string.IsNullOrWhiteSpace(c))

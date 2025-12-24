@@ -6,6 +6,7 @@ using System.Windows;
 using System.Windows.Input;
 using Microsoft.Win32;
 using Nivtropy.Views;
+using Nivtropy.Services;
 using Nivtropy.Services.Visualization;
 using Nivtropy.Services.Statistics;
 
@@ -27,12 +28,13 @@ namespace Nivtropy.ViewModels
         public MainViewModel(
             IProfileVisualizationService profileVisualizationService,
             IProfileStatisticsService profileStatisticsService,
-            ITraverseSystemVisualizationService systemVisualizationService)
+            ITraverseSystemVisualizationService systemVisualizationService,
+            ITraverseBuilder traverseBuilder)
         {
             DataViewModel = new DataViewModel();
             SettingsViewModel = new SettingsViewModel();
             SettingsViewModel.Load();
-            CalculationViewModel = new TraverseCalculationViewModel(DataViewModel, SettingsViewModel);
+            CalculationViewModel = new TraverseCalculationViewModel(DataViewModel, SettingsViewModel, traverseBuilder);
 
             // Создаём JournalViewModel с сервисами из DI
             JournalViewModel = new TraverseJournalViewModel(
