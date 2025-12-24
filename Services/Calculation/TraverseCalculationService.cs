@@ -82,7 +82,7 @@ namespace Nivtropy.Services.Calculation
                 {
                     var proportion = row.StationLength_m.Value / totalLength;
                     row.Correction = -closure * proportion;
-                    row.AdjustedDeltaH = row.DeltaH.Value + row.Correction.Value;
+                    // AdjustedDeltaH вычисляется автоматически из DeltaH + Correction
                 }
             }
 
@@ -122,6 +122,11 @@ namespace Nivtropy.Services.Calculation
         }
 
         /// <inheritdoc/>
+        /// <remarks>
+        /// AdjustedDeltaH вычисляется автоматически из DeltaH + Correction.
+        /// Этот метод устанавливает Correction = 0 для строк без поправки,
+        /// чтобы AdjustedDeltaH равнялось DeltaH.
+        /// </remarks>
         public IList<TraverseRow> ApplyCorrections(IList<TraverseRow> rows)
         {
             if (rows == null || rows.Count == 0)
@@ -129,13 +134,11 @@ namespace Nivtropy.Services.Calculation
 
             foreach (var row in rows)
             {
-                if (row.DeltaH.HasValue && row.Correction.HasValue)
+                // Если поправка не установлена, устанавливаем 0
+                // чтобы AdjustedDeltaH = DeltaH + 0 = DeltaH
+                if (row.DeltaH.HasValue && !row.Correction.HasValue)
                 {
-                    row.AdjustedDeltaH = row.DeltaH.Value + row.Correction.Value;
-                }
-                else if (row.DeltaH.HasValue)
-                {
-                    row.AdjustedDeltaH = row.DeltaH.Value;
+                    row.Correction = 0;
                 }
             }
 
