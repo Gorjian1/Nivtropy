@@ -356,6 +356,12 @@ namespace Nivtropy.ViewModels
         }
 
         /// <summary>
+        /// Использовать инкрементальное обновление при изменении высот.
+        /// Если false - всегда пересчитывается всё (безопасный режим).
+        /// </summary>
+        public bool UseIncrementalUpdates { get; set; } = true;
+
+        /// <summary>
         /// Устанавливает известную высоту для точки
         /// </summary>
         public void SetKnownHeightForPoint(string pointCode, double height)
@@ -364,6 +370,20 @@ namespace Nivtropy.ViewModels
                 return;
 
             _dataViewModel.SetKnownHeight(pointCode, height);
+
+            // Если уже есть рассчитанные данные и включены инкрементальные обновления
+            if (UseIncrementalUpdates && _rows.Count > 0)
+            {
+                var affectedRuns = FindRunsContainingPoint(pointCode);
+                if (affectedRuns.Count > 0 && affectedRuns.Count < Runs.Count)
+                {
+                    // Пересчитываем только затронутые ходы
+                    RecalculateRunsIncremental(affectedRuns);
+                    return;
+                }
+            }
+
+            // Полный пересчёт при первой загрузке или если затронуты все ходы
             UpdateRows();
         }
 
@@ -659,6 +679,130 @@ namespace Nivtropy.ViewModels
             UpdateTolerance();
             CheckArmDifferenceTolerances();
         }
+
+        #region Incremental Updates
+
+        /// <summary>
+        /// Находит все ходы, содержащие указанную точку
+        /// </summary>
+        /// <param name="pointCode">Код точки</param>
+        /// <returns>Список имён ходов</returns>
+        private List<string> FindRunsContainingPoint(string pointCode)
+        {
+            if (string.IsNullOrWhiteSpace(pointCode))
+                return new List<string>();
+
+            var affectedRuns = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var row in _rows)
+            {
+                if (string.Equals(row.BackCode, pointCode, StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(row.ForeCode, pointCode, StringComparison.OrdinalIgnoreCase))
+                {
+                    if (!string.IsNullOrWhiteSpace(row.LineName))
+                    {
+                        affectedRuns.Add(row.LineName);
+                    }
+                }
+            }
+
+            return affectedRuns.ToList();
+        }
+
+        /// <summary>
+        /// Пересчитывает высоты только для указанных ходов (инкрементальное обновление)
+        /// </summary>
+        /// <param name="runNames">Список имён ходов для пересчёта</param>
+        private void RecalculateRunsIncremental(IEnumerable<string> runNames)
+        {
+            if (runNames == null || !runNames.Any())
+                return;
+
+            var runNamesSet = new HashSet<string>(runNames, StringComparer.OrdinalIgnoreCase);
+
+            // Получаем строки только затронутых ходов
+            var affectedRows = _rows.Where(r => runNamesSet.Contains(r.LineName)).ToList();
+            if (affectedRows.Count == 0)
+                return;
+
+            // Собираем известные высоты
+            var knownHeights = new Dictionary<string, double>(_dataViewModel.KnownHeights, StringComparer.OrdinalIgnoreCase);
+
+            // Добавляем высоты из связанных точек
+            foreach (var sp in _sharedPoints.Where(p => p.IsEnabled))
+            {
+                if (_dataViewModel.KnownHeights.TryGetValue(sp.Code, out var h))
+                {
+                    knownHeights[sp.Code] = h;
+                }
+            }
+
+            // Группируем по ходам
+            var groupedRows = affectedRows.GroupBy(r => r.LineName);
+
+            foreach (var group in groupedRows)
+            {
+                var runRows = group.OrderBy(r => r.Index).ToList();
+                RecalculateHeightsForRunInternal(runRows, knownHeights);
+            }
+
+            // Обновляем статистику
+            RecalculateClosure();
+            UpdateTolerance();
+        }
+
+        /// <summary>
+        /// Внутренний метод пересчёта высот для одного хода
+        /// </summary>
+        private void RecalculateHeightsForRunInternal(List<TraverseRow> runRows, Dictionary<string, double> knownHeights)
+        {
+            if (runRows.Count == 0)
+                return;
+
+            double? runningHeight = null;
+            double? runningHeightZ0 = null;
+
+            foreach (var row in runRows)
+            {
+                // Проверяем известную высоту задней точки
+                if (!string.IsNullOrEmpty(row.BackCode) &&
+                    knownHeights.TryGetValue(row.BackCode, out var backKnownHeight))
+                {
+                    runningHeight = backKnownHeight;
+                    runningHeightZ0 = backKnownHeight;
+                }
+
+                // Устанавливаем высоту задней точки
+                if (runningHeight.HasValue)
+                {
+                    row.BackHeight = runningHeight;
+                    row.BackHeightZ0 = runningHeightZ0;
+                }
+
+                // Рассчитываем высоту передней точки
+                if (runningHeight.HasValue && row.AdjustedDeltaH.HasValue)
+                {
+                    row.ForeHeight = runningHeight.Value + row.AdjustedDeltaH.Value;
+                    runningHeight = row.ForeHeight;
+                }
+
+                if (runningHeightZ0.HasValue && row.DeltaH.HasValue)
+                {
+                    row.ForeHeightZ0 = runningHeightZ0.Value + row.DeltaH.Value;
+                    runningHeightZ0 = row.ForeHeightZ0;
+                }
+
+                // Проверяем известную высоту передней точки
+                if (!string.IsNullOrEmpty(row.ForeCode) &&
+                    knownHeights.TryGetValue(row.ForeCode, out var foreKnownHeight))
+                {
+                    row.ForeHeight = foreKnownHeight;
+                    runningHeight = foreKnownHeight;
+                }
+            }
+        }
+
+        #endregion
 
         private void RecalculateClosure()
         {
