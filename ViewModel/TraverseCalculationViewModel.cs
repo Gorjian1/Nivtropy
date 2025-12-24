@@ -6,6 +6,9 @@ using System.ComponentModel;
 using System.Globalization;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Threading;
+using System.Threading.Tasks;
+using System.Windows;
 using System.Windows.Input;
 using ClosedXML.Excel;
 using Microsoft.Win32;
@@ -71,6 +74,8 @@ namespace Nivtropy.ViewModels
         private PointItem? _selectedPoint;
         private string? _newBenchmarkHeight;
         private TraverseSystem? _selectedSystem;
+        private bool _isCalculating;
+        private CancellationTokenSource? _calculationCts;
 
         public TraverseCalculationViewModel(DataViewModel dataViewModel, SettingsViewModel settingsViewModel, ITraverseBuilder traverseBuilder, IExportService exportService)
         {
@@ -101,7 +106,15 @@ namespace Nivtropy.ViewModels
         /// </summary>
         protected override void OnBatchUpdateCompleted()
         {
-            UpdateRows();
+            if (UseAsyncCalculations)
+            {
+                // Fire-and-forget async update
+                _ = UpdateRowsAsync();
+            }
+            else
+            {
+                UpdateRows();
+            }
         }
 
         private void OnRecordsCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
@@ -109,7 +122,14 @@ namespace Nivtropy.ViewModels
             if (IsUpdating)
                 return;
 
-            UpdateRows();
+            if (UseAsyncCalculations)
+            {
+                _ = UpdateRowsAsync();
+            }
+            else
+            {
+                UpdateRows();
+            }
         }
 
         public ObservableCollection<TraverseRow> Rows => _rows;
@@ -360,6 +380,20 @@ namespace Nivtropy.ViewModels
         /// Если false - всегда пересчитывается всё (безопасный режим).
         /// </summary>
         public bool UseIncrementalUpdates { get; set; } = true;
+
+        /// <summary>
+        /// Использовать асинхронные вычисления при загрузке данных.
+        /// </summary>
+        public bool UseAsyncCalculations { get; set; } = true;
+
+        /// <summary>
+        /// Индикатор выполнения расчётов (для UI).
+        /// </summary>
+        public bool IsCalculating
+        {
+            get => _isCalculating;
+            private set => SetField(ref _isCalculating, value);
+        }
 
         /// <summary>
         /// Устанавливает известную высоту для точки
@@ -679,6 +713,185 @@ namespace Nivtropy.ViewModels
             UpdateTolerance();
             CheckArmDifferenceTolerances();
         }
+
+        #region Async Calculations
+
+        /// <summary>
+        /// Асинхронно обновляет строки хода.
+        /// Тяжёлые вычисления выполняются в фоновом потоке.
+        /// </summary>
+        public async Task UpdateRowsAsync()
+        {
+            // Отменяем предыдущий расчёт если он ещё выполняется
+            _calculationCts?.Cancel();
+            _calculationCts = new CancellationTokenSource();
+            var token = _calculationCts.Token;
+
+            IsCalculating = true;
+
+            try
+            {
+                var records = _dataViewModel.Records.ToList();
+
+                if (records.Count == 0)
+                {
+                    await Application.Current.Dispatcher.InvokeAsync(() =>
+                    {
+                        _rows.Clear();
+                        Closure = null;
+                        AllowableClosure = null;
+                        ClosureVerdict = "Нет данных для расчёта.";
+                        StationsCount = 0;
+                        TotalBackDistance = 0;
+                        TotalForeDistance = 0;
+                        TotalAverageDistance = 0;
+                        MethodTolerance = null;
+                        ClassTolerance = null;
+                    });
+                    return;
+                }
+
+                // Тяжёлые вычисления в фоновом потоке
+                var items = await Task.Run(() =>
+                {
+                    token.ThrowIfCancellationRequested();
+                    return _traverseBuilder.Build(records);
+                }, token);
+
+                token.ThrowIfCancellationRequested();
+
+                // Обновление UI в главном потоке
+                await Application.Current.Dispatcher.InvokeAsync(() =>
+                {
+                    if (token.IsCancellationRequested)
+                        return;
+
+                    // Вызываем синхронный метод для обновления (уже в UI потоке)
+                    UpdateRowsFromItems(items);
+                });
+            }
+            catch (OperationCanceledException)
+            {
+                // Расчёт был отменён - это нормально
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"UpdateRowsAsync error: {ex.Message}");
+            }
+            finally
+            {
+                IsCalculating = false;
+            }
+        }
+
+        /// <summary>
+        /// Обновляет строки из уже построенных items (для использования из async метода)
+        /// </summary>
+        private void UpdateRowsFromItems(List<TraverseRow> items)
+        {
+            _rows.Clear();
+
+            // Группируем станции по ходам для корректного расчета поправок
+            var traverseGroupsDict = items.GroupBy(r => r.LineName)
+                .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.OrdinalIgnoreCase);
+
+            var runsLookup = Runs.ToDictionary(r => r.DisplayName, r => r, StringComparer.OrdinalIgnoreCase);
+
+            InitializeRunSystems();
+            UpdateSharedPointsMetadata(_dataViewModel.Records);
+
+            foreach (var system in _systems.OrderBy(s => s.Order))
+            {
+                var systemTraverseGroups = traverseGroupsDict.Where(kvp =>
+                {
+                    runsLookup.TryGetValue(kvp.Key, out var run);
+                    return run != null && run.SystemId == system.Id && run.IsActive;
+                }).ToList();
+
+                if (systemTraverseGroups.Count == 0)
+                    continue;
+
+                var availableAdjustedHeights = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
+                var availableRawHeights = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
+
+                foreach (var kvp in _dataViewModel.KnownHeights)
+                {
+                    if (_benchmarkSystems.TryGetValue(kvp.Key, out var benchSystemId) && benchSystemId == system.Id)
+                    {
+                        availableAdjustedHeights[kvp.Key] = kvp.Value;
+                        availableRawHeights[kvp.Key] = kvp.Value;
+                    }
+                }
+
+                bool AnchorChecker(string code) => IsAnchorAllowed(code, availableAdjustedHeights.ContainsKey);
+
+                var processedGroups = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+                for (int iteration = 0; iteration < systemTraverseGroups.Count; iteration++)
+                {
+                    bool progress = false;
+
+                    foreach (var group in systemTraverseGroups)
+                    {
+                        if (processedGroups.Contains(group.Key))
+                            continue;
+
+                        var groupItems = group.Value;
+                        bool hasAnchor = groupItems.Any(r =>
+                            (!string.IsNullOrWhiteSpace(r.BackCode) && AnchorChecker(r.BackCode!)) ||
+                            (!string.IsNullOrWhiteSpace(r.ForeCode) && AnchorChecker(r.ForeCode!)));
+
+                        if (!hasAnchor && iteration < systemTraverseGroups.Count - 1)
+                            continue;
+
+                        if (!hasAnchor)
+                        {
+                            var firstCode = groupItems.Select(r => r.BackCode ?? r.ForeCode)
+                                .FirstOrDefault(c => !string.IsNullOrWhiteSpace(c));
+                            if (!string.IsNullOrWhiteSpace(firstCode))
+                            {
+                                availableAdjustedHeights[firstCode!] = 0.0;
+                                availableRawHeights[firstCode!] = 0.0;
+                                hasAnchor = true;
+                            }
+                        }
+
+                        CalculateCorrections(groupItems, AnchorChecker);
+                        CalculateHeightsForRun(groupItems, availableAdjustedHeights, availableRawHeights, group.Key);
+                        processedGroups.Add(group.Key);
+                        progress = true;
+                    }
+
+                    if (!progress)
+                        break;
+                }
+
+                UpdateArmDifferenceAccumulation(systemTraverseGroups, AnchorChecker);
+            }
+
+            foreach (var row in items)
+            {
+                if (runsLookup.TryGetValue(row.LineName, out var run) && run.IsActive)
+                {
+                    _rows.Add(row);
+                }
+            }
+
+            StationsCount = _rows.Count;
+            TotalBackDistance = _rows.Sum(r => r.HdBack_m ?? 0);
+            TotalForeDistance = _rows.Sum(r => r.HdFore_m ?? 0);
+            TotalAverageDistance = StationsCount > 0
+                ? (TotalBackDistance + TotalForeDistance) / 2.0
+                : 0;
+
+            UpdateAvailablePoints();
+            UpdateBenchmarks();
+            RecalculateClosure();
+            UpdateTolerance();
+            CheckArmDifferenceTolerances();
+        }
+
+        #endregion
 
         #region Incremental Updates
 
