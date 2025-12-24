@@ -6,12 +6,14 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using Nivtropy.Models;
 using Nivtropy.Services;
+using Nivtropy.ViewModels.Base;
 
 namespace Nivtropy.ViewModels
 {
-    public class TraverseDesignViewModel : INotifyPropertyChanged
+    public class TraverseDesignViewModel : ViewModelBase
     {
         private readonly DataViewModel _dataViewModel;
+        private readonly ITraverseBuilder _traverseBuilder;
         private readonly ObservableCollection<DesignRow> _rows = new();
 
         private double _targetClosure;
@@ -23,38 +25,38 @@ namespace Nivtropy.ViewModels
         private string _closureStatus = "Нет данных";
         private double _totalDistance;
 
-        private bool _isUpdating = false; // Флаг для подавления обновлений
-
-        public TraverseDesignViewModel(DataViewModel dataViewModel)
+        public TraverseDesignViewModel(DataViewModel dataViewModel, ITraverseBuilder traverseBuilder)
         {
             _dataViewModel = dataViewModel;
+            _traverseBuilder = traverseBuilder;
+
             ((INotifyCollectionChanged)_dataViewModel.Records).CollectionChanged += OnRecordsCollectionChanged;
             ((INotifyCollectionChanged)_dataViewModel.Runs).CollectionChanged += (_, __) => OnPropertyChanged(nameof(Runs));
             _dataViewModel.PropertyChanged += DataViewModelOnPropertyChanged;
 
-            // Подписываемся на события батчевых обновлений
-            _dataViewModel.BeginBatchUpdate += (_, __) => _isUpdating = true;
-            _dataViewModel.EndBatchUpdate += (_, __) =>
-            {
-                _isUpdating = false;
-                UpdateRows(); // Обновляем один раз после завершения батча
-            };
+            // Используем базовый класс для batch updates
+            SubscribeToBatchUpdates(_dataViewModel);
 
             TargetClosure = 0;
             StartHeight = 0;
             UpdateRows();
         }
 
+        /// <summary>
+        /// Вызывается после завершения batch update
+        /// </summary>
+        protected override void OnBatchUpdateCompleted()
+        {
+            UpdateRows();
+        }
+
         private void OnRecordsCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
         {
-            if (_isUpdating)
+            if (IsUpdating)
                 return;
 
             UpdateRows();
         }
-
-        public event PropertyChangedEventHandler? PropertyChanged;
-        private void OnPropertyChanged([CallerMemberName] string? name = null) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 
         public ObservableCollection<DesignRow> Rows => _rows;
         public ObservableCollection<LineSummary> Runs => _dataViewModel.Runs;
@@ -174,7 +176,7 @@ namespace Nivtropy.ViewModels
                 return;
             }
 
-            var items = TraverseBuilder.BuildStatic(
+            var items = _traverseBuilder.Build(
                 _dataViewModel.Records.Where(r => ReferenceEquals(r.LineSummary, SelectedRun)),
                 SelectedRun);
 
@@ -273,15 +275,6 @@ namespace Nivtropy.ViewModels
             // Средняя поправка на станцию (для информации)
             var adjustableCount = items.Count(r => r.DeltaH.HasValue);
             CorrectionPerStation = adjustableCount > 0 ? closureToDistribute / adjustableCount : 0;
-        }
-
-        private bool SetField<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
-        {
-            if (Equals(field, value))
-                return false;
-            field = value;
-            OnPropertyChanged(propertyName);
-            return true;
         }
 
         /// <summary>
