@@ -544,7 +544,12 @@ namespace Nivtropy.ViewModels
             var items = _traverseBuilder.Build(records);
 
             // Группируем станции по ходам для корректного расчета поправок
-            var traverseGroups = items.GroupBy(r => r.LineName).ToList();
+            // Используем ToDictionary для O(1) доступа вместо повторного перебора
+            var traverseGroupsDict = items.GroupBy(r => r.LineName)
+                .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.OrdinalIgnoreCase);
+
+            // Создаём lookup для быстрого поиска ходов по имени (оптимизация LINQ)
+            var runsLookup = Runs.ToDictionary(r => r.DisplayName, r => r, StringComparer.OrdinalIgnoreCase);
 
             // Инициализация систем для новых ходов
             InitializeRunSystems();
@@ -555,9 +560,9 @@ namespace Nivtropy.ViewModels
             foreach (var system in _systems.OrderBy(s => s.Order))
             {
                 // Получаем группы ходов для текущей системы (только активные)
-                var systemTraverseGroups = traverseGroups.Where(g =>
+                var systemTraverseGroups = traverseGroupsDict.Where(kvp =>
                 {
-                    var run = Runs.FirstOrDefault(r => r.DisplayName == g.Key);
+                    runsLookup.TryGetValue(kvp.Key, out var run);
                     return run != null && run.SystemId == system.Id && run.IsActive;
                 }).ToList();
 
@@ -592,7 +597,7 @@ namespace Nivtropy.ViewModels
                         if (processedGroups.Contains(group.Key))
                             continue;
 
-                        var groupItems = group.ToList();
+                        var groupItems = group.Value;
                         bool hasAnchor = groupItems.Any(r =>
                             (!string.IsNullOrWhiteSpace(r.BackCode) && AnchorChecker(r.BackCode!)) ||
                             (!string.IsNullOrWhiteSpace(r.ForeCode) && AnchorChecker(r.ForeCode!)));
@@ -629,10 +634,10 @@ namespace Nivtropy.ViewModels
             }
 
             // Добавляем в таблицу только строки из активных ходов
+            // Используем runsLookup для O(1) доступа вместо O(n) FirstOrDefault
             foreach (var row in items)
             {
-                var run = Runs.FirstOrDefault(r => r.DisplayName == row.LineName);
-                if (run != null && run.IsActive)
+                if (runsLookup.TryGetValue(row.LineName, out var run) && run.IsActive)
                 {
                     _rows.Add(row);
                 }
@@ -1528,13 +1533,13 @@ namespace Nivtropy.ViewModels
         /// Обновляет существующие LineSummary в DataViewModel.Runs
         /// </summary>
         private void UpdateArmDifferenceAccumulation(
-            List<IGrouping<string, TraverseRow>> traverseGroups,
+            List<KeyValuePair<string, List<TraverseRow>>> traverseGroups,
             Func<string, bool> isAnchor)
         {
             foreach (var group in traverseGroups)
             {
                 var lineName = group.Key;
-                var rows = group.ToList();
+                var rows = group.Value;
 
                 // Находим индекс существующего LineSummary
                 var existingIndex = -1;

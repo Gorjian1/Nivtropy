@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Nivtropy.Models;
@@ -7,12 +8,97 @@ namespace Nivtropy.Services
     /// <summary>
     /// Построитель структуры хода из записей измерений
     /// Реализует интерфейс ITraverseBuilder для соблюдения принципа инверсии зависимостей (DIP)
+    /// Включает кэширование для оптимизации производительности
     /// </summary>
     public class TraverseBuilder : ITraverseBuilder
     {
+        private readonly Dictionary<int, List<TraverseRow>> _cache = new();
+        private readonly object _cacheLock = new();
+
+        /// <summary>
+        /// Очищает кэш результатов. Вызывайте при изменении исходных данных.
+        /// </summary>
+        public void InvalidateCache()
+        {
+            lock (_cacheLock)
+            {
+                _cache.Clear();
+            }
+        }
+
         // Спаривание с учётом режима: BF (Back→Forward) или FB (Forward→Back)
         // Режим определяет порядок точек в паре
         public List<TraverseRow> Build(IEnumerable<MeasurementRecord> records, LineSummary? run = null)
+        {
+            // Материализуем записи для кэширования и подсчёта хэша
+            var recordsList = records as IList<MeasurementRecord> ?? records.ToList();
+
+            // Вычисляем хэш для кэширования
+            var hash = ComputeHash(recordsList, run);
+
+            lock (_cacheLock)
+            {
+                if (_cache.TryGetValue(hash, out var cached))
+                {
+                    return cached;
+                }
+            }
+
+            // Строим результат
+            var result = BuildInternal(recordsList, run);
+
+            lock (_cacheLock)
+            {
+                _cache[hash] = result;
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// Вычисляет хэш для набора записей и хода
+        /// </summary>
+        private int ComputeHash(IList<MeasurementRecord> records, LineSummary? run)
+        {
+            unchecked
+            {
+                int hash = 17;
+
+                // Хэш от хода
+                if (run != null)
+                {
+                    hash = hash * 31 + (run.DisplayName?.GetHashCode() ?? 0);
+                    hash = hash * 31 + run.RecordCount;
+                }
+
+                // Хэш от количества записей (быстрая проверка)
+                hash = hash * 31 + records.Count;
+
+                // Хэш от первых и последних записей (для скорости)
+                if (records.Count > 0)
+                {
+                    var first = records[0];
+                    hash = hash * 31 + (first.StationCode?.GetHashCode() ?? 0);
+                    hash = hash * 31 + first.Rb_m.GetHashCode();
+                    hash = hash * 31 + first.Rf_m.GetHashCode();
+
+                    if (records.Count > 1)
+                    {
+                        var last = records[records.Count - 1];
+                        hash = hash * 31 + (last.StationCode?.GetHashCode() ?? 0);
+                        hash = hash * 31 + last.Rb_m.GetHashCode();
+                        hash = hash * 31 + last.Rf_m.GetHashCode();
+                    }
+                }
+
+                return hash;
+            }
+        }
+
+        /// <summary>
+        /// Внутренняя реализация построения хода
+        /// </summary>
+        private List<TraverseRow> BuildInternal(IList<MeasurementRecord> records, LineSummary? run)
         {
             var list = new List<TraverseRow>();
             string line = run?.DisplayName ?? "?";

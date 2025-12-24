@@ -15,5 +15,11 @@ namespace Nivtropy.Services
         /// <param name="run">Опциональная информация о ходе</param>
         /// <returns>Список строк хода</returns>
         List<TraverseRow> Build(IEnumerable<MeasurementRecord> records, LineSummary? run = null);
+
+        /// <summary>
+        /// Очищает кэш результатов построения.
+        /// Вызывайте при изменении исходных данных.
+        /// </summary>
+        void InvalidateCache();
     }
 }
