@@ -37,8 +37,10 @@ namespace Nivtropy.Converters
                     return number.ToString(format, culture);
                 }
             }
-            catch
+            catch (FormatException)
             {
+                // Неверный формат - возвращаем число без форматирования
+                System.Diagnostics.Debug.WriteLine($"DynamicFormatConverter: Invalid format '{format}' for number {number}");
                 return number.ToString(culture);
             }
         }

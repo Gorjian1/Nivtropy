@@ -13,13 +13,14 @@ using System.Windows.Input;
 using ClosedXML.Excel;
 using Microsoft.Win32;
 using Nivtropy.Models;
+using Nivtropy.ViewModels.Base;
 
 namespace Nivtropy.ViewModels
 {
     /// <summary>
     /// ViewModel для генерации синтетических данных измерений
     /// </summary>
-    public class DataGeneratorViewModel : INotifyPropertyChanged
+    public class DataGeneratorViewModel : ViewModelBase
     {
         private readonly ObservableCollection<GeneratedMeasurement> _measurements = new();
         private readonly ObservableCollection<string> _availableLines = new();
@@ -41,8 +42,6 @@ namespace Nivtropy.ViewModels
         private RelayCommand? _resetEditsCommand;
         private RelayCommand? _moveHorizontalCommand;
         private RelayCommand? _moveVerticalCommand;
-
-        public event PropertyChangedEventHandler? PropertyChanged;
 
         public DataGeneratorViewModel()
         {
@@ -816,20 +815,6 @@ namespace Nivtropy.ViewModels
                 _profileRangeCustomized = false;
                 _isUpdatingProfileStats = false;
             }
-        }
-
-        private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
-        {
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-        }
-
-        private bool SetField<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
-        {
-            if (Equals(field, value))
-                return false;
-            field = value;
-            OnPropertyChanged(propertyName);
-            return true;
         }
 
         private double? ParseNullableDouble(string? value)

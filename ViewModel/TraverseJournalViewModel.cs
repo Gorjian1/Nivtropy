@@ -9,6 +9,7 @@ using System.Windows.Media;
 using Nivtropy.Models;
 using Nivtropy.Services.Statistics;
 using Nivtropy.Services.Visualization;
+using Nivtropy.ViewModels.Base;
 
 namespace Nivtropy.ViewModels
 {
@@ -17,7 +18,7 @@ namespace Nivtropy.ViewModels
     /// Конвертирует данные из TraverseCalculationViewModel в формат журнала
     /// Использует сервисы для визуализации и статистики (следует SOLID принципам)
     /// </summary>
-    public class TraverseJournalViewModel : INotifyPropertyChanged
+    public class TraverseJournalViewModel : ViewModelBase
     {
         private readonly TraverseCalculationViewModel _calculationViewModel;
         private readonly IProfileVisualizationService _visualizationService;
@@ -54,10 +55,6 @@ namespace Nivtropy.ViewModels
             UpdateJournalRows();
             RecalculateStatistics();
         }
-
-        public event PropertyChangedEventHandler? PropertyChanged;
-        private void OnPropertyChanged([CallerMemberName] string? name = null)
-            => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 
         public ObservableCollection<JournalRow> JournalRows => _journalRows;
 

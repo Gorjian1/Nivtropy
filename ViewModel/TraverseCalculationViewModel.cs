@@ -11,14 +11,17 @@ using ClosedXML.Excel;
 using Microsoft.Win32;
 using Nivtropy.Models;
 using Nivtropy.Services;
+using Nivtropy.Services.Export;
+using Nivtropy.ViewModels.Base;
 
 namespace Nivtropy.ViewModels
 {
-    public class TraverseCalculationViewModel : INotifyPropertyChanged
+    public class TraverseCalculationViewModel : ViewModelBase
     {
         private readonly DataViewModel _dataViewModel;
         private readonly SettingsViewModel _settingsViewModel;
         private readonly ITraverseBuilder _traverseBuilder;
+        private readonly IExportService _exportService;
         private readonly ObservableCollection<TraverseRow> _rows = new();
         private readonly ObservableCollection<PointItem> _availablePoints = new();
         private readonly ObservableCollection<BenchmarkItem> _benchmarks = new();
@@ -27,8 +30,6 @@ namespace Nivtropy.ViewModels
         private readonly Dictionary<string, SharedPointLinkItem> _sharedPointLookup = new(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, string> _benchmarkSystems = new(StringComparer.OrdinalIgnoreCase);
         private Dictionary<int, List<string>> _sharedPointsByRun = new();
-
-        private bool _isUpdating = false; // Флаг для подавления обновлений
 
         // ID системы по умолчанию
         private const string DEFAULT_SYSTEM_ID = "system-default";
@@ -71,22 +72,18 @@ namespace Nivtropy.ViewModels
         private string? _newBenchmarkHeight;
         private TraverseSystem? _selectedSystem;
 
-        public TraverseCalculationViewModel(DataViewModel dataViewModel, SettingsViewModel settingsViewModel, ITraverseBuilder traverseBuilder)
+        public TraverseCalculationViewModel(DataViewModel dataViewModel, SettingsViewModel settingsViewModel, ITraverseBuilder traverseBuilder, IExportService exportService)
         {
             _dataViewModel = dataViewModel;
             _settingsViewModel = settingsViewModel;
             _traverseBuilder = traverseBuilder;
+            _exportService = exportService;
             ((INotifyCollectionChanged)_dataViewModel.Records).CollectionChanged += OnRecordsCollectionChanged;
             ((INotifyCollectionChanged)_dataViewModel.Runs).CollectionChanged += (_, __) => OnPropertyChanged(nameof(Runs));
             _dataViewModel.PropertyChanged += DataViewModelOnPropertyChanged;
 
-            // Подписываемся на события батчевых обновлений
-            _dataViewModel.BeginBatchUpdate += (_, __) => _isUpdating = true;
-            _dataViewModel.EndBatchUpdate += (_, __) =>
-            {
-                _isUpdating = false;
-                UpdateRows(); // Обновляем один раз после завершения батча
-            };
+            // Используем базовый класс для batch updates
+            SubscribeToBatchUpdates(_dataViewModel);
 
             _selectedMethod = _methods.FirstOrDefault();
             _selectedClass = _classes.FirstOrDefault();
@@ -99,16 +96,21 @@ namespace Nivtropy.ViewModels
             UpdateRows();
         }
 
+        /// <summary>
+        /// Вызывается после завершения batch update
+        /// </summary>
+        protected override void OnBatchUpdateCompleted()
+        {
+            UpdateRows();
+        }
+
         private void OnRecordsCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
         {
-            if (_isUpdating)
+            if (IsUpdating)
                 return;
 
             UpdateRows();
         }
-
-        public event PropertyChangedEventHandler? PropertyChanged;
-        private void OnPropertyChanged([CallerMemberName] string? name = null) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 
         public ObservableCollection<TraverseRow> Rows => _rows;
         public ObservableCollection<LineSummary> Runs => _dataViewModel.Runs;
@@ -419,92 +421,11 @@ namespace Nivtropy.ViewModels
 
         /// <summary>
         /// Экспортирует данные в CSV с 4-частной структурой для каждого хода
+        /// Делегирует логику экспорта в IExportService
         /// </summary>
         private void ExportToCsv()
         {
-            var saveFileDialog = new SaveFileDialog
-            {
-                Filter = "CSV файлы (*.csv)|*.csv",
-                DefaultExt = "csv",
-                FileName = $"Нивелирование_{DateTime.Now:yyyy-MM-dd_HH-mm-ss}.csv"
-            };
-
-            if (saveFileDialog.ShowDialog() != true)
-                return;
-
-            try
-            {
-                var csv = new System.Text.StringBuilder();
-
-                // Группировка по ходам
-                var groupedRows = _rows.GroupBy(r => r.LineName).ToList();
-
-                foreach (var group in groupedRows)
-                {
-                    var lineName = group.Key;
-                    var rows = group.ToList();
-                    var lineSummary = rows.FirstOrDefault()?.LineSummary;
-
-                    // 1. Start-line - начало хода
-                    csv.AppendLine($"===== НАЧАЛО ХОДА: {lineName} =====");
-
-                    // 2. Info line - информация о ходе
-                    if (lineSummary != null)
-                    {
-                        var lengthBack = lineSummary.TotalDistanceBack ?? 0;
-                        var lengthFore = lineSummary.TotalDistanceFore ?? 0;
-                        var totalLength = lineSummary.TotalAverageLength ?? 0;
-                        var armAccumulation = lineSummary.ArmDifferenceAccumulation ?? 0;
-                        var stationCount = lineSummary.RecordCount;
-                        var closureText = lineSummary.ClosuresDisplay;
-
-                        csv.AppendLine($"Станций: {stationCount}; Длина назад: {lengthBack:F2} м; Длина вперёд: {lengthFore:F2} м; Общая длина: {totalLength:F2} м; Накопление плеч: {armAccumulation:F3} м; Невязка: {closureText} м");
-                    }
-
-                    // 3. Header row + data table
-                    csv.AppendLine("Номер;Ход;Точка;Станция;Длина станции (м);Отсчет назад (м);Отсчет вперед (м);Превышение (м);Поправка (мм);Превышение испр. (м);Высота непров. (м);Высота (м);Точка");
-
-                    foreach (var dataRow in rows)
-                    {
-                        var heightZ0 = dataRow.IsVirtualStation ? dataRow.BackHeightZ0 : dataRow.ForeHeightZ0;
-                        var height = dataRow.IsVirtualStation ? dataRow.BackHeight : dataRow.ForeHeight;
-
-                        csv.AppendLine(string.Join(";",
-                            dataRow.Index,
-                            dataRow.LineName,
-                            dataRow.PointCode,
-                            dataRow.Station,
-                            dataRow.StationLength_m?.ToString("F2") ?? "",
-                            dataRow.Rb_m?.ToString("F4") ?? "",
-                            dataRow.Rf_m?.ToString("F4") ?? "",
-                            dataRow.DeltaH?.ToString("F4") ?? "",
-                            dataRow.Correction.HasValue ? (dataRow.Correction.Value * 1000).ToString("F2") : "",
-                            dataRow.AdjustedDeltaH?.ToString("F4") ?? "",
-                            heightZ0?.ToString("F4") ?? "",
-                            height?.ToString("F4") ?? "",
-                            dataRow.PointCode
-                        ));
-                    }
-
-                    // 4. End-line - конец хода
-                    csv.AppendLine($"===== КОНЕЦ ХОДА: {lineName} =====");
-                    csv.AppendLine(); // Пустая строка между ходами
-                }
-
-                System.IO.File.WriteAllText(saveFileDialog.FileName, csv.ToString(), System.Text.Encoding.UTF8);
-
-                System.Windows.MessageBox.Show($"Данные успешно экспортированы в:\n{saveFileDialog.FileName}",
-                    "Экспорт завершён",
-                    System.Windows.MessageBoxButton.OK,
-                    System.Windows.MessageBoxImage.Information);
-            }
-            catch (Exception ex)
-            {
-                System.Windows.MessageBox.Show($"Ошибка при экспорте:\n{ex.Message}",
-                    "Ошибка экспорта",
-                    System.Windows.MessageBoxButton.OK,
-                    System.Windows.MessageBoxImage.Error);
-            }
+            _exportService.ExportToCsv(_rows);
         }
 
         /// <summary>
@@ -1740,15 +1661,6 @@ namespace Nivtropy.ViewModels
             {
                 _rows.Add(row);
             }
-        }
-
-        private bool SetField<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
-        {
-            if (Equals(field, value))
-                return false;
-            field = value;
-            OnPropertyChanged(propertyName);
-            return true;
         }
     }
 

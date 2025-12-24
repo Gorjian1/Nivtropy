@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Nivtropy.Services;
+using Nivtropy.Services.Calculation;
 using Nivtropy.Services.Export;
 using Nivtropy.Services.Logging;
 using Nivtropy.Services.Statistics;
@@ -40,6 +41,9 @@ namespace Nivtropy.Services
 
             // Сервисы работы с допусками
             services.AddSingleton<IToleranceService, ToleranceService>();
+
+            // Сервисы расчётов
+            services.AddSingleton<ITraverseCalculationService, TraverseCalculationService>();
 
             return services;
         }
