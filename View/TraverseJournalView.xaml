@@ -985,6 +985,8 @@
                                     <!-- Список систем -->
                                     <ListBox Grid.Row="1"
                                              x:Name="SystemsListBox"
+                                             ItemsSource="{Binding Calculation.Systems}"
+                                             SelectedItem="{Binding Calculation.SelectedSystem, Mode=TwoWay}"
                                              SelectionChanged="SystemsListBox_SelectionChanged"
                                              BorderThickness="0"
                                              ScrollViewer.HorizontalScrollBarVisibility="Disabled">
@@ -1047,6 +1049,7 @@
                                     <!-- Список ходов -->
                                     <ListBox Grid.Row="1"
                                              x:Name="RunsListBox"
+                                             ItemsSource="{Binding Calculation.Runs}"
                                              SelectionMode="Multiple"
                                              BorderThickness="0"
                                              ScrollViewer.HorizontalScrollBarVisibility="Disabled">
