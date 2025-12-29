@@ -81,15 +81,29 @@ namespace Nivtropy.Views
             {
                 RedrawSystemVisualization();
             }
+            // Перерисовываем после завершения расчёта
+            else if (e.PropertyName == nameof(TraverseCalculationViewModel.IsCalculating))
+            {
+                if (ViewModel?.Calculation?.IsCalculating == false)
+                {
+                    RedrawSystemVisualization();
+                }
+            }
         }
 
         private void Systems_CollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
         {
+            // Пропускаем перерисовку во время расчёта (Rows ещё не заполнены)
+            if (ViewModel?.Calculation?.IsCalculating == true)
+                return;
             RedrawSystemVisualization();
         }
 
         private void SharedPoints_CollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
         {
+            // Пропускаем перерисовку во время расчёта (Rows ещё не заполнены)
+            if (ViewModel?.Calculation?.IsCalculating == true)
+                return;
             RedrawSystemVisualization();
         }
 

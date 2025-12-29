@@ -589,25 +589,28 @@ namespace Nivtropy.ViewModels
 
         private void UpdateRows()
         {
-            _rows.Clear();
-
-            var records = _dataViewModel.Records;
-
-            if (records.Count == 0)
+            IsCalculating = true;
+            try
             {
-                Closure = null;
-                AllowableClosure = null;
-                ClosureVerdict = "Нет данных для расчёта.";
-                StationsCount = 0;
-                TotalBackDistance = 0;
-                TotalForeDistance = 0;
-                TotalAverageDistance = 0;
-                MethodTolerance = null;
-                ClassTolerance = null;
-                return;
-            }
+                _rows.Clear();
 
-            var items = _traverseBuilder.Build(records);
+                var records = _dataViewModel.Records;
+
+                if (records.Count == 0)
+                {
+                    Closure = null;
+                    AllowableClosure = null;
+                    ClosureVerdict = "Нет данных для расчёта.";
+                    StationsCount = 0;
+                    TotalBackDistance = 0;
+                    TotalForeDistance = 0;
+                    TotalAverageDistance = 0;
+                    MethodTolerance = null;
+                    ClassTolerance = null;
+                    return;
+                }
+
+                var items = _traverseBuilder.Build(records);
 
             // Группируем станции по ходам для корректного расчета поправок
             // Используем ToDictionary для O(1) доступа вместо повторного перебора
@@ -726,6 +729,11 @@ namespace Nivtropy.ViewModels
             RecalculateClosure();
             UpdateTolerance();
             CheckArmDifferenceTolerances();
+            }
+            finally
+            {
+                IsCalculating = false;
+            }
         }
 
         #region Async Calculations
