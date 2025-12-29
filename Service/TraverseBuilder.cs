@@ -151,7 +151,7 @@ namespace Nivtropy.Services
                     // Если это первая точка нового хода, создаём виртуальную станцию
                     if (isFirstPointOfLine && firstPointCode == null)
                     {
-                        firstPointCode = r.StationCode;
+                        firstPointCode = r.PointLabel;
 
                         // Создаём виртуальную станцию для первой точки хода
                         // Эта станция представляет репер, от которого начинается ход
@@ -159,7 +159,7 @@ namespace Nivtropy.Services
                         {
                             LineName = line,
                             Index = idx++,
-                            BackCode = r.StationCode,
+                            BackCode = r.PointLabel,
                             LineSummary = currentLineSummary
                         };
                         list.Add(virtualStation);
@@ -172,9 +172,9 @@ namespace Nivtropy.Services
                         // В режиме BF: Rb это задняя точка (Back)
                         // В режиме FB: Rb это передняя точка (Fore)
                         if (isBF)
-                            pending = new TraverseRow { LineName = line, Index = idx++, BackCode = r.StationCode, Rb_m = r.Rb_m, HdBack_m = r.HD_m, LineSummary = currentLineSummary };
+                            pending = new TraverseRow { LineName = line, Index = idx++, BackCode = r.PointLabel, Rb_m = r.Rb_m, HdBack_m = r.HD_m, LineSummary = currentLineSummary };
                         else
-                            pending = new TraverseRow { LineName = line, Index = idx++, ForeCode = r.StationCode, Rb_m = r.Rb_m, HdFore_m = r.HD_m, LineSummary = currentLineSummary };
+                            pending = new TraverseRow { LineName = line, Index = idx++, ForeCode = r.PointLabel, Rb_m = r.Rb_m, HdFore_m = r.HD_m, LineSummary = currentLineSummary };
                     }
                     else
                     {
@@ -182,13 +182,13 @@ namespace Nivtropy.Services
                         {
                             pending.Rb_m ??= r.Rb_m;
                             pending.HdBack_m ??= r.HD_m;
-                            pending.BackCode ??= r.StationCode;
+                            pending.BackCode ??= r.PointLabel;
                         }
                         else
                         {
                             pending.Rb_m ??= r.Rb_m;
                             pending.HdFore_m ??= r.HD_m;
-                            pending.ForeCode ??= r.StationCode;
+                            pending.ForeCode ??= r.PointLabel;
                         }
                         list.Add(pending);
                         pending = null;
@@ -203,9 +203,9 @@ namespace Nivtropy.Services
                         // В режиме BF: Rf это передняя точка (Fore)
                         // В режиме FB: Rf это задняя точка (Back)
                         if (isBF)
-                            pending = new TraverseRow { LineName = line, Index = idx++, ForeCode = r.StationCode, Rf_m = r.Rf_m, HdFore_m = r.HD_m, LineSummary = currentLineSummary };
+                            pending = new TraverseRow { LineName = line, Index = idx++, ForeCode = r.PointLabel, Rf_m = r.Rf_m, HdFore_m = r.HD_m, LineSummary = currentLineSummary };
                         else
-                            pending = new TraverseRow { LineName = line, Index = idx++, BackCode = r.StationCode, Rf_m = r.Rf_m, HdBack_m = r.HD_m, LineSummary = currentLineSummary };
+                            pending = new TraverseRow { LineName = line, Index = idx++, BackCode = r.PointLabel, Rf_m = r.Rf_m, HdBack_m = r.HD_m, LineSummary = currentLineSummary };
                     }
                     else
                     {
@@ -213,13 +213,13 @@ namespace Nivtropy.Services
                         {
                             pending.Rf_m ??= r.Rf_m;
                             pending.HdFore_m ??= r.HD_m;
-                            pending.ForeCode ??= r.StationCode;
+                            pending.ForeCode ??= r.PointLabel;
                         }
                         else
                         {
                             pending.Rf_m ??= r.Rf_m;
                             pending.HdBack_m ??= r.HD_m;
-                            pending.BackCode ??= r.StationCode;
+                            pending.BackCode ??= r.PointLabel;
                         }
                         list.Add(pending);
                         pending = null;
