@@ -149,7 +149,8 @@ namespace Nivtropy.ViewModels
                 {
                     _selectedSystem = value;
                     OnPropertyChanged();
-                    // При смене системы обновляем список доступных реперов
+                    // При смене системы обновляем списки доступных точек и реперов
+                    UpdateAvailablePoints();
                     UpdateBenchmarks();
                 }
             }
@@ -484,15 +485,26 @@ namespace Nivtropy.ViewModels
 
         /// <summary>
         /// Обновляет список доступных точек из текущих станций
+        /// Фильтрует по выбранной системе
         /// </summary>
         private void UpdateAvailablePoints()
         {
             _availablePoints.Clear();
 
+            var selectedSystemId = SelectedSystem?.Id;
             var pointsDict = new Dictionary<string, PointItem>(StringComparer.OrdinalIgnoreCase);
+
+            // Получаем ходы выбранной системы
+            var runsInSystem = selectedSystemId != null
+                ? Runs.Where(r => r.SystemId == selectedSystemId).Select(r => r.DisplayName).ToHashSet(StringComparer.OrdinalIgnoreCase)
+                : null;
 
             foreach (var row in _rows)
             {
+                // Фильтруем по выбранной системе
+                if (runsInSystem != null && !runsInSystem.Contains(row.LineName ?? ""))
+                    continue;
+
                 // Добавляем заднюю точку
                 if (!string.IsNullOrWhiteSpace(row.BackCode) && !pointsDict.ContainsKey(row.BackCode))
                 {
@@ -1285,6 +1297,13 @@ namespace Nivtropy.ViewModels
                 foreach (var run in Runs)
                 {
                     run.SystemId = DEFAULT_SYSTEM_ID;
+                }
+
+                // Удаляем все автосистемы, т.к. все ходы теперь в одной системе
+                var autoSystems = _systems.Where(s => s.Id.StartsWith("system-auto-")).ToList();
+                foreach (var sys in autoSystems)
+                {
+                    _systems.Remove(sys);
                 }
                 return;
             }
