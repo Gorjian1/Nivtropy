@@ -114,17 +114,19 @@ namespace Nivtropy.Services.Visualization
 
             foreach (var run in runs)
             {
-                // Сопоставляем ряды по индексу LineSummary
+                // Сопоставляем ряды по индексу LineSummary или по имени хода
                 var runRows = rows
-                    .Where(r => r.LineSummary != null && r.LineSummary.Index == run.Index)
+                    .Where(r => (r.LineSummary != null && r.LineSummary.Index == run.Index) ||
+                                string.Equals(r.LineName, run.DisplayName, StringComparison.OrdinalIgnoreCase))
                     .OrderBy(r => r.Index)
                     .ToList();
 
                 var sequence = new List<string>();
 
-                if (!string.IsNullOrWhiteSpace(run.StartLabel))
+                // Добавляем начальную точку только если это реальный код точки (StartTarget), а не код станции
+                if (!string.IsNullOrWhiteSpace(run.StartTarget))
                 {
-                    sequence.Add(run.StartLabel.Trim());
+                    sequence.Add(run.StartTarget.Trim());
                 }
 
                 foreach (var row in runRows)
@@ -156,15 +158,15 @@ namespace Nivtropy.Services.Visualization
                     }
                 }
 
-                // Fallback: если точек меньше 2, используем StartLabel и EndLabel из хода
+                // Fallback: если точек меньше 2, используем StartTarget и EndTarget (коды точек, не станций)
                 if (uniqueSequence.Count < 2)
                 {
                     uniqueSequence.Clear();
-                    if (!string.IsNullOrWhiteSpace(run.StartLabel))
-                        uniqueSequence.Add(run.StartLabel.Trim());
-                    if (!string.IsNullOrWhiteSpace(run.EndLabel) &&
-                        !string.Equals(run.EndLabel, run.StartLabel, StringComparison.OrdinalIgnoreCase))
-                        uniqueSequence.Add(run.EndLabel.Trim());
+                    if (!string.IsNullOrWhiteSpace(run.StartTarget))
+                        uniqueSequence.Add(run.StartTarget.Trim());
+                    if (!string.IsNullOrWhiteSpace(run.EndTarget) &&
+                        !string.Equals(run.EndTarget, run.StartTarget, StringComparison.OrdinalIgnoreCase))
+                        uniqueSequence.Add(run.EndTarget.Trim());
                 }
 
                 pointsByRun[run] = uniqueSequence;
