@@ -87,9 +87,8 @@ namespace Nivtropy.Services.Visualization
             var rows = calculation.Rows.ToList();
             var pointsByRun = CollectPointSequences(runs, rows);
 
-            // Вычисляем позиции и радиусы для ходов
+            // Вычисляем радиусы для ходов
             var runShapeRadius = CalculateRunRadii(runs, pointsByRun);
-            var runRotationOffsets = CalculateRotationOffsets(runs, pointsByRun);
             var maxShapeRadius = runShapeRadius.Values.Count > 0 ? runShapeRadius.Values.Max() : 30;
 
             // Позиции общих точек
@@ -101,6 +100,12 @@ namespace Nivtropy.Services.Visualization
 
             // Итерационное разрешение коллизий между фигурами
             var actualRunRadius = ResolveCollisions(runs, runCenters, runShapeRadius, canvasWidth, canvasHeight);
+
+            // Вычисляем углы поворота с учётом центров и общих точек
+            var runRotationOffsets = CalculateRotationOffsetsWithSharedPoints(runs, pointsByRun, runCenters, calculation);
+
+            // Рисуем соединительные линии между общими точками
+            DrawSharedPointConnections(canvas, runs, pointsByRun, runCenters, actualRunRadius, runRotationOffsets, calculation);
 
             // Рисуем каждый ход
             var drawnSharedPoints = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -188,26 +193,200 @@ namespace Nivtropy.Services.Visualization
                 });
         }
 
-        private Dictionary<LineSummary, double> CalculateRotationOffsets(List<LineSummary> runs, Dictionary<LineSummary, List<string>> pointsByRun)
+        /// <summary>
+        /// Вычисляет углы поворота ходов так, чтобы общие точки были направлены друг к другу
+        /// </summary>
+        private Dictionary<LineSummary, double> CalculateRotationOffsetsWithSharedPoints(
+            List<LineSummary> runs,
+            Dictionary<LineSummary, List<string>> pointsByRun,
+            Dictionary<LineSummary, Point> runCenters,
+            TraverseCalculationViewModel calculation)
         {
-            return runs.ToDictionary(
-                run => run,  // Ключ - LineSummary
-                run =>       // Значение - double (угол в радианах)
+            var offsets = new Dictionary<LineSummary, double>();
+
+            // Находим все пары ходов с общими точками
+            var sharedPointsByCode = new Dictionary<string, List<LineSummary>>(StringComparer.OrdinalIgnoreCase);
+            foreach (var run in runs)
+            {
+                var sharedForRun = calculation.GetSharedPointsForRun(run)
+                    .Where(p => p.IsEnabled)
+                    .Select(p => p.Code)
+                    .ToList();
+
+                foreach (var code in sharedForRun)
                 {
-                    var key = run.DisplayName ?? run.Index.ToString();
-                    long hash = 0;
+                    if (!sharedPointsByCode.ContainsKey(code))
+                        sharedPointsByCode[code] = new List<LineSummary>();
+                    sharedPointsByCode[code].Add(run);
+                }
+            }
 
-                    foreach (var ch in key)
+            // Для каждого хода вычисляем оптимальный угол поворота
+            foreach (var run in runs)
+            {
+                if (!pointsByRun.TryGetValue(run, out var sequence) || sequence.Count < 2)
+                {
+                    offsets[run] = 0;
+                    continue;
+                }
+
+                if (!runCenters.TryGetValue(run, out var center))
+                {
+                    offsets[run] = 0;
+                    continue;
+                }
+
+                var sharedForRun = calculation.GetSharedPointsForRun(run)
+                    .Where(p => p.IsEnabled)
+                    .Select(p => p.Code)
+                    .ToList();
+
+                // Находим соседние ходы (с общими точками)
+                var neighborCenters = new List<(string code, int pointIndex, Point neighborCenter)>();
+                foreach (var code in sharedForRun)
+                {
+                    var pointIndex = sequence.FindIndex(s => string.Equals(s, code, StringComparison.OrdinalIgnoreCase));
+                    if (pointIndex < 0) continue;
+
+                    if (sharedPointsByCode.TryGetValue(code, out var runsWithPoint))
                     {
-                        hash = (hash * 31 + ch) & 0x7FFFFFFF;
+                        foreach (var otherRun in runsWithPoint)
+                        {
+                            if (otherRun.Index == run.Index) continue;
+                            if (runCenters.TryGetValue(otherRun, out var otherCenter))
+                            {
+                                neighborCenters.Add((code, pointIndex, otherCenter));
+                            }
+                        }
                     }
+                }
 
-                    var count = pointsByRun.TryGetValue(run, out var seq) ? seq.Count : 0;
-                    hash = (hash + count * 97 + run.Index * 53) & 0x7FFFFFFF;
+                if (neighborCenters.Count == 0)
+                {
+                    // Нет соседей - используем базовый угол
+                    offsets[run] = Math.PI / 4;
+                    continue;
+                }
 
-                    var degrees = 8 + (hash % 344);
-                    return degrees * Math.PI / 180.0;
-                });
+                // Вычисляем оптимальный угол поворота
+                // Для первой общей точки: угол от центра хода к центру соседнего хода
+                // должен совпадать с позицией этой точки на окружности
+                var (_, firstPointIndex, firstNeighborCenter) = neighborCenters[0];
+                var pointCount = sequence.Count;
+
+                // Угол от центра хода к центру соседнего хода
+                var directionToNeighbor = Math.Atan2(
+                    firstNeighborCenter.Y - center.Y,
+                    firstNeighborCenter.X - center.X);
+
+                // Угол, на котором должна быть точка (без поворота)
+                var basePointAngle = 2 * Math.PI * firstPointIndex / pointCount;
+
+                // Угол поворота = направление к соседу минус базовый угол точки
+                var rotation = directionToNeighbor - basePointAngle;
+
+                // Нормализуем угол в диапазон [0, 2π)
+                while (rotation < 0) rotation += 2 * Math.PI;
+                while (rotation >= 2 * Math.PI) rotation -= 2 * Math.PI;
+
+                offsets[run] = rotation;
+            }
+
+            return offsets;
+        }
+
+        /// <summary>
+        /// Рисует соединительные линии между общими точками разных ходов
+        /// </summary>
+        private void DrawSharedPointConnections(
+            Canvas canvas,
+            List<LineSummary> runs,
+            Dictionary<LineSummary, List<string>> pointsByRun,
+            Dictionary<LineSummary, Point> runCenters,
+            Dictionary<LineSummary, double> actualRunRadius,
+            Dictionary<LineSummary, double> runRotationOffsets,
+            TraverseCalculationViewModel calculation)
+        {
+            // Собираем позиции всех точек для каждого хода
+            var pointPositionsByRun = new Dictionary<LineSummary, Dictionary<string, Point>>();
+
+            foreach (var run in runs)
+            {
+                if (!pointsByRun.TryGetValue(run, out var sequence) || sequence.Count < 2)
+                    continue;
+
+                if (!runCenters.TryGetValue(run, out var center))
+                    continue;
+
+                var radius = actualRunRadius.TryGetValue(run, out var r) ? r : 32;
+                var rotation = runRotationOffsets.TryGetValue(run, out var rot) ? rot : 0;
+                var pointCount = sequence.Count;
+
+                var positions = new Dictionary<string, Point>(StringComparer.OrdinalIgnoreCase);
+                for (int i = 0; i < sequence.Count; i++)
+                {
+                    var angle = rotation + 2 * Math.PI * i / pointCount;
+                    var pos = new Point(
+                        center.X + radius * Math.Cos(angle),
+                        center.Y + radius * Math.Sin(angle));
+                    positions[sequence[i]] = pos;
+                }
+
+                pointPositionsByRun[run] = positions;
+            }
+
+            // Находим общие точки и рисуем соединения
+            var drawnConnections = new HashSet<string>();
+            foreach (var run in runs)
+            {
+                if (!pointPositionsByRun.TryGetValue(run, out var positions))
+                    continue;
+
+                var sharedForRun = calculation.GetSharedPointsForRun(run)
+                    .Where(p => p.IsEnabled)
+                    .Select(p => p.Code)
+                    .ToList();
+
+                foreach (var code in sharedForRun)
+                {
+                    if (!positions.TryGetValue(code, out var pos1))
+                        continue;
+
+                    // Ищем эту точку в других ходах
+                    foreach (var otherRun in runs)
+                    {
+                        if (otherRun.Index == run.Index)
+                            continue;
+
+                        if (!pointPositionsByRun.TryGetValue(otherRun, out var otherPositions))
+                            continue;
+
+                        if (!otherPositions.TryGetValue(code, out var pos2))
+                            continue;
+
+                        // Проверяем, не рисовали ли уже это соединение
+                        var connectionKey = $"{Math.Min(run.Index, otherRun.Index)}-{Math.Max(run.Index, otherRun.Index)}-{code}";
+                        if (!drawnConnections.Add(connectionKey))
+                            continue;
+
+                        // Рисуем соединительную линию
+                        var line = new Line
+                        {
+                            X1 = pos1.X,
+                            Y1 = pos1.Y,
+                            X2 = pos2.X,
+                            Y2 = pos2.Y,
+                            Stroke = new SolidColorBrush(Color.FromArgb(120, 0, 0, 0)),
+                            StrokeThickness = 1.5,
+                            StrokeDashArray = new DoubleCollection { 4, 2 },
+                            ToolTip = $"Общая точка: {code}"
+                        };
+
+                        // Добавляем линию в начало, чтобы она была под ходами
+                        canvas.Children.Insert(0, line);
+                    }
+                }
+            }
         }
 
         private Dictionary<string, Point> CalculateSharedPointPositions(List<SharedPointLinkItem> sharedPoints,
