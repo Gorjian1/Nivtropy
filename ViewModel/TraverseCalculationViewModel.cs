@@ -605,10 +605,12 @@ namespace Nivtropy.ViewModels
             // Создаём lookup для быстрого поиска ходов по имени (оптимизация LINQ)
             var runsLookup = Runs.ToDictionary(r => r.DisplayName, r => r, StringComparer.OrdinalIgnoreCase);
 
-            // Инициализация систем для новых ходов
-            InitializeRunSystems();
-
+            // ВАЖНО: Сначала обновляем метаданные общих точек, затем инициализируем системы
+            // Это необходимо, т.к. RebuildSystemsByConnectivity() использует _sharedPoints
             UpdateSharedPointsMetadata(_dataViewModel.Records);
+
+            // Инициализация систем для новых ходов (использует актуальные _sharedPoints)
+            InitializeRunSystems();
 
             // Обрабатываем каждую систему отдельно с независимыми пространствами высот
             foreach (var system in _systems.OrderBy(s => s.Order))
@@ -797,8 +799,9 @@ namespace Nivtropy.ViewModels
 
             var runsLookup = Runs.ToDictionary(r => r.DisplayName, r => r, StringComparer.OrdinalIgnoreCase);
 
-            InitializeRunSystems();
+            // ВАЖНО: Сначала обновляем метаданные общих точек, затем инициализируем системы
             UpdateSharedPointsMetadata(_dataViewModel.Records);
+            InitializeRunSystems();
 
             foreach (var system in _systems.OrderBy(s => s.Order))
             {
