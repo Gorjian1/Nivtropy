@@ -1988,7 +1988,9 @@ namespace Nivtropy.ViewModels
                 }
             }
 
-            foreach (var kvp in raw)
+            // Для Z0 смежных точек между ходами используем уравненное Z (adjusted),
+            // чтобы невязка предыдущего хода не переносилась в следующий
+            foreach (var kvp in adjusted)
             {
                 if (!IsCopyAlias(kvp.Key) && AllowPropagation(kvp.Key))
                 {
