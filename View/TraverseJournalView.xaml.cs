@@ -200,10 +200,13 @@ namespace Nivtropy.Views
 
         private void ShowTraverseDetails_Click(object sender, RoutedEventArgs e)
         {
-            if (sender is Button button && button.Tag is string lineName)
+            if (sender is Button button && button.Tag is string lineName && ViewModel != null)
             {
                 // Устанавливаем заголовок popup
                 ProfileTitleText.Text = $"Профиль хода: {lineName}";
+
+                // Устанавливаем выбранный ход для фильтрации профиля
+                ViewModel.SelectedProfileLineName = lineName;
 
                 // Открываем popup с профилем
                 TraverseDetailsPopup.IsOpen = true;

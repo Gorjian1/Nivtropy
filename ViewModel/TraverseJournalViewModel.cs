@@ -35,6 +35,7 @@ namespace Nivtropy.ViewModels
         private double _sensitivitySigma = 2.5;
         private double? _manualMinHeight;
         private double? _manualMaxHeight;
+        private string? _selectedProfileLineName;
 
         public TraverseJournalViewModel(
             TraverseCalculationViewModel calculationViewModel,
@@ -215,6 +216,23 @@ namespace Nivtropy.ViewModels
             }
         }
 
+        /// <summary>
+        /// Имя хода для отображения профиля (null = все ходы)
+        /// </summary>
+        public string? SelectedProfileLineName
+        {
+            get => _selectedProfileLineName;
+            set
+            {
+                if (_selectedProfileLineName != value)
+                {
+                    _selectedProfileLineName = value;
+                    OnPropertyChanged();
+                    RecalculateStatistics();
+                }
+            }
+        }
+
         #endregion
 
         #region Public Methods
@@ -242,7 +260,7 @@ namespace Nivtropy.ViewModels
         /// </summary>
         public void RecalculateStatistics()
         {
-            var rows = _calculationViewModel.Rows.ToList();
+            var rows = GetFilteredRows();
             if (rows.Count > 0)
             {
                 CurrentStatistics = _statisticsService.CalculateStatistics(rows, SensitivitySigma);
@@ -251,6 +269,23 @@ namespace Nivtropy.ViewModels
             {
                 CurrentStatistics = null;
             }
+        }
+
+        /// <summary>
+        /// Получить отфильтрованные строки по выбранному ходу
+        /// </summary>
+        private List<TraverseRow> GetFilteredRows()
+        {
+            var allRows = _calculationViewModel.Rows;
+
+            if (string.IsNullOrEmpty(SelectedProfileLineName))
+            {
+                return allRows.ToList();
+            }
+
+            return allRows
+                .Where(r => string.Equals(r.LineName, SelectedProfileLineName, StringComparison.OrdinalIgnoreCase))
+                .ToList();
         }
 
         /// <summary>
@@ -279,7 +314,7 @@ namespace Nivtropy.ViewModels
         /// </summary>
         public void DrawProfile(System.Windows.Controls.Canvas canvas)
         {
-            var rows = _calculationViewModel.Rows.ToList();
+            var rows = GetFilteredRows();
             if (rows.Count < 2) return;
 
             var options = GetVisualizationOptions();
