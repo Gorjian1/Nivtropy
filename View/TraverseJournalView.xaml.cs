@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
+using Nivtropy.Models;
 using Nivtropy.ViewModels;
 
 namespace Nivtropy.Views
@@ -168,21 +169,28 @@ namespace Nivtropy.Views
 
         private void CloseProfilePopup_Click(object sender, RoutedEventArgs e)
         {
-            // Закрываем popup (обработка в XAML через Popup.IsOpen binding)
+            TraverseDetailsPopup.IsOpen = false;
         }
 
         private void BenchmarkHeightTextBox_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
         {
             if (e.Key == System.Windows.Input.Key.Enter)
             {
-                // Логика добавления репера уже в ViewModel через Command
+                // Выполняем команду добавления репера
+                if (ViewModel?.Calculation.AddBenchmarkCommand.CanExecute(null) == true)
+                {
+                    ViewModel.Calculation.AddBenchmarkCommand.Execute(null);
+                }
                 e.Handled = true;
             }
         }
 
         private void RemoveBenchmark_Click(object sender, RoutedEventArgs e)
         {
-            // Логика удаления репера через Command в ViewModel
+            if (sender is Button button && button.Tag is BenchmarkItem benchmark)
+            {
+                ViewModel?.Calculation.RemoveBenchmarkCommand.Execute(benchmark);
+            }
         }
 
         private void SystemsListBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -192,7 +200,17 @@ namespace Nivtropy.Views
 
         private void ShowTraverseDetails_Click(object sender, RoutedEventArgs e)
         {
-            // Логика отображения деталей хода
+            if (sender is Button button && button.Tag is string lineName)
+            {
+                // Устанавливаем заголовок popup
+                ProfileTitleText.Text = $"Профиль хода: {lineName}";
+
+                // Открываем popup с профилем
+                TraverseDetailsPopup.IsOpen = true;
+
+                // Перерисовываем профиль
+                RedrawProfile();
+            }
         }
 
         private void RunActivationChanged(object sender, RoutedEventArgs e)
