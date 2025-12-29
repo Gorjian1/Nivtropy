@@ -114,8 +114,9 @@ namespace Nivtropy.Services.Visualization
 
             foreach (var run in runs)
             {
+                // Сопоставляем ряды по индексу LineSummary
                 var runRows = rows
-                    .Where(r => r.LineSummary?.Index == run.Index || string.Equals(r.LineName, run.DisplayName, StringComparison.OrdinalIgnoreCase))
+                    .Where(r => r.LineSummary != null && r.LineSummary.Index == run.Index)
                     .OrderBy(r => r.Index)
                     .ToList();
 
@@ -153,6 +154,17 @@ namespace Nivtropy.Services.Visualization
                         uniqueSequence.Add(code);
                         lastCode = code;
                     }
+                }
+
+                // Fallback: если точек меньше 2, используем StartLabel и EndLabel из хода
+                if (uniqueSequence.Count < 2)
+                {
+                    uniqueSequence.Clear();
+                    if (!string.IsNullOrWhiteSpace(run.StartLabel))
+                        uniqueSequence.Add(run.StartLabel.Trim());
+                    if (!string.IsNullOrWhiteSpace(run.EndLabel) &&
+                        !string.Equals(run.EndLabel, run.StartLabel, StringComparison.OrdinalIgnoreCase))
+                        uniqueSequence.Add(run.EndLabel.Trim());
                 }
 
                 pointsByRun[run] = uniqueSequence;
@@ -336,18 +348,25 @@ namespace Nivtropy.Services.Visualization
         {
             foreach (var run in runs)
             {
-                if (!pointsByRun.TryGetValue(run, out var pointSequence) || pointSequence.Count < 2)
-                    continue;
+                pointsByRun.TryGetValue(run, out var pointSequence);
+                pointSequence ??= new List<string>();
 
                 var runColor = runColors.TryGetValue(run, out var c) ? c : Colors.SteelBlue;
                 var strokeColor = run.IsActive ? runColor : Color.FromRgb(140, 140, 140);
                 var fillColor = Color.FromArgb(30, runColor.R, runColor.G, runColor.B);
 
-                var centerPoint = runCenters[run];
-                var pointCount = Math.Max(pointSequence.Count, 2);
+                var centerPoint = runCenters.TryGetValue(run, out var cp) ? cp : new Point(canvas.ActualWidth / 2, canvas.ActualHeight / 2);
                 var shapeRadius = actualRunRadius.TryGetValue(run, out var radius) ? radius : 32;
-
                 var rotationOffset = runRotationOffsets.TryGetValue(run, out var offset) ? offset : 0.0;
+
+                // Если точек меньше 2, рисуем круг с единственной точкой (или пустой круг)
+                if (pointSequence.Count < 2)
+                {
+                    DrawSinglePointRun(canvas, run, pointSequence, centerPoint, shapeRadius, strokeColor, fillColor, calculation, drawnSharedPoints, runColor);
+                    continue;
+                }
+
+                var pointCount = pointSequence.Count;
 
                 // Все точки размещаются последовательно по кругу вокруг центра хода
                 // Общие точки визуально выделяются, но не используются как фиксированные якоря
@@ -397,6 +416,90 @@ namespace Nivtropy.Services.Visualization
 
                 // Отрисовка точек фигуры
                 DrawRunPoints(canvas, run, pointSequence, vertices, centerPoint, calculation, drawnSharedPoints, runColor);
+            }
+        }
+
+        private void DrawSinglePointRun(Canvas canvas, LineSummary run, List<string> pointSequence,
+                                        Point centerPoint, double shapeRadius, Color strokeColor, Color fillColor,
+                                        TraverseCalculationViewModel calculation,
+                                        HashSet<string> drawnSharedPoints, Color runColor)
+        {
+            // Рисуем простой круг для хода с 0-1 точками
+            var ellipse = new Ellipse
+            {
+                Width = shapeRadius * 2,
+                Height = shapeRadius * 2,
+                Stroke = new SolidColorBrush(strokeColor),
+                StrokeThickness = run.IsActive ? 2.2 : 1.5,
+                Fill = new SolidColorBrush(fillColor),
+                StrokeDashArray = run.IsActive ? null : new DoubleCollection { 3, 3 },
+                ToolTip = run.Tooltip
+            };
+            Canvas.SetLeft(ellipse, centerPoint.X - shapeRadius);
+            Canvas.SetTop(ellipse, centerPoint.Y - shapeRadius);
+            canvas.Children.Add(ellipse);
+
+            // Подпись хода
+            var label = new TextBlock
+            {
+                Text = run.DisplayName,
+                FontSize = 10,
+                FontWeight = run.IsActive ? FontWeights.SemiBold : FontWeights.Normal,
+                Foreground = new SolidColorBrush(strokeColor),
+                Background = new SolidColorBrush(Color.FromArgb(220, 255, 255, 255))
+            };
+            Canvas.SetLeft(label, centerPoint.X - 18);
+            Canvas.SetTop(label, centerPoint.Y - 10);
+            canvas.Children.Add(label);
+
+            // Если есть хотя бы одна точка, рисуем её
+            if (pointSequence.Count == 1)
+            {
+                var code = pointSequence[0];
+                var pointPos = new Point(centerPoint.X + shapeRadius, centerPoint.Y);
+                pointPos = ClampPoint(pointPos, Padding, canvas.ActualWidth, canvas.ActualHeight);
+
+                var sharedForRun = new HashSet<string>(calculation.GetSharedPointsForRun(run)
+                    .Where(p => p.IsEnabled)
+                    .Select(p => p.Code), StringComparer.OrdinalIgnoreCase);
+
+                bool isShared = sharedForRun.Contains(code);
+                bool hasKnownHeight = calculation.HasKnownHeight(code) || isShared;
+
+                var pointColor = hasKnownHeight
+                    ? Colors.Black
+                    : isShared
+                        ? Colors.OrangeRed
+                        : Color.FromArgb(220, runColor.R, runColor.G, runColor.B);
+
+                if (!isShared || drawnSharedPoints.Add(code))
+                {
+                    var node = new Ellipse
+                    {
+                        Width = hasKnownHeight ? 11 : 9,
+                        Height = hasKnownHeight ? 11 : 9,
+                        Fill = new SolidColorBrush(pointColor),
+                        Stroke = Brushes.White,
+                        StrokeThickness = 2,
+                        ToolTip = $"{code}\n{(hasKnownHeight ? "Известная" : isShared ? "Общая" : "Точка хода")}"
+                    };
+
+                    Canvas.SetLeft(node, pointPos.X - node.Width / 2);
+                    Canvas.SetTop(node, pointPos.Y - node.Height / 2);
+                    canvas.Children.Add(node);
+
+                    var pointLabel = new TextBlock
+                    {
+                        Text = code,
+                        FontSize = 8,
+                        FontWeight = FontWeights.SemiBold,
+                        Foreground = Brushes.Black,
+                        Background = new SolidColorBrush(Color.FromArgb(200, 255, 255, 255))
+                    };
+                    Canvas.SetLeft(pointLabel, pointPos.X + 8);
+                    Canvas.SetTop(pointLabel, pointPos.Y - 8);
+                    canvas.Children.Add(pointLabel);
+                }
             }
         }
 
