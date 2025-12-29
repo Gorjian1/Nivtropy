@@ -104,9 +104,6 @@ namespace Nivtropy.Services.Visualization
             // Вычисляем углы поворота с учётом центров и общих точек
             var runRotationOffsets = CalculateRotationOffsetsWithSharedPoints(runs, pointsByRun, runCenters, calculation);
 
-            // Рисуем соединительные линии между общими точками
-            DrawSharedPointConnections(canvas, runs, pointsByRun, runCenters, actualRunRadius, runRotationOffsets, calculation);
-
             // Рисуем каждый ход
             var drawnSharedPoints = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             DrawRuns(canvas, runs, runColors, pointsByRun, runCenters, actualRunRadius, runRotationOffsets,
@@ -295,100 +292,6 @@ namespace Nivtropy.Services.Visualization
             return offsets;
         }
 
-        /// <summary>
-        /// Рисует соединительные линии между общими точками разных ходов
-        /// </summary>
-        private void DrawSharedPointConnections(
-            Canvas canvas,
-            List<LineSummary> runs,
-            Dictionary<LineSummary, List<string>> pointsByRun,
-            Dictionary<LineSummary, Point> runCenters,
-            Dictionary<LineSummary, double> actualRunRadius,
-            Dictionary<LineSummary, double> runRotationOffsets,
-            TraverseCalculationViewModel calculation)
-        {
-            // Собираем позиции всех точек для каждого хода
-            var pointPositionsByRun = new Dictionary<LineSummary, Dictionary<string, Point>>();
-
-            foreach (var run in runs)
-            {
-                if (!pointsByRun.TryGetValue(run, out var sequence) || sequence.Count < 2)
-                    continue;
-
-                if (!runCenters.TryGetValue(run, out var center))
-                    continue;
-
-                var radius = actualRunRadius.TryGetValue(run, out var r) ? r : 32;
-                var rotation = runRotationOffsets.TryGetValue(run, out var rot) ? rot : 0;
-                var pointCount = sequence.Count;
-
-                var positions = new Dictionary<string, Point>(StringComparer.OrdinalIgnoreCase);
-                for (int i = 0; i < sequence.Count; i++)
-                {
-                    var angle = rotation + 2 * Math.PI * i / pointCount;
-                    var pos = new Point(
-                        center.X + radius * Math.Cos(angle),
-                        center.Y + radius * Math.Sin(angle));
-                    positions[sequence[i]] = pos;
-                }
-
-                pointPositionsByRun[run] = positions;
-            }
-
-            // Находим общие точки и рисуем соединения
-            var drawnConnections = new HashSet<string>();
-            foreach (var run in runs)
-            {
-                if (!pointPositionsByRun.TryGetValue(run, out var positions))
-                    continue;
-
-                var sharedForRun = calculation.GetSharedPointsForRun(run)
-                    .Where(p => p.IsEnabled)
-                    .Select(p => p.Code)
-                    .ToList();
-
-                foreach (var code in sharedForRun)
-                {
-                    if (!positions.TryGetValue(code, out var pos1))
-                        continue;
-
-                    // Ищем эту точку в других ходах
-                    foreach (var otherRun in runs)
-                    {
-                        if (otherRun.Index == run.Index)
-                            continue;
-
-                        if (!pointPositionsByRun.TryGetValue(otherRun, out var otherPositions))
-                            continue;
-
-                        if (!otherPositions.TryGetValue(code, out var pos2))
-                            continue;
-
-                        // Проверяем, не рисовали ли уже это соединение
-                        var connectionKey = $"{Math.Min(run.Index, otherRun.Index)}-{Math.Max(run.Index, otherRun.Index)}-{code}";
-                        if (!drawnConnections.Add(connectionKey))
-                            continue;
-
-                        // Рисуем соединительную линию
-                        var line = new Line
-                        {
-                            X1 = pos1.X,
-                            Y1 = pos1.Y,
-                            X2 = pos2.X,
-                            Y2 = pos2.Y,
-                            Stroke = new SolidColorBrush(Color.FromArgb(120, 0, 0, 0)),
-                            StrokeThickness = 1.5,
-                            StrokeDashArray = new DoubleCollection { 4, 2 },
-                            ToolTip = $"Общая точка: {code}"
-                        };
-
-                        // Добавляем линию в начало, чтобы она была под ходами
-                        canvas.Children.Insert(0, line);
-                    }
-                }
-            }
-        }
-
         private Dictionary<string, Point> CalculateSharedPointPositions(List<SharedPointLinkItem> sharedPoints,
                                                                         double canvasWidth, double canvasHeight,
                                                                         double maxShapeRadius)
@@ -410,6 +313,9 @@ namespace Nivtropy.Services.Visualization
             return positions;
         }
 
+        /// <summary>
+        /// Вычисляет позиции центров ходов так, чтобы круги пересекались в общих точках
+        /// </summary>
         private Dictionary<LineSummary, Point> CalculateRunCenters(List<LineSummary> runs,
                                                                    TraverseCalculationViewModel calculation,
                                                                    Dictionary<string, Point> sharedPointPositions,
@@ -418,47 +324,120 @@ namespace Nivtropy.Services.Visualization
                                                                    double maxShapeRadius)
         {
             var runCenters = new Dictionary<LineSummary, Point>();
-            var center = new Point(canvasWidth / 2, canvasHeight / 2);
-            var orbitBase = Math.Min(canvasWidth, canvasHeight) / 2 - (Padding + maxShapeRadius);
-            var sharedRadius = sharedPointPositions.Any() ? Math.Max(24, orbitBase * 0.82) : Math.Max(24, orbitBase);
+            var canvasCenter = new Point(canvasWidth / 2, canvasHeight / 2);
 
-            for (int i = 0; i < runs.Count; i++)
+            if (runs.Count == 0)
+                return runCenters;
+
+            // Строим граф связей между ходами через общие точки
+            var sharedPointsByCode = new Dictionary<string, List<LineSummary>>(StringComparer.OrdinalIgnoreCase);
+            foreach (var run in runs)
             {
-                var run = runs[i];
                 var sharedForRun = calculation.GetSharedPointsForRun(run)
                     .Where(p => p.IsEnabled)
                     .Select(p => p.Code)
                     .ToList();
 
-                var anchors = sharedForRun
-                    .Where(code => sharedPointPositions.ContainsKey(code))
-                    .Select(code => sharedPointPositions[code])
-                    .ToList();
-
-                var shapeRadius = runShapeRadius.TryGetValue(run, out var r) ? r : 32;
-
-                if (anchors.Count > 0)
+                foreach (var code in sharedForRun)
                 {
-                    var avgX = anchors.Average(p => p.X);
-                    var avgY = anchors.Average(p => p.Y);
-                    var basePoint = new Point(avgX, avgY);
-
-                    var jitterAngle = ((run.Index * 37) % 360) * Math.PI / 180.0;
-                    var jitterDistance = (anchors.Count > 1 ? 10 : 18) + (i % 3) * 3;
-                    var offset = new Vector(Math.Cos(jitterAngle) * jitterDistance, Math.Sin(jitterAngle) * jitterDistance);
-                    var proposed = basePoint + offset;
-                    var margin = Padding + shapeRadius;
-                    runCenters[run] = ClampPoint(proposed, margin, canvasWidth, canvasHeight);
+                    if (!sharedPointsByCode.ContainsKey(code))
+                        sharedPointsByCode[code] = new List<LineSummary>();
+                    sharedPointsByCode[code].Add(run);
                 }
-                else
+            }
+
+            // Первый ход размещаем в центре
+            var firstRun = runs[0];
+            var firstRadius = runShapeRadius.TryGetValue(firstRun, out var fr) ? fr : 32;
+            runCenters[firstRun] = canvasCenter;
+
+            // Для остальных ходов вычисляем позицию относительно уже размещённых
+            var placedRuns = new HashSet<int> { firstRun.Index };
+
+            for (int iteration = 0; iteration < runs.Count; iteration++)
+            {
+                foreach (var run in runs)
                 {
-                    var angle = 2 * Math.PI * i / Math.Max(1, runs.Count);
-                    var radius = sharedRadius + (sharedPointPositions.Any() ? 24 : 0);
-                    var proposed = new Point(
-                        center.X + radius * Math.Cos(angle),
-                        center.Y + radius * Math.Sin(angle));
-                    var margin = Padding + shapeRadius;
-                    runCenters[run] = ClampPoint(proposed, margin, canvasWidth, canvasHeight);
+                    if (placedRuns.Contains(run.Index))
+                        continue;
+
+                    var runRadius = runShapeRadius.TryGetValue(run, out var rr) ? rr : 32;
+
+                    // Ищем уже размещённый ход с общими точками
+                    LineSummary? connectedRun = null;
+                    var sharedCodes = new List<string>();
+
+                    var sharedForRun = calculation.GetSharedPointsForRun(run)
+                        .Where(p => p.IsEnabled)
+                        .Select(p => p.Code)
+                        .ToList();
+
+                    foreach (var code in sharedForRun)
+                    {
+                        if (sharedPointsByCode.TryGetValue(code, out var runsWithPoint))
+                        {
+                            foreach (var otherRun in runsWithPoint)
+                            {
+                                if (otherRun.Index != run.Index && placedRuns.Contains(otherRun.Index))
+                                {
+                                    connectedRun = otherRun;
+                                    sharedCodes.Add(code);
+                                }
+                            }
+                        }
+                    }
+
+                    if (connectedRun != null && runCenters.TryGetValue(connectedRun, out var connectedCenter))
+                    {
+                        var connectedRadius = runShapeRadius.TryGetValue(connectedRun, out var cr) ? cr : 32;
+
+                        // Расстояние между центрами для пересечения кругов
+                        // Чтобы круги пересекались, d должно быть между |R1-R2| и R1+R2
+                        // Выбираем d так, чтобы пересечение было заметным
+                        var overlapFactor = 0.3; // 30% перекрытие меньшего радиуса
+                        var minRadius = Math.Min(runRadius, connectedRadius);
+                        var distance = runRadius + connectedRadius - minRadius * overlapFactor;
+
+                        // Направление от размещённого хода
+                        // Используем угол на основе индекса для разнообразия
+                        var baseAngle = Math.Atan2(
+                            connectedCenter.Y - canvasCenter.Y,
+                            connectedCenter.X - canvasCenter.X);
+                        var offsetAngle = baseAngle + Math.PI + (run.Index - connectedRun.Index) * 0.3;
+
+                        var newCenter = new Point(
+                            connectedCenter.X + distance * Math.Cos(offsetAngle),
+                            connectedCenter.Y + distance * Math.Sin(offsetAngle));
+
+                        var margin = Padding + runRadius;
+                        runCenters[run] = ClampPoint(newCenter, margin, canvasWidth, canvasHeight);
+                        placedRuns.Add(run.Index);
+                    }
+                }
+
+                // Размещаем несвязанные ходы по кругу
+                var unplacedCount = runs.Count(r => !placedRuns.Contains(r.Index));
+                if (unplacedCount > 0)
+                {
+                    var orbitRadius = Math.Min(canvasWidth, canvasHeight) / 3;
+                    int unplacedIndex = 0;
+
+                    foreach (var run in runs)
+                    {
+                        if (placedRuns.Contains(run.Index))
+                            continue;
+
+                        var runRadius = runShapeRadius.TryGetValue(run, out var rr) ? rr : 32;
+                        var angle = 2 * Math.PI * unplacedIndex / unplacedCount;
+                        var newCenter = new Point(
+                            canvasCenter.X + orbitRadius * Math.Cos(angle),
+                            canvasCenter.Y + orbitRadius * Math.Sin(angle));
+
+                        var margin = Padding + runRadius;
+                        runCenters[run] = ClampPoint(newCenter, margin, canvasWidth, canvasHeight);
+                        placedRuns.Add(run.Index);
+                        unplacedIndex++;
+                    }
                 }
             }
 
