@@ -348,50 +348,14 @@ namespace Nivtropy.Services.Visualization
                 var shapeRadius = actualRunRadius.TryGetValue(run, out var radius) ? radius : 32;
 
                 var rotationOffset = runRotationOffsets.TryGetValue(run, out var offset) ? offset : 0.0;
-                var rotationAngleDiffs = new List<double>();
 
-                for (int i = 0; i < pointSequence.Count; i++)
-                {
-                    var code = pointSequence[i];
-                    if (!sharedPointPositions.TryGetValue(code, out var sharedPos))
-                        continue;
-
-                    var desiredAngle = 2 * Math.PI * i / pointCount;
-                    var actualAngle = Math.Atan2(sharedPos.Y - centerPoint.Y, sharedPos.X - centerPoint.X);
-                    if (double.IsNaN(actualAngle))
-                        continue;
-
-                    var diff = NormalizeAngle(actualAngle - desiredAngle);
-                    rotationAngleDiffs.Add(diff);
-                }
-
-                if (rotationAngleDiffs.Count > 0)
-                {
-                    double sumSin = 0, sumCos = 0;
-                    foreach (var diff in rotationAngleDiffs)
-                    {
-                        sumSin += Math.Sin(diff);
-                        sumCos += Math.Cos(diff);
-                    }
-
-                    var avg = Math.Atan2(sumSin, sumCos);
-                    if (avg < 0)
-                        avg += 2 * Math.PI;
-
-                    rotationOffset = avg;
-                }
-
+                // Все точки размещаются последовательно по кругу вокруг центра хода
+                // Общие точки визуально выделяются, но не используются как фиксированные якоря
+                // Это предотвращает "перекруты" при неправильном порядке общих точек
                 var vertices = new List<Point>();
 
                 for (int i = 0; i < pointSequence.Count; i++)
                 {
-                    var code = pointSequence[i];
-                    if (sharedPointPositions.TryGetValue(code, out var sharedPos))
-                    {
-                        vertices.Add(sharedPos);
-                        continue;
-                    }
-
                     var angle = rotationOffset + 2 * Math.PI * i / pointCount;
                     var vertex = new Point(
                         centerPoint.X + shapeRadius * Math.Cos(angle),

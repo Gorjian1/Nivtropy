@@ -1,3 +1,4 @@
+using System.Collections.Specialized;
 using System.Windows;
 using System.Windows.Controls;
 using Nivtropy.Models;
@@ -28,12 +29,14 @@ namespace Nivtropy.Views
                 {
                     // Отписываемся от старого ViewModel
                     oldVm.PropertyChanged -= ViewModel_PropertyChanged;
+                    UnsubscribeFromCalculation(oldVm.Calculation);
                 }
 
                 if (e.NewValue is TraverseJournalViewModel newVm)
                 {
                     // Подписываемся на новый ViewModel
                     newVm.PropertyChanged += ViewModel_PropertyChanged;
+                    SubscribeToCalculation(newVm.Calculation);
 
                     // Первоначальная отрисовка
                     RedrawProfile();
@@ -52,6 +55,42 @@ namespace Nivtropy.Views
             };
 
             Focusable = true;
+        }
+
+        private void SubscribeToCalculation(TraverseCalculationViewModel? calculation)
+        {
+            if (calculation == null) return;
+
+            calculation.PropertyChanged += Calculation_PropertyChanged;
+            ((INotifyCollectionChanged)calculation.Systems).CollectionChanged += Systems_CollectionChanged;
+            ((INotifyCollectionChanged)calculation.SharedPoints).CollectionChanged += SharedPoints_CollectionChanged;
+        }
+
+        private void UnsubscribeFromCalculation(TraverseCalculationViewModel? calculation)
+        {
+            if (calculation == null) return;
+
+            calculation.PropertyChanged -= Calculation_PropertyChanged;
+            ((INotifyCollectionChanged)calculation.Systems).CollectionChanged -= Systems_CollectionChanged;
+            ((INotifyCollectionChanged)calculation.SharedPoints).CollectionChanged -= SharedPoints_CollectionChanged;
+        }
+
+        private void Calculation_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == nameof(TraverseCalculationViewModel.SelectedSystem))
+            {
+                RedrawSystemVisualization();
+            }
+        }
+
+        private void Systems_CollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+        {
+            RedrawSystemVisualization();
+        }
+
+        private void SharedPoints_CollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+        {
+            RedrawSystemVisualization();
         }
 
         /// <summary>
