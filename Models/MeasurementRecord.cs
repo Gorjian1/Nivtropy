@@ -15,6 +15,11 @@ namespace Nivtropy.Models
         public string? LineMarker { get; set; }
 
         /// <summary>
+        /// Оригинальный номер хода из файла (из Start-Line, например "BF 3" -> "3")
+        /// </summary>
+        public string? OriginalLineNumber { get; set; }
+
+        /// <summary>
         /// Флаг ошибочного измерения (помечено ##### в файле, будет заменено повторным)
         /// </summary>
         public bool IsInvalidMeasurement { get; set; }

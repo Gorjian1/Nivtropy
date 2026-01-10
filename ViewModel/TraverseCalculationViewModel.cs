@@ -1535,17 +1535,25 @@ namespace Nivtropy.ViewModels
             // - Циклический (замыкается на себя), ИЛИ
             // - Начальная и конечная точки обе известны
             bool isClosed = closesByLoop || (startKnown && endKnown);
-            if (!isClosed)
-            {
-                return TraverseClosureMode.Open;
-            }
 
             var distinctAnchorCount = anchorPoints
                 .Select(a => a.Code)
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .Count();
 
-            // Локальное уравнивание только если больше одной различной известной точки
+            // Если ход не замкнут по концам, проверяем наличие известных точек для секционного уравнивания
+            if (!isClosed)
+            {
+                // Если есть хотя бы 2 различные известные точки в любом месте хода,
+                // можно уравнять секции между ними (локальное уравнивание)
+                if (distinctAnchorCount >= 2)
+                {
+                    return TraverseClosureMode.Local;
+                }
+                return TraverseClosureMode.Open;
+            }
+
+            // Локальное уравнивание если больше одной различной известной точки
             if (distinctAnchorCount > 1 || (lineSummary?.UseLocalAdjustment ?? false))
                 return TraverseClosureMode.Local;
 
@@ -1985,6 +1993,35 @@ namespace Nivtropy.ViewModels
                 if (foreHeight.HasValue && !HasRunHistory(foreAlias))
                 {
                     RecordRunHeight(foreAlias, foreHeight.Value);
+                }
+            }
+
+            // Обратный проход: распространяем высоты Z0 назад от известных точек
+            // Это необходимо когда известная точка находится в середине хода
+            for (int i = items.Count - 1; i >= 0; i--)
+            {
+                var row = items[i];
+                var delta = row.DeltaH;
+
+                if (!delta.HasValue)
+                    continue;
+
+                var backAlias = AliasFor(row, isBack: true);
+                var foreAlias = AliasFor(row, isBack: false);
+
+                // Если ForeHeightZ0 известна, а BackHeightZ0 нет - вычисляем назад
+                if (row.ForeHeightZ0.HasValue && !row.BackHeightZ0.HasValue)
+                {
+                    var computedBack = row.ForeHeightZ0.Value - delta.Value;
+                    row.BackHeightZ0 = computedBack;
+                    RecordRunHeight(backAlias, computedBack);
+                }
+                // Если BackHeightZ0 известна, а ForeHeightZ0 нет - вычисляем вперёд (на всякий случай)
+                else if (row.BackHeightZ0.HasValue && !row.ForeHeightZ0.HasValue)
+                {
+                    var computedFore = row.BackHeightZ0.Value + delta.Value;
+                    row.ForeHeightZ0 = computedFore;
+                    RecordRunHeight(foreAlias, computedFore);
                 }
             }
 

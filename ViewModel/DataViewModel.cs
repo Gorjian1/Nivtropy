@@ -369,6 +369,10 @@ namespace Nivtropy.ViewModels
             var start = group.FirstOrDefault(r => r.Rb_m.HasValue) ?? group.First();
             var end = group.LastOrDefault(r => r.Rf_m.HasValue) ?? group.Last();
 
+            // Ищем оригинальный номер хода из Start-Line записи
+            var startLineRecord = group.FirstOrDefault(r => r.LineMarker == "Start-Line");
+            var originalLineNumber = startLineRecord?.OriginalLineNumber;
+
             double? deltaSum = null;
             double? totalDistanceBack = null;
             double? totalDistanceFore = null;
@@ -409,7 +413,8 @@ namespace Nivtropy.ViewModels
                 deltaSum,
                 totalDistanceBack,
                 totalDistanceFore,
-                armDiffAccumulation);
+                armDiffAccumulation,
+                originalLineNumber: originalLineNumber);
         }
 
         public void ExportCsv(string path)

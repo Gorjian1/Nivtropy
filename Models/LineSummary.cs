@@ -19,7 +19,8 @@ namespace Nivtropy.Models
             double? armDifferenceAccumulation = null,
             int knownPointsCount = 0,
             string? systemId = null,
-            bool isActive = true)
+            bool isActive = true,
+            string? originalLineNumber = null)
         {
             Index = index;
             StartTarget = startTarget;
@@ -34,11 +35,17 @@ namespace Nivtropy.Models
             KnownPointsCount = knownPointsCount;
             SystemId = systemId;
             IsActive = isActive;
+            OriginalLineNumber = originalLineNumber;
             Closures = Array.Empty<double>();
             SharedPointCodes = Array.Empty<string>();
         }
 
         public int Index { get; }
+
+        /// <summary>
+        /// Оригинальный номер хода из файла (из Start-Line, например "BF 3" -> "3")
+        /// </summary>
+        public string? OriginalLineNumber { get; }
         public string? StartTarget { get; }
         public string? StartStation { get; }
         public string? EndTarget { get; }
@@ -147,7 +154,9 @@ namespace Nivtropy.Models
         public string StartLabel => FormatPoint(StartTarget, StartStation);
         public string EndLabel => FormatPoint(EndTarget, EndStation);
 
-        public string DisplayName => $"Ход {Index:D2}";
+        public string DisplayName => !string.IsNullOrWhiteSpace(OriginalLineNumber)
+            ? $"Ход {OriginalLineNumber}"
+            : $"Ход {Index:D2}";
         public string RangeDisplay => $"{StartLabel} → {EndLabel}";
         public string Header => $"{DisplayName}: {RangeDisplay}";
 

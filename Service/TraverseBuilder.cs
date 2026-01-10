@@ -56,7 +56,8 @@ namespace Nivtropy.Services
         }
 
         /// <summary>
-        /// Вычисляет хэш для набора записей и хода
+        /// Вычисляет хэш для набора записей и хода.
+        /// Использует больше данных для предотвращения коллизий на больших файлах.
         /// </summary>
         private int ComputeHash(IList<MeasurementRecord> records, LineSummary? run)
         {
@@ -69,26 +70,39 @@ namespace Nivtropy.Services
                 {
                     hash = hash * 31 + (run.DisplayName?.GetHashCode() ?? 0);
                     hash = hash * 31 + run.RecordCount;
+                    hash = hash * 31 + (run.StartTarget?.GetHashCode() ?? 0);
+                    hash = hash * 31 + (run.EndTarget?.GetHashCode() ?? 0);
+                    hash = hash * 31 + run.DeltaHSum.GetHashCode();
                 }
 
-                // Хэш от количества записей (быстрая проверка)
+                // Хэш от количества записей
                 hash = hash * 31 + records.Count;
 
-                // Хэш от первых и последних записей (для скорости)
-                if (records.Count > 0)
-                {
-                    var first = records[0];
-                    hash = hash * 31 + (first.StationCode?.GetHashCode() ?? 0);
-                    hash = hash * 31 + first.Rb_m.GetHashCode();
-                    hash = hash * 31 + first.Rf_m.GetHashCode();
+                // Хэш от всех записей (или выборки для очень больших файлов)
+                // Для файлов до 100 записей - все записи
+                // Для больших - каждая 10-я запись + первая/последняя
+                int step = records.Count <= 100 ? 1 : Math.Max(1, records.Count / 10);
 
-                    if (records.Count > 1)
-                    {
-                        var last = records[records.Count - 1];
-                        hash = hash * 31 + (last.StationCode?.GetHashCode() ?? 0);
-                        hash = hash * 31 + last.Rb_m.GetHashCode();
-                        hash = hash * 31 + last.Rf_m.GetHashCode();
-                    }
+                for (int i = 0; i < records.Count; i += step)
+                {
+                    var rec = records[i];
+                    hash = hash * 31 + i; // Позиция записи
+                    hash = hash * 31 + (rec.StationCode?.GetHashCode() ?? 0);
+                    hash = hash * 31 + (rec.Target?.GetHashCode() ?? 0);
+                    hash = hash * 31 + rec.Rb_m.GetHashCode();
+                    hash = hash * 31 + rec.Rf_m.GetHashCode();
+                    hash = hash * 31 + rec.Seq.GetHashCode();
+                }
+
+                // Всегда включаем последнюю запись
+                if (records.Count > 1)
+                {
+                    var last = records[records.Count - 1];
+                    hash = hash * 31 + (records.Count - 1);
+                    hash = hash * 31 + (last.StationCode?.GetHashCode() ?? 0);
+                    hash = hash * 31 + (last.Target?.GetHashCode() ?? 0);
+                    hash = hash * 31 + last.Rb_m.GetHashCode();
+                    hash = hash * 31 + last.Rf_m.GetHashCode();
                 }
 
                 return hash;

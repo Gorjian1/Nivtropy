@@ -211,11 +211,12 @@ namespace Nivtropy.Services
             if (Regex.IsMatch(line, @"\bStart-Line\b", RegexOptions.IgnoreCase))
             {
                 record.LineMarker = "Start-Line";
-                // Извлекаем номер хода из Start-Line
-                var runMatch = Regex.Match(line, @"\bBF\s+(\d+)", RegexOptions.IgnoreCase);
+                // Извлекаем оригинальный номер хода из Start-Line
+                var runMatch = Regex.Match(line, @"\b(?:BF|FB)\s+(\d+)", RegexOptions.IgnoreCase);
                 if (runMatch.Success)
                 {
                     record.StationCode = runMatch.Groups[1].Value;
+                    record.OriginalLineNumber = runMatch.Groups[1].Value;
                 }
                 return record;
             }
@@ -574,6 +575,7 @@ namespace Nivtropy.Services
 
         /// <summary>
         /// Определяет маркеры хода (Start-Line, End-Line, Cont-Line) из строки
+        /// и извлекает оригинальный номер хода из Start-Line
         /// </summary>
         private static void DetectLineMarker(MeasurementRecord record, string line)
         {
@@ -584,6 +586,14 @@ namespace Nivtropy.Services
             if (Regex.IsMatch(line, @"\bStart-Line\b", RegexOptions.IgnoreCase))
             {
                 record.LineMarker = "Start-Line";
+
+                // Извлекаем оригинальный номер хода из Start-Line
+                // Формат: "Start-Line BF 3" или "Start-Line FB 0214"
+                var runMatch = Regex.Match(line, @"\b(?:BF|FB)\s+(\d+)", RegexOptions.IgnoreCase);
+                if (runMatch.Success)
+                {
+                    record.OriginalLineNumber = runMatch.Groups[1].Value;
+                }
             }
             else if (Regex.IsMatch(line, @"\bEnd-Line\b", RegexOptions.IgnoreCase))
             {
