@@ -2002,6 +2002,7 @@ namespace Nivtropy.ViewModels
             {
                 var row = items[i];
                 var delta = row.DeltaH;
+                var adjustedDelta = row.AdjustedDeltaH ?? row.DeltaH;
 
                 if (!delta.HasValue)
                     continue;
@@ -2015,6 +2016,20 @@ namespace Nivtropy.ViewModels
                     var computedBack = row.ForeHeightZ0.Value - delta.Value;
                     row.BackHeightZ0 = computedBack;
                     RecordRunHeight(backAlias, computedBack);
+
+                    // Также обновляем adjusted и BackHeight для передачи между ходами
+                    if (!string.IsNullOrWhiteSpace(backAlias) && !adjusted.ContainsKey(backAlias!))
+                    {
+                        // Для adjusted используем ForeHeight (уравненную) если есть, иначе ForeHeightZ0
+                        var foreAdjusted = row.ForeHeight ?? row.ForeHeightZ0;
+                        if (foreAdjusted.HasValue && adjustedDelta.HasValue)
+                        {
+                            var computedBackAdj = foreAdjusted.Value - adjustedDelta.Value;
+                            adjusted[backAlias!] = computedBackAdj;
+                            // Обновляем BackHeight для отображения в таблице
+                            row.BackHeight ??= computedBackAdj;
+                        }
+                    }
                 }
                 // Если BackHeightZ0 известна, а ForeHeightZ0 нет - вычисляем вперёд (на всякий случай)
                 else if (row.BackHeightZ0.HasValue && !row.ForeHeightZ0.HasValue)
@@ -2022,6 +2037,34 @@ namespace Nivtropy.ViewModels
                     var computedFore = row.BackHeightZ0.Value + delta.Value;
                     row.ForeHeightZ0 = computedFore;
                     RecordRunHeight(foreAlias, computedFore);
+
+                    // Также обновляем adjusted и ForeHeight для передачи между ходами
+                    if (!string.IsNullOrWhiteSpace(foreAlias) && !adjusted.ContainsKey(foreAlias!))
+                    {
+                        var backAdjusted = row.BackHeight ?? row.BackHeightZ0;
+                        if (backAdjusted.HasValue && adjustedDelta.HasValue)
+                        {
+                            var computedForeAdj = backAdjusted.Value + adjustedDelta.Value;
+                            adjusted[foreAlias!] = computedForeAdj;
+                            // Обновляем ForeHeight для отображения в таблице
+                            row.ForeHeight ??= computedForeAdj;
+                        }
+                    }
+                }
+            }
+
+            // Обновляем виртуальные станции (первая точка хода без DeltaH)
+            // которые могли получить высоту от следующей станции
+            foreach (var row in items)
+            {
+                if (!row.DeltaH.HasValue && !string.IsNullOrWhiteSpace(row.BackCode))
+                {
+                    var backAlias = AliasFor(row, isBack: true);
+                    if (!string.IsNullOrWhiteSpace(backAlias) && adjusted.TryGetValue(backAlias!, out var height))
+                    {
+                        row.BackHeight ??= height;
+                        row.BackHeightZ0 ??= raw.TryGetValue(backAlias!, out var rawH) ? rawH : height;
+                    }
                 }
             }
 
