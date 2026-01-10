@@ -600,15 +600,23 @@ namespace Nivtropy.Services.Visualization
                 }
                 else
                 {
-                    // Незамкнутый ход - дуга от начальной до конечной точки (180 градусов)
-                    var arcSpan = Math.PI; // полуокружность
+                    // Незамкнутый ход - прямая линия от начальной до конечной точки
+                    // Вычисляем направление линии на основе rotationOffset
+                    var lineAngle = rotationOffset;
+                    var startPoint = new Point(
+                        centerPoint.X - shapeRadius * Math.Cos(lineAngle),
+                        centerPoint.Y - shapeRadius * Math.Sin(lineAngle));
+                    var endPoint = new Point(
+                        centerPoint.X + shapeRadius * Math.Cos(lineAngle),
+                        centerPoint.Y + shapeRadius * Math.Sin(lineAngle));
+
+                    // Распределяем точки равномерно по линии
                     for (int i = 0; i < pointSequence.Count; i++)
                     {
                         var t = (double)i / (pointSequence.Count - 1); // от 0 до 1
-                        var angle = rotationOffset + arcSpan * t;
                         var vertex = new Point(
-                            centerPoint.X + shapeRadius * Math.Cos(angle),
-                            centerPoint.Y + shapeRadius * Math.Sin(angle));
+                            startPoint.X + (endPoint.X - startPoint.X) * t,
+                            startPoint.Y + (endPoint.Y - startPoint.Y) * t);
                         vertices.Add(ClampPoint(vertex, Padding, canvas.ActualWidth, canvas.ActualHeight));
                     }
                 }
