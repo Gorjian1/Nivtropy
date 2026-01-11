@@ -22,6 +22,22 @@ namespace Nivtropy.Services
         private static readonly CultureInfo CI = CultureInfo.InvariantCulture;
         private static readonly string[] CandidateEncodings = { "utf-8", "windows-1251", "cp1251", "latin1", "utf-16" };
 
+        // Скомпилированные regex для маркеров линий
+        private static readonly Regex StartLineRegex = new(@"\bStart-Line\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        private static readonly Regex EndLineRegex = new(@"\bEnd-Line\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        private static readonly Regex ContLineRegex = new(@"\bCont-Line\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        private static readonly Regex MeasurementRepeatedRegex = new(@"\bMeasurement\s+repeated\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        private static readonly Regex RunNumberRegex = new(@"\b(?:BF|FB)\s+(\d+)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+        // Скомпилированные regex для определения формата и парсинга
+        private static readonly Regex TrimbleDiniLineRegex = new(@"^\d+\s+", RegexOptions.Compiled);
+        private static readonly Regex ForFormatLineRegex = new(@"^\s*For\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        private static readonly Regex AdrRegex = new(@"\bAdr\s+(\d+)\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        private static readonly Regex ForKeywordRegex = new(@"\bFor\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        private static readonly Regex TokenSplitRegex = new(@"[|\t ]+", RegexOptions.Compiled);
+        private static readonly Regex StationCodeRegex = new(@"(?i)\b([A-Z]{1,3}\d+)\b[^0-9+-]*([+-]?\d+(?:[.,]\d+)?)", RegexOptions.Compiled);
+        private static readonly Regex NumberMatchRegex = new(@"(?<![\d.,])([+-]?\d+(?:[.,]\d+)?)(?![\d.,])", RegexOptions.Compiled);
+
         public DatParser() : this(null) { }
 
         public DatParser(ILoggerService? logger)
@@ -114,13 +130,13 @@ namespace Nivtropy.Services
                 var trimmed = line.TrimStart();
 
                 // Проверка на Trimble Dini: строка начинается с числа
-                if (Regex.IsMatch(trimmed, @"^\d+\s+"))
+                if (TrimbleDiniLineRegex.IsMatch(trimmed))
                 {
                     trimbleDiniCount++;
                 }
 
                 // Проверка на For формат: строка содержит "For"
-                if (Regex.IsMatch(trimmed, @"^\s*For\b", RegexOptions.IgnoreCase))
+                if (ForFormatLineRegex.IsMatch(trimmed))
                 {
                     forFormatCount++;
                 }
@@ -142,7 +158,7 @@ namespace Nivtropy.Services
             foreach (var rawLine in lines)
             {
                 var line = rawLine ?? string.Empty;
-                if (!Regex.IsMatch(line, @"^\s*For\b", RegexOptions.IgnoreCase))
+                if (!ForFormatLineRegex.IsMatch(line))
                     continue;
 
                 var record = ParseLine(line, measurementPatterns, ref autoStation);
@@ -208,11 +224,11 @@ namespace Nivtropy.Services
             var record = new MeasurementRecord();
 
             // Проверка на специальные маркеры
-            if (Regex.IsMatch(line, @"\bStart-Line\b", RegexOptions.IgnoreCase))
+            if (StartLineRegex.IsMatch(line))
             {
                 record.LineMarker = "Start-Line";
                 // Извлекаем оригинальный номер хода из Start-Line
-                var runMatch = Regex.Match(line, @"\b(?:BF|FB)\s+(\d+)", RegexOptions.IgnoreCase);
+                var runMatch = RunNumberRegex.Match(line);
                 if (runMatch.Success)
                 {
                     record.StationCode = runMatch.Groups[1].Value;
@@ -221,13 +237,13 @@ namespace Nivtropy.Services
                 return record;
             }
 
-            if (Regex.IsMatch(line, @"\bEnd-Line\b", RegexOptions.IgnoreCase))
+            if (EndLineRegex.IsMatch(line))
             {
                 record.LineMarker = "End-Line";
                 return record;
             }
 
-            if (Regex.IsMatch(line, @"\bMeasurement\s+repeated\b", RegexOptions.IgnoreCase))
+            if (MeasurementRepeatedRegex.IsMatch(line))
             {
                 record.LineMarker = "Measurement-Repeated";
                 return record;
@@ -440,7 +456,7 @@ namespace Nivtropy.Services
         {
             var record = new MeasurementRecord();
 
-            var adrMatch = Regex.Match(line, @"\bAdr\s+(\d+)\b", RegexOptions.IgnoreCase);
+            var adrMatch = AdrRegex.Match(line);
             if (adrMatch.Success && int.TryParse(adrMatch.Groups[1].Value, out var seq))
                 record.Seq = seq;
 
@@ -501,7 +517,7 @@ namespace Nivtropy.Services
 
         private static string ExtractModeSegment(string line, Match adrMatch, int? measurementIndex)
         {
-            var mFor1 = Regex.Match(line, @"\bFor\b", RegexOptions.IgnoreCase);
+            var mFor1 = ForKeywordRegex.Match(line);
             int start = adrMatch.Success
                 ? adrMatch.Index + adrMatch.Length
                 : (mFor1.Success ? mFor1.Index + mFor1.Length : 0);
@@ -513,7 +529,7 @@ namespace Nivtropy.Services
             if (string.IsNullOrWhiteSpace(segment) && adrMatch.Success)
             {
                 end = adrMatch.Index;
-                var mFor2 = Regex.Match(line, @"\bFor\b", RegexOptions.IgnoreCase);
+                var mFor2 = ForKeywordRegex.Match(line);
                 start = mFor2.Success ? mFor2.Index + mFor2.Length : 0;
                 if (end > start) segment = line[start..end];
             }
@@ -523,7 +539,7 @@ namespace Nivtropy.Services
 
         private static string[] PopulateModeAndTarget(MeasurementRecord record, string segment)
         {
-            var tokens = Regex.Split(segment ?? string.Empty, @"[|\t ]+")
+            var tokens = TokenSplitRegex.Split(segment ?? string.Empty)
                 .Where(t => !string.IsNullOrWhiteSpace(t))
                 .Select(t => t.Replace("#####", "").Trim()) // Очистка ##### из токенов
                 .Where(t => !string.IsNullOrWhiteSpace(t))
@@ -553,14 +569,14 @@ namespace Nivtropy.Services
             if (string.IsNullOrWhiteSpace(text))
                 return null;
 
-            var stationMatches = Regex.Matches(text, @"(?i)\b([A-Z]{1,3}\d+)\b[^0-9+-]*([+-]?\d+(?:[.,]\d+)?)");
+            var stationMatches = StationCodeRegex.Matches(text);
             if (stationMatches.Count > 0)
                 return NormalizeStationCode(stationMatches[^1].Groups[2].Value);
 
             if (requireLabel)
                 return null;
 
-            var numberMatches = Regex.Matches(text, @"(?<![\d.,])([+-]?\d+(?:[.,]\d+)?)(?![\d.,])");
+            var numberMatches = NumberMatchRegex.Matches(text);
             if (numberMatches.Count > 0)
                 return NormalizeStationCode(numberMatches[^1].Groups[1].Value);
 
@@ -583,27 +599,27 @@ namespace Nivtropy.Services
                 return;
 
             // Проверка на наличие маркеров хода в строке
-            if (Regex.IsMatch(line, @"\bStart-Line\b", RegexOptions.IgnoreCase))
+            if (StartLineRegex.IsMatch(line))
             {
                 record.LineMarker = "Start-Line";
 
                 // Извлекаем оригинальный номер хода из Start-Line
                 // Формат: "Start-Line BF 3" или "Start-Line FB 0214"
-                var runMatch = Regex.Match(line, @"\b(?:BF|FB)\s+(\d+)", RegexOptions.IgnoreCase);
+                var runMatch = RunNumberRegex.Match(line);
                 if (runMatch.Success)
                 {
                     record.OriginalLineNumber = runMatch.Groups[1].Value;
                 }
             }
-            else if (Regex.IsMatch(line, @"\bEnd-Line\b", RegexOptions.IgnoreCase))
+            else if (EndLineRegex.IsMatch(line))
             {
                 record.LineMarker = "End-Line";
             }
-            else if (Regex.IsMatch(line, @"\bCont-Line\b", RegexOptions.IgnoreCase))
+            else if (ContLineRegex.IsMatch(line))
             {
                 record.LineMarker = "Cont-Line";
             }
-            else if (Regex.IsMatch(line, @"\bMeasurement\s+repeated\b", RegexOptions.IgnoreCase))
+            else if (MeasurementRepeatedRegex.IsMatch(line))
             {
                 record.LineMarker = "Measurement-Repeated";
             }
