@@ -54,13 +54,13 @@ namespace Nivtropy.Services
         /// </summary>
         public static IServiceCollection AddViewModels(this IServiceCollection services)
         {
-            // ViewModels регистрируются как Transient, т.к. могут создаваться несколько экземпляров
-            services.AddTransient<DataViewModel>();
-            services.AddTransient<SettingsViewModel>();
-            services.AddTransient<TraverseCalculationViewModel>();
-            services.AddTransient<TraverseJournalViewModel>();
-            services.AddTransient<DataGeneratorViewModel>();
-            services.AddTransient<MainViewModel>();
+            // ViewModels регистрируются как Singleton для обеспечения единого состояния
+            services.AddSingleton<DataViewModel>();
+            services.AddSingleton<SettingsViewModel>();
+            services.AddSingleton<TraverseCalculationViewModel>();
+            services.AddSingleton<TraverseJournalViewModel>();
+            services.AddSingleton<DataGeneratorViewModel>();
+            services.AddSingleton<MainViewModel>();
 
             return services;
         }
@@ -70,9 +70,9 @@ namespace Nivtropy.Services
         /// </summary>
         public static IServiceCollection AddManagers(this IServiceCollection services)
         {
-            services.AddTransient<BenchmarkManager>();
-            services.AddTransient<SharedPointsManager>();
-            services.AddTransient<TraverseSystemsManager>();
+            services.AddSingleton<BenchmarkManager>();
+            services.AddSingleton<SharedPointsManager>();
+            services.AddSingleton<TraverseSystemsManager>();
 
             return services;
         }
