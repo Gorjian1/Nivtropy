@@ -14,6 +14,8 @@ namespace Nivtropy.ViewModels
 {
     public class DataViewModel : INotifyPropertyChanged
     {
+        private readonly IDataParser _parser;
+
         public ObservableCollection<MeasurementRecord> Records { get; } = new();
         public ObservableCollection<LineSummary> Runs { get; } = new();
 
@@ -67,8 +69,9 @@ namespace Nivtropy.ViewModels
             return true;
         }
 
-        public DataViewModel()
+        public DataViewModel(IDataParser parser)
         {
+            _parser = parser ?? throw new ArgumentNullException(nameof(parser));
             Records.CollectionChanged += (_, __) => IncrementRecordsVersion();
         }
 
@@ -97,8 +100,7 @@ namespace Nivtropy.ViewModels
                 _knownHeights.Clear();
                 IncrementKnownHeightsVersion();
 
-                var parser = new DatParser();
-                var parsed = parser.Parse(path).ToList();
+                var parsed = _parser.Parse(path).ToList();
 
                 // Фильтрация теперь выполняется в парсере
                 AnnotateRuns(parsed);
