@@ -1,12 +1,11 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.ComponentModel;
 using System.Globalization;
 using System.Linq;
-using System.Runtime.CompilerServices;
 using System.Windows.Input;
 using Nivtropy.Models;
+using Nivtropy.ViewModels.Base;
 
 namespace Nivtropy.ViewModels.Managers
 {
@@ -14,7 +13,7 @@ namespace Nivtropy.ViewModels.Managers
     /// Менеджер реперов (точек с известными высотами)
     /// Отвечает за добавление, удаление и обновление реперов
     /// </summary>
-    public class BenchmarkManager : INotifyPropertyChanged
+    public class BenchmarkManager : ViewModelBase
     {
         private readonly DataViewModel _dataViewModel;
         private readonly ObservableCollection<BenchmarkItem> _benchmarks = new();
@@ -31,7 +30,6 @@ namespace Nivtropy.ViewModels.Managers
             _dataViewModel = dataViewModel ?? throw new ArgumentNullException(nameof(dataViewModel));
         }
 
-        public event PropertyChangedEventHandler? PropertyChanged;
         public event EventHandler? BenchmarksChanged;
 
         public ObservableCollection<BenchmarkItem> Benchmarks => _benchmarks;
@@ -196,19 +194,7 @@ namespace Nivtropy.ViewModels.Managers
             return (false, double.NaN);
         }
 
-        private void OnPropertyChanged([CallerMemberName] string? name = null)
-            => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
-
         private void OnBenchmarksChanged()
             => BenchmarksChanged?.Invoke(this, EventArgs.Empty);
-
-        private bool SetField<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
-        {
-            if (Equals(field, value))
-                return false;
-            field = value;
-            OnPropertyChanged(propertyName);
-            return true;
-        }
     }
 }

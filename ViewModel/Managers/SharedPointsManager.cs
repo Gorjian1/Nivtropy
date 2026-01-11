@@ -1,11 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.ComponentModel;
 using System.Globalization;
 using System.Linq;
-using System.Runtime.CompilerServices;
 using Nivtropy.Models;
+using Nivtropy.ViewModels.Base;
 
 namespace Nivtropy.ViewModels.Managers
 {
@@ -13,7 +12,7 @@ namespace Nivtropy.ViewModels.Managers
     /// Менеджер общих точек между ходами
     /// Отвечает за отслеживание и управление точками, используемыми в нескольких ходах
     /// </summary>
-    public class SharedPointsManager : INotifyPropertyChanged
+    public class SharedPointsManager : ViewModelBase
     {
         private readonly DataViewModel _dataViewModel;
         private readonly ObservableCollection<SharedPointLinkItem> _sharedPoints = new();
@@ -25,7 +24,6 @@ namespace Nivtropy.ViewModels.Managers
             _dataViewModel = dataViewModel ?? throw new ArgumentNullException(nameof(dataViewModel));
         }
 
-        public event PropertyChangedEventHandler? PropertyChanged;
         public event EventHandler? SharedPointsChanged;
 
         public ObservableCollection<SharedPointLinkItem> SharedPoints => _sharedPoints;
@@ -174,9 +172,6 @@ namespace Nivtropy.ViewModels.Managers
 
             return (false, double.NaN);
         }
-
-        private void OnPropertyChanged([CallerMemberName] string? name = null)
-            => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 
         private void OnSharedPointsChanged()
             => SharedPointsChanged?.Invoke(this, EventArgs.Empty);

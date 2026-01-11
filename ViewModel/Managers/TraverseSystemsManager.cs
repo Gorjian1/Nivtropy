@@ -1,10 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.ComponentModel;
 using System.Linq;
-using System.Runtime.CompilerServices;
 using Nivtropy.Models;
+using Nivtropy.ViewModels.Base;
 
 namespace Nivtropy.ViewModels.Managers
 {
@@ -12,7 +11,7 @@ namespace Nivtropy.ViewModels.Managers
     /// Менеджер систем ходов
     /// Отвечает за группировку ходов в независимые системы с отдельными пространствами высот
     /// </summary>
-    public class TraverseSystemsManager : INotifyPropertyChanged
+    public class TraverseSystemsManager : ViewModelBase
     {
         private readonly DataViewModel _dataViewModel;
         private readonly ObservableCollection<TraverseSystem> _systems = new();
@@ -31,7 +30,6 @@ namespace Nivtropy.ViewModels.Managers
             _selectedSystem = defaultSystem;
         }
 
-        public event PropertyChangedEventHandler? PropertyChanged;
         public event EventHandler? SystemsChanged;
         public event EventHandler? SelectedSystemChanged;
 
@@ -198,9 +196,6 @@ namespace Nivtropy.ViewModels.Managers
 
             return run.SystemId == system.Id;
         }
-
-        private void OnPropertyChanged([CallerMemberName] string? name = null)
-            => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 
         private void OnSystemsChanged()
             => SystemsChanged?.Invoke(this, EventArgs.Empty);
