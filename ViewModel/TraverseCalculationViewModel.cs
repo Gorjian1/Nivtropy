@@ -15,6 +15,7 @@ using Microsoft.Win32;
 using Nivtropy.Models;
 using Nivtropy.Services;
 using Nivtropy.Services.Export;
+using Nivtropy.Utilities;
 using Nivtropy.ViewModels.Base;
 using Nivtropy.ViewModels.Managers;
 
@@ -520,8 +521,8 @@ namespace Nivtropy.ViewModels
             // Сортируем по индексу хода, затем по естественному порядку кода (числовой/алфавитный)
             var sortedPoints = pointsDict.Values
                 .OrderBy(p => p.LineIndex)
-                .ThenBy(p => ParsePointCode(p.Code).isNumeric ? 0 : 1)
-                .ThenBy(p => ParsePointCode(p.Code).number)
+                .ThenBy(p => PointCodeHelper.Parse(p.Code).isNumeric ? 0 : 1)
+                .ThenBy(p => PointCodeHelper.Parse(p.Code).number)
                 .ThenBy(p => p.Code, StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
@@ -529,16 +530,6 @@ namespace Nivtropy.ViewModels
             {
                 _availablePoints.Add(point);
             }
-        }
-
-        private static (bool isNumeric, double number) ParsePointCode(string code)
-        {
-            if (double.TryParse(code, NumberStyles.Any, CultureInfo.InvariantCulture, out var value))
-            {
-                return (true, value);
-            }
-
-            return (false, double.NaN);
         }
 
         /// <summary>
@@ -551,8 +542,8 @@ namespace Nivtropy.ViewModels
             var selectedSystemId = SelectedSystem?.Id;
 
             foreach (var kvp in _dataViewModel.KnownHeights
-                             .OrderBy(k => ParsePointCode(k.Key).isNumeric ? 0 : 1)
-                             .ThenBy(k => ParsePointCode(k.Key).number)
+                             .OrderBy(k => PointCodeHelper.Parse(k.Key).isNumeric ? 0 : 1)
+                             .ThenBy(k => PointCodeHelper.Parse(k.Key).number)
                              .ThenBy(k => k.Key, StringComparer.OrdinalIgnoreCase))
             {
                 // Определяем систему для этого репера
@@ -1109,8 +1100,8 @@ namespace Nivtropy.ViewModels
             }
 
             var ordered = _sharedPoints
-                .OrderBy(p => ParsePointCode(p.Code).isNumeric ? 0 : 1)
-                .ThenBy(p => ParsePointCode(p.Code).number)
+                .OrderBy(p => PointCodeHelper.Parse(p.Code).isNumeric ? 0 : 1)
+                .ThenBy(p => PointCodeHelper.Parse(p.Code).number)
                 .ThenBy(p => p.Code, StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
@@ -1288,8 +1279,8 @@ namespace Nivtropy.ViewModels
 
             return _sharedPoints
                 .Where(p => p.IsUsedInRun(run.Index))
-                .OrderBy(p => ParsePointCode(p.Code).isNumeric ? 0 : 1)
-                .ThenBy(p => ParsePointCode(p.Code).number)
+                .OrderBy(p => PointCodeHelper.Parse(p.Code).isNumeric ? 0 : 1)
+                .ThenBy(p => PointCodeHelper.Parse(p.Code).number)
                 .ThenBy(p => p.Code, StringComparer.OrdinalIgnoreCase)
                 .ToList();
         }

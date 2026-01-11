@@ -5,6 +5,7 @@ using System.Globalization;
 using System.Linq;
 using System.Windows.Input;
 using Nivtropy.Models;
+using Nivtropy.Utilities;
 using Nivtropy.ViewModels.Base;
 
 namespace Nivtropy.ViewModels.Managers
@@ -125,8 +126,8 @@ namespace Nivtropy.ViewModels.Managers
             _benchmarks.Clear();
 
             foreach (var kvp in _dataViewModel.KnownHeights
-                             .OrderBy(k => ParsePointCode(k.Key).isNumeric ? 0 : 1)
-                             .ThenBy(k => ParsePointCode(k.Key).number)
+                             .OrderBy(k => PointCodeHelper.Parse(k.Key).isNumeric ? 0 : 1)
+                             .ThenBy(k => PointCodeHelper.Parse(k.Key).number)
                              .ThenBy(k => k.Key, StringComparer.OrdinalIgnoreCase))
             {
                 // Определяем систему для этого репера
@@ -180,16 +181,6 @@ namespace Nivtropy.ViewModels.Managers
                     yield return kvp;
                 }
             }
-        }
-
-        private static (bool isNumeric, double number) ParsePointCode(string code)
-        {
-            if (double.TryParse(code, NumberStyles.Any, CultureInfo.InvariantCulture, out var value))
-            {
-                return (true, value);
-            }
-
-            return (false, double.NaN);
         }
 
         private void OnBenchmarksChanged()

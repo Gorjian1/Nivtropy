@@ -4,6 +4,7 @@ using System.Collections.ObjectModel;
 using System.Globalization;
 using System.Linq;
 using Nivtropy.Models;
+using Nivtropy.Utilities;
 using Nivtropy.ViewModels.Base;
 
 namespace Nivtropy.ViewModels.Managers
@@ -101,8 +102,8 @@ namespace Nivtropy.ViewModels.Managers
 
             // Сортируем точки
             var ordered = _sharedPoints
-                .OrderBy(p => ParsePointCode(p.Code).isNumeric ? 0 : 1)
-                .ThenBy(p => ParsePointCode(p.Code).number)
+                .OrderBy(p => PointCodeHelper.Parse(p.Code).isNumeric ? 0 : 1)
+                .ThenBy(p => PointCodeHelper.Parse(p.Code).number)
                 .ThenBy(p => p.Code, StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
@@ -125,8 +126,8 @@ namespace Nivtropy.ViewModels.Managers
 
             return _sharedPoints
                 .Where(p => p.IsUsedInRun(run.Index))
-                .OrderBy(p => ParsePointCode(p.Code).isNumeric ? 0 : 1)
-                .ThenBy(p => ParsePointCode(p.Code).number)
+                .OrderBy(p => PointCodeHelper.Parse(p.Code).isNumeric ? 0 : 1)
+                .ThenBy(p => PointCodeHelper.Parse(p.Code).number)
                 .ThenBy(p => p.Code, StringComparer.OrdinalIgnoreCase)
                 .ToList();
         }
@@ -161,16 +162,6 @@ namespace Nivtropy.ViewModels.Managers
                 return null;
 
             return _sharedPointLookup.TryGetValue(pointCode, out var item) ? item : null;
-        }
-
-        private static (bool isNumeric, double number) ParsePointCode(string code)
-        {
-            if (double.TryParse(code, NumberStyles.Any, CultureInfo.InvariantCulture, out var value))
-            {
-                return (true, value);
-            }
-
-            return (false, double.NaN);
         }
 
         private void OnSharedPointsChanged()
