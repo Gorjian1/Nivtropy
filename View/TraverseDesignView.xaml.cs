@@ -8,6 +8,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Shapes;
+using Microsoft.Extensions.DependencyInjection;
 using Nivtropy.Models;
 using Nivtropy.Services.Visualization;
 using Nivtropy.ViewModels;
@@ -16,7 +17,7 @@ namespace Nivtropy.Views
 {
     public partial class TraverseDesignView : UserControl
     {
-        private readonly GeneratedProfileVisualizationService _visualizationService = new();
+        private readonly IGeneratedProfileVisualizationService _visualizationService;
         private readonly HashSet<GeneratedMeasurement> _trackedMeasurements = new();
         private readonly Dictionary<Ellipse, ProfilePointVisual> _ellipseMap = new();
 
@@ -35,6 +36,7 @@ namespace Nivtropy.Views
         {
             InitializeComponent();
 
+            _visualizationService = App.Services.GetRequiredService<IGeneratedProfileVisualizationService>();
             DataContextChanged += TraverseDesignView_DataContextChanged;
         }
 

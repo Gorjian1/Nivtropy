@@ -23,8 +23,6 @@ namespace Nivtropy.ViewModels.Managers
         private string? _newBenchmarkHeight;
         private string? _selectedSystemId;
 
-        public const string DEFAULT_SYSTEM_ID = "system-default";
-
         public BenchmarkManager(DataViewModel dataViewModel)
         {
             _dataViewModel = dataViewModel ?? throw new ArgumentNullException(nameof(dataViewModel));
@@ -95,7 +93,7 @@ namespace Nivtropy.ViewModels.Managers
             _dataViewModel.SetKnownHeight(SelectedPoint.Code, height);
 
             // Привязываем репер к текущей системе
-            _benchmarkSystems[SelectedPoint.Code] = SelectedSystemId ?? DEFAULT_SYSTEM_ID;
+            _benchmarkSystems[SelectedPoint.Code] = SelectedSystemId ?? TraverseSystemsManager.DEFAULT_SYSTEM_ID;
 
             // Очищаем поля ввода
             SelectedPoint = null;
@@ -135,7 +133,7 @@ namespace Nivtropy.ViewModels.Managers
                 if (!_benchmarkSystems.TryGetValue(kvp.Key, out var benchmarkSystemId))
                 {
                     // Если репер еще не привязан к системе, привязываем к системе по умолчанию
-                    benchmarkSystemId = DEFAULT_SYSTEM_ID;
+                    benchmarkSystemId = TraverseSystemsManager.DEFAULT_SYSTEM_ID;
                     _benchmarkSystems[kvp.Key] = benchmarkSystemId;
                 }
 
@@ -154,7 +152,7 @@ namespace Nivtropy.ViewModels.Managers
         {
             return _benchmarkSystems.TryGetValue(pointCode, out var systemId)
                 ? systemId
-                : DEFAULT_SYSTEM_ID;
+                : TraverseSystemsManager.DEFAULT_SYSTEM_ID;
         }
 
         /// <summary>
@@ -164,7 +162,7 @@ namespace Nivtropy.ViewModels.Managers
         {
             if (!_benchmarkSystems.TryGetValue(pointCode, out var benchmarkSystemId))
             {
-                benchmarkSystemId = DEFAULT_SYSTEM_ID;
+                benchmarkSystemId = TraverseSystemsManager.DEFAULT_SYSTEM_ID;
             }
 
             return benchmarkSystemId == systemId;

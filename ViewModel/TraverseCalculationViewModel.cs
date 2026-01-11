@@ -16,6 +16,7 @@ using Nivtropy.Models;
 using Nivtropy.Services;
 using Nivtropy.Services.Export;
 using Nivtropy.ViewModels.Base;
+using Nivtropy.ViewModels.Managers;
 
 namespace Nivtropy.ViewModels
 {
@@ -33,10 +34,6 @@ namespace Nivtropy.ViewModels
         private readonly Dictionary<string, SharedPointLinkItem> _sharedPointLookup = new(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, string> _benchmarkSystems = new(StringComparer.OrdinalIgnoreCase);
         private Dictionary<int, List<string>> _sharedPointsByRun = new();
-
-        // ID системы по умолчанию
-        private const string DEFAULT_SYSTEM_ID = "system-default";
-        private const string DEFAULT_SYSTEM_NAME = "Основная";
 
         // Методы нивелирования для двойного хода
         // Допуск: 4 мм × √n, где n - число станций
@@ -94,7 +91,7 @@ namespace Nivtropy.ViewModels
             _selectedClass = _classes.FirstOrDefault();
 
             // Инициализация системы по умолчанию
-            var defaultSystem = new TraverseSystem(DEFAULT_SYSTEM_ID, DEFAULT_SYSTEM_NAME, order: 0);
+            var defaultSystem = new TraverseSystem(TraverseSystemsManager.DEFAULT_SYSTEM_ID, TraverseSystemsManager.DEFAULT_SYSTEM_NAME, order: 0);
             _systems.Add(defaultSystem);
             _selectedSystem = defaultSystem;
 
@@ -450,7 +447,7 @@ namespace Nivtropy.ViewModels
             _dataViewModel.SetKnownHeight(SelectedPoint.Code, height);
 
             // Привязываем репер к текущей системе
-            _benchmarkSystems[SelectedPoint.Code] = SelectedSystem?.Id ?? DEFAULT_SYSTEM_ID;
+            _benchmarkSystems[SelectedPoint.Code] = SelectedSystem?.Id ?? TraverseSystemsManager.DEFAULT_SYSTEM_ID;
 
             // Очищаем поля ввода
             SelectedPoint = null;
@@ -562,7 +559,7 @@ namespace Nivtropy.ViewModels
                 if (!_benchmarkSystems.TryGetValue(kvp.Key, out var benchmarkSystemId))
                 {
                     // Если репер еще не привязан к системе, привязываем к системе по умолчанию
-                    benchmarkSystemId = DEFAULT_SYSTEM_ID;
+                    benchmarkSystemId = TraverseSystemsManager.DEFAULT_SYSTEM_ID;
                     _benchmarkSystems[kvp.Key] = benchmarkSystemId;
                 }
 
@@ -1132,7 +1129,7 @@ namespace Nivtropy.ViewModels
             // Сначала автоматически разбиваем на системы по связности
             RebuildSystemsByConnectivity();
 
-            var defaultSystem = _systems.FirstOrDefault(s => s.Id == DEFAULT_SYSTEM_ID);
+            var defaultSystem = _systems.FirstOrDefault(s => s.Id == TraverseSystemsManager.DEFAULT_SYSTEM_ID);
             if (defaultSystem == null)
                 return;
 
@@ -1141,7 +1138,7 @@ namespace Nivtropy.ViewModels
                 // Если ход еще не привязан к системе, привязываем к системе по умолчанию
                 if (string.IsNullOrEmpty(run.SystemId))
                 {
-                    run.SystemId = DEFAULT_SYSTEM_ID;
+                    run.SystemId = TraverseSystemsManager.DEFAULT_SYSTEM_ID;
                 }
 
                 // Добавляем ход в RunIndexes соответствующей системы
@@ -1225,7 +1222,7 @@ namespace Nivtropy.ViewModels
             {
                 foreach (var run in Runs)
                 {
-                    run.SystemId = DEFAULT_SYSTEM_ID;
+                    run.SystemId = TraverseSystemsManager.DEFAULT_SYSTEM_ID;
                 }
 
                 // Удаляем все автосистемы, т.к. все ходы теперь в одной системе
@@ -1249,7 +1246,7 @@ namespace Nivtropy.ViewModels
                 if (i == 0)
                 {
                     // Самая большая компонента - в основную систему
-                    systemId = DEFAULT_SYSTEM_ID;
+                    systemId = TraverseSystemsManager.DEFAULT_SYSTEM_ID;
                 }
                 else
                 {

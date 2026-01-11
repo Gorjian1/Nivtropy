@@ -11,9 +11,21 @@ using Nivtropy.Models;
 namespace Nivtropy.Services.Visualization
 {
     /// <summary>
+    /// Интерфейс сервиса визуализации профиля сгенерированных данных
+    /// </summary>
+    public interface IGeneratedProfileVisualizationService
+    {
+        ProfileRenderResult? DrawProfile(
+            Canvas canvas,
+            IReadOnlyCollection<GeneratedMeasurement> measurements,
+            double? minHeightOverride = null,
+            double? maxHeightOverride = null);
+    }
+
+    /// <summary>
     /// Визуализация профиля сгенерированных данных в окне "Проектирование".
     /// </summary>
-    public class GeneratedProfileVisualizationService
+    public class GeneratedProfileVisualizationService : IGeneratedProfileVisualizationService
     {
         private const double Margin = 48;
 

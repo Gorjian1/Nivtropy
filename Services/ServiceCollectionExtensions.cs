@@ -32,6 +32,7 @@ namespace Nivtropy.Services
             // Сервисы визуализации
             services.AddSingleton<IProfileVisualizationService, ProfileVisualizationService>();
             services.AddSingleton<ITraverseSystemVisualizationService, TraverseSystemVisualizationService>();
+            services.AddSingleton<IGeneratedProfileVisualizationService, GeneratedProfileVisualizationService>();
 
             // Сервисы статистики и анализа
             services.AddSingleton<IProfileStatisticsService, ProfileStatisticsService>();
