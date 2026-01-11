@@ -58,7 +58,40 @@ namespace Nivtropy.Services.Visualization
         private void DrawSystemVisualizationInternal(Canvas canvas, TraverseCalculationViewModel calculation,
                                                      List<LineSummary> runs, double canvasWidth, double canvasHeight)
         {
-            // Палитра цветов
+            // Собираем точки для каждого хода
+            var rows = calculation.Rows.ToList();
+            var pointsByRun = CollectPointSequences(runs, rows);
+
+            // 1. Собираем все важные точки (реперы + связующие)
+            var knownHeightCodes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var sharedCodes = new HashSet<string>(
+                calculation.SharedPoints.Where(p => p.IsEnabled).Select(p => p.Code),
+                StringComparer.OrdinalIgnoreCase);
+
+            // Собираем реперы из всех ходов
+            foreach (var run in runs)
+            {
+                if (!pointsByRun.TryGetValue(run, out var seq)) continue;
+                foreach (var code in seq)
+                {
+                    if (calculation.HasKnownHeight(code) && !IsTechnicalCode(code))
+                        knownHeightCodes.Add(code);
+                }
+            }
+
+            // Все важные точки = реперы ∪ связующие
+            var importantPoints = new HashSet<string>(knownHeightCodes, StringComparer.OrdinalIgnoreCase);
+            foreach (var code in sharedCodes)
+            {
+                if (!IsTechnicalCode(code))
+                    importantPoints.Add(code);
+            }
+
+            // 2. Позиционируем узлы по кругу
+            var nodePositions = LayoutNodesInCircle(importantPoints.ToList(), canvasWidth, canvasHeight);
+
+            // 3. Рисуем рёбра (ходы)
+            int colorIdx = 0;
             var colors = new[]
             {
                 Color.FromRgb(25, 118, 210),   // Синий
@@ -69,266 +102,201 @@ namespace Nivtropy.Services.Visualization
                 Color.FromRgb(211, 47, 47)     // Красный
             };
 
-            // Собираем точки для каждого хода
-            var rows = calculation.Rows.ToList();
-            var pointsByRun = CollectPointSequences(runs, rows);
-
-            // Определяем замкнутость каждого хода
-            bool IsClosed(LineSummary run)
-            {
-                if (!pointsByRun.TryGetValue(run, out var seq) || seq.Count < 2) return false;
-                return string.Equals(seq.First(), seq.Last(), StringComparison.OrdinalIgnoreCase);
-            }
-
-            // Разделяем на замкнутые и незамкнутые, сортируем по размеру (замкнутые первые)
-            var closedRuns = runs.Where(IsClosed).OrderByDescending(r => pointsByRun.TryGetValue(r, out var s) ? s.Count : 0).ToList();
-            var openRuns = runs.Where(r => !IsClosed(r)).ToList();
-
-            // Позиции точек на холсте (заполняется по мере отрисовки)
-            var pointPositions = new Dictionary<string, Point>(StringComparer.OrdinalIgnoreCase);
-
-            // Центр холста
-            var canvasCenter = new Point(canvasWidth / 2, canvasHeight / 2);
-            var maxRadius = Math.Min(canvasWidth, canvasHeight) / 2 - Padding - 30;
-
-            // 1. Рисуем замкнутые ходы (круги), начиная с самого большого
-            int colorIdx = 0;
-            var drawnRuns = new List<(LineSummary run, Point center, double radius)>();
-
-            foreach (var run in closedRuns)
+            foreach (var run in runs)
             {
                 if (!pointsByRun.TryGetValue(run, out var seq) || seq.Count < 2) continue;
 
                 var color = colors[colorIdx++ % colors.Length];
                 var strokeColor = run.IsActive ? color : Color.FromRgb(140, 140, 140);
 
-                // Вычисляем радиус пропорционально количеству точек
-                var radius = Math.Clamp(15 + Math.Sqrt(seq.Count) * 8, 25, maxRadius * 0.6);
+                var startCode = seq.First();
+                var endCode = seq.Last();
+                bool isClosed = string.Equals(startCode, endCode, StringComparison.OrdinalIgnoreCase);
 
-                // Ищем общие точки с уже нарисованными ходами
-                Point center;
-                var sharedWithDrawn = FindSharedPointWithDrawn(seq, drawnRuns, pointsByRun, pointPositions);
-
-                if (sharedWithDrawn.HasValue)
+                if (isClosed)
                 {
-                    // Позиционируем так, чтобы общая точка совпадала
-                    var (sharedCode, sharedPos, otherCenter, otherRadius) = sharedWithDrawn.Value;
-
-                    // Направление от центра другого хода к общей точке
-                    var dirToShared = new Vector(sharedPos.X - otherCenter.X, sharedPos.Y - otherCenter.Y);
-                    if (dirToShared.Length > 0.01) dirToShared.Normalize();
-                    else dirToShared = new Vector(1, 0);
-
-                    // Центр нового хода: общая точка + направление * радиус
-                    center = new Point(sharedPos.X + dirToShared.X * radius, sharedPos.Y + dirToShared.Y * radius);
-                }
-                else if (drawnRuns.Count == 0)
-                {
-                    // Первый ход - в центре
-                    center = canvasCenter;
+                    // Замкнутый ход - петля у узла
+                    if (nodePositions.TryGetValue(startCode, out var pos))
+                    {
+                        DrawLoop(canvas, pos, strokeColor, run.IsActive, run.DisplayName, seq.Count, run.Tooltip);
+                    }
                 }
                 else
                 {
-                    // Нет общих точек - размещаем рядом с последним
-                    var last = drawnRuns[^1];
-                    var angle = Math.PI * 0.3 * drawnRuns.Count;
-                    center = new Point(
-                        last.center.X + (last.radius + radius + 20) * Math.Cos(angle),
-                        last.center.Y + (last.radius + radius + 20) * Math.Sin(angle));
-                }
+                    // Разомкнутый ход - линия между узлами
+                    Point? startPos = nodePositions.TryGetValue(startCode, out var sp) ? sp : null;
+                    Point? endPos = nodePositions.TryGetValue(endCode, out var ep) ? ep : null;
 
-                center = ClampPoint(center, Padding + radius, canvasWidth, canvasHeight);
-                drawnRuns.Add((run, center, radius));
-
-                // Размещаем точки по кругу и запоминаем позиции
-                for (int i = 0; i < seq.Count; i++)
-                {
-                    var code = seq[i];
-                    if (!pointPositions.ContainsKey(code))
+                    // Если одна из точек не важная, создаём для неё временную позицию
+                    if (!startPos.HasValue && endPos.HasValue)
                     {
-                        var angle = -Math.PI / 2 + 2 * Math.PI * i / seq.Count;
-                        pointPositions[code] = new Point(
-                            center.X + radius * Math.Cos(angle),
-                            center.Y + radius * Math.Sin(angle));
+                        startPos = CreateOffsetPosition(endPos.Value, colorIdx * 0.5, 60, canvasWidth, canvasHeight);
+                        nodePositions[startCode] = startPos.Value;
                     }
+                    else if (startPos.HasValue && !endPos.HasValue)
+                    {
+                        endPos = CreateOffsetPosition(startPos.Value, colorIdx * 0.5, 60, canvasWidth, canvasHeight);
+                        nodePositions[endCode] = endPos.Value;
+                    }
+                    else if (!startPos.HasValue && !endPos.HasValue)
+                    {
+                        // Обе точки не важные - рисуем в свободном месте
+                        var center = new Point(canvasWidth / 2, canvasHeight / 2);
+                        var angle = colorIdx * 0.7;
+                        var radius = Math.Min(canvasWidth, canvasHeight) / 4;
+                        startPos = new Point(center.X + radius * Math.Cos(angle), center.Y + radius * Math.Sin(angle));
+                        endPos = new Point(center.X + radius * Math.Cos(angle + 0.3), center.Y + radius * Math.Sin(angle + 0.3));
+                        nodePositions[startCode] = startPos.Value;
+                        nodePositions[endCode] = endPos.Value;
+                    }
+
+                    DrawEdge(canvas, startPos!.Value, endPos!.Value, strokeColor, run.IsActive, run.DisplayName, seq.Count, run.Tooltip);
                 }
-
-                // Рисуем круг
-                var ellipse = new Ellipse
-                {
-                    Width = radius * 2,
-                    Height = radius * 2,
-                    Stroke = new SolidColorBrush(strokeColor),
-                    StrokeThickness = run.IsActive ? 2.5 : 1.8,
-                    Fill = new SolidColorBrush(Color.FromArgb(25, color.R, color.G, color.B)),
-                    StrokeDashArray = run.IsActive ? null : new DoubleCollection { 4, 2 },
-                    ToolTip = run.Tooltip
-                };
-                Canvas.SetLeft(ellipse, center.X - radius);
-                Canvas.SetTop(ellipse, center.Y - radius);
-                canvas.Children.Add(ellipse);
-
-                // Подпись хода
-                var label = new TextBlock
-                {
-                    Text = $"{run.DisplayName}\n({seq.Count} тчк)",
-                    FontSize = 10,
-                    FontWeight = run.IsActive ? FontWeights.SemiBold : FontWeights.Normal,
-                    Foreground = new SolidColorBrush(strokeColor),
-                    Background = new SolidColorBrush(Color.FromArgb(220, 255, 255, 255)),
-                    TextAlignment = System.Windows.TextAlignment.Center
-                };
-                Canvas.SetLeft(label, center.X - 25);
-                Canvas.SetTop(label, center.Y - 14);
-                canvas.Children.Add(label);
             }
 
-            // 2. Рисуем незамкнутые ходы (линии/кривые)
-            foreach (var run in openRuns)
-            {
-                if (!pointsByRun.TryGetValue(run, out var seq) || seq.Count < 2) continue;
-
-                var color = colors[colorIdx++ % colors.Length];
-                var strokeColor = run.IsActive ? color : Color.FromRgb(140, 140, 140);
-
-                // Находим точки этого хода, которые уже имеют позиции
-                var knownPoints = new List<(int idx, string code, Point pos)>();
-                for (int i = 0; i < seq.Count; i++)
-                {
-                    if (pointPositions.TryGetValue(seq[i], out var pos))
-                        knownPoints.Add((i, seq[i], pos));
-                }
-
-                Point startPos, endPos;
-
-                if (knownPoints.Count >= 2)
-                {
-                    // Есть как минимум 2 известные точки - соединяем их
-                    startPos = knownPoints.First().pos;
-                    endPos = knownPoints.Last().pos;
-                }
-                else if (knownPoints.Count == 1)
-                {
-                    // Одна известная точка - рисуем линию от неё
-                    startPos = knownPoints[0].pos;
-                    var dir = new Vector(startPos.X - canvasCenter.X, startPos.Y - canvasCenter.Y);
-                    if (dir.Length > 0.01) dir.Normalize();
-                    else dir = new Vector(1, 0);
-                    endPos = new Point(startPos.X + dir.X * 60, startPos.Y + dir.Y * 60);
-                    endPos = ClampPoint(endPos, Padding, canvasWidth, canvasHeight);
-                }
-                else
-                {
-                    // Нет известных точек - рисуем в свободном месте
-                    var freeAngle = Math.PI * 0.5 + colorIdx * 0.7;
-                    var freeRadius = maxRadius * 0.5;
-                    startPos = new Point(
-                        canvasCenter.X + freeRadius * Math.Cos(freeAngle),
-                        canvasCenter.Y + freeRadius * Math.Sin(freeAngle));
-                    endPos = new Point(
-                        canvasCenter.X + freeRadius * Math.Cos(freeAngle + 0.5),
-                        canvasCenter.Y + freeRadius * Math.Sin(freeAngle + 0.5));
-                }
-
-                // Запоминаем позиции начала и конца
-                if (!pointPositions.ContainsKey(seq.First()))
-                    pointPositions[seq.First()] = startPos;
-                if (!pointPositions.ContainsKey(seq.Last()))
-                    pointPositions[seq.Last()] = endPos;
-
-                // Рисуем линию
-                var line = new Line
-                {
-                    X1 = startPos.X, Y1 = startPos.Y,
-                    X2 = endPos.X, Y2 = endPos.Y,
-                    Stroke = new SolidColorBrush(strokeColor),
-                    StrokeThickness = run.IsActive ? 2.5 : 1.8,
-                    StrokeDashArray = run.IsActive ? null : new DoubleCollection { 4, 2 },
-                    StrokeStartLineCap = PenLineCap.Round,
-                    StrokeEndLineCap = PenLineCap.Round,
-                    ToolTip = run.Tooltip
-                };
-                canvas.Children.Add(line);
-
-                // Подпись хода посередине линии
-                var midPoint = new Point((startPos.X + endPos.X) / 2, (startPos.Y + endPos.Y) / 2);
-                var label = new TextBlock
-                {
-                    Text = $"{run.DisplayName}\n({seq.Count} тчк)",
-                    FontSize = 10,
-                    FontWeight = run.IsActive ? FontWeights.SemiBold : FontWeights.Normal,
-                    Foreground = new SolidColorBrush(strokeColor),
-                    Background = new SolidColorBrush(Color.FromArgb(220, 255, 255, 255)),
-                    TextAlignment = System.Windows.TextAlignment.Center
-                };
-                Canvas.SetLeft(label, midPoint.X - 25);
-                Canvas.SetTop(label, midPoint.Y - 14);
-                canvas.Children.Add(label);
-            }
-
-            // 3. Рисуем важные точки поверх всего
-            DrawSharedAndKnownPoints(canvas, calculation, pointPositions);
+            // 4. Рисуем узлы поверх рёбер
+            DrawNodes(canvas, nodePositions, knownHeightCodes, sharedCodes);
         }
 
         /// <summary>
-        /// Ищет общую точку между последовательностью и уже нарисованными ходами
+        /// Располагает узлы по кругу
         /// </summary>
-        private (string code, Point pos, Point otherCenter, double otherRadius)? FindSharedPointWithDrawn(
-            List<string> seq,
-            List<(LineSummary run, Point center, double radius)> drawnRuns,
-            Dictionary<LineSummary, List<string>> pointsByRun,
-            Dictionary<string, Point> pointPositions)
+        private Dictionary<string, Point> LayoutNodesInCircle(List<string> nodes, double canvasWidth, double canvasHeight)
         {
-            foreach (var (drawnRun, drawnCenter, drawnRadius) in drawnRuns)
-            {
-                if (!pointsByRun.TryGetValue(drawnRun, out var drawnSeq)) continue;
+            var positions = new Dictionary<string, Point>(StringComparer.OrdinalIgnoreCase);
+            if (nodes.Count == 0) return positions;
 
-                foreach (var code in seq)
-                {
-                    if (drawnSeq.Contains(code, StringComparer.OrdinalIgnoreCase) &&
-                        pointPositions.TryGetValue(code, out var pos))
-                    {
-                        return (code, pos, drawnCenter, drawnRadius);
-                    }
-                }
+            var center = new Point(canvasWidth / 2, canvasHeight / 2);
+            var radius = Math.Min(canvasWidth, canvasHeight) / 2 - Padding - 50;
+
+            for (int i = 0; i < nodes.Count; i++)
+            {
+                var angle = -Math.PI / 2 + 2 * Math.PI * i / nodes.Count;
+                positions[nodes[i]] = new Point(
+                    center.X + radius * Math.Cos(angle),
+                    center.Y + radius * Math.Sin(angle));
             }
-            return null;
+
+            return positions;
         }
 
         /// <summary>
-        /// Рисует общие точки и точки с известной высотой
+        /// Создаёт позицию со смещением от существующей
         /// </summary>
-        private void DrawSharedAndKnownPoints(Canvas canvas, TraverseCalculationViewModel calculation,
-                                              Dictionary<string, Point> pointPositions)
+        private Point CreateOffsetPosition(Point from, double angle, double distance, double canvasWidth, double canvasHeight)
         {
-            var sharedCodes = new HashSet<string>(
-                calculation.SharedPoints.Where(p => p.IsEnabled).Select(p => p.Code),
-                StringComparer.OrdinalIgnoreCase);
+            var pos = new Point(from.X + distance * Math.Cos(angle), from.Y + distance * Math.Sin(angle));
+            return ClampPoint(pos, Padding + 10, canvasWidth, canvasHeight);
+        }
 
-            foreach (var (code, pos) in pointPositions)
+        /// <summary>
+        /// Рисует петлю (замкнутый ход) у узла
+        /// </summary>
+        private void DrawLoop(Canvas canvas, Point nodePos, Color strokeColor, bool isActive, string runName, int pointCount, string? tooltip)
+        {
+            var loopRadius = 20;
+            var loopCenter = new Point(nodePos.X, nodePos.Y - loopRadius - 8);
+
+            var ellipse = new Ellipse
             {
+                Width = loopRadius * 2,
+                Height = loopRadius * 2,
+                Stroke = new SolidColorBrush(strokeColor),
+                StrokeThickness = isActive ? 2.5 : 1.8,
+                Fill = Brushes.Transparent,
+                StrokeDashArray = isActive ? null : new DoubleCollection { 4, 2 },
+                ToolTip = tooltip
+            };
+            Canvas.SetLeft(ellipse, loopCenter.X - loopRadius);
+            Canvas.SetTop(ellipse, loopCenter.Y - loopRadius);
+            canvas.Children.Add(ellipse);
+
+            // Подпись
+            var label = new TextBlock
+            {
+                Text = $"{runName} ({pointCount})",
+                FontSize = 9,
+                FontWeight = isActive ? FontWeights.SemiBold : FontWeights.Normal,
+                Foreground = new SolidColorBrush(strokeColor),
+                Background = new SolidColorBrush(Color.FromArgb(230, 255, 255, 255)),
+                Padding = new Thickness(2, 0, 2, 0)
+            };
+            Canvas.SetLeft(label, loopCenter.X - 25);
+            Canvas.SetTop(label, loopCenter.Y - 8);
+            canvas.Children.Add(label);
+        }
+
+        /// <summary>
+        /// Рисует ребро (разомкнутый ход) между двумя узлами
+        /// </summary>
+        private void DrawEdge(Canvas canvas, Point from, Point to, Color strokeColor, bool isActive, string runName, int pointCount, string? tooltip)
+        {
+            var line = new Line
+            {
+                X1 = from.X, Y1 = from.Y,
+                X2 = to.X, Y2 = to.Y,
+                Stroke = new SolidColorBrush(strokeColor),
+                StrokeThickness = isActive ? 2.5 : 1.8,
+                StrokeDashArray = isActive ? null : new DoubleCollection { 4, 2 },
+                StrokeStartLineCap = PenLineCap.Round,
+                StrokeEndLineCap = PenLineCap.Round,
+                ToolTip = tooltip
+            };
+            canvas.Children.Add(line);
+
+            // Подпись посередине линии
+            var mid = new Point((from.X + to.X) / 2, (from.Y + to.Y) / 2);
+            var label = new TextBlock
+            {
+                Text = $"{runName} ({pointCount})",
+                FontSize = 9,
+                FontWeight = isActive ? FontWeights.SemiBold : FontWeights.Normal,
+                Foreground = new SolidColorBrush(strokeColor),
+                Background = new SolidColorBrush(Color.FromArgb(230, 255, 255, 255)),
+                Padding = new Thickness(2, 0, 2, 0)
+            };
+            Canvas.SetLeft(label, mid.X - 30);
+            Canvas.SetTop(label, mid.Y - 10);
+            canvas.Children.Add(label);
+        }
+
+        /// <summary>
+        /// Рисует узлы графа
+        /// </summary>
+        private void DrawNodes(Canvas canvas, Dictionary<string, Point> positions,
+                              HashSet<string> knownHeightCodes, HashSet<string> sharedCodes)
+        {
+            foreach (var (code, pos) in positions)
+            {
+                bool hasKnownHeight = knownHeightCodes.Contains(code);
                 bool isShared = sharedCodes.Contains(code);
-                bool hasKnownHeight = calculation.HasKnownHeight(code);
 
-                // Показываем только важные точки
-                if (!isShared && !hasKnownHeight) continue;
-                if (IsTechnicalCode(code)) continue;
+                // Пропускаем неважные точки
+                if (!hasKnownHeight && !isShared) continue;
 
-                var pointColor = hasKnownHeight ? Colors.Black : Colors.OrangeRed;
-
-                var node = new Ellipse
+                if (hasKnownHeight)
                 {
-                    Width = hasKnownHeight ? 12 : 10,
-                    Height = hasKnownHeight ? 12 : 10,
-                    Fill = new SolidColorBrush(pointColor),
-                    Stroke = Brushes.White,
-                    StrokeThickness = 2,
-                    ToolTip = $"{code}\n{(hasKnownHeight ? "Известная высота" : "Общая точка")}"
-                };
-                Canvas.SetLeft(node, pos.X - node.Width / 2);
-                Canvas.SetTop(node, pos.Y - node.Height / 2);
-                canvas.Children.Add(node);
+                    // Репер - чёрный треугольник
+                    DrawTriangle(canvas, pos, 14, Colors.Black, $"{code}\nИзвестная высота");
+                }
+                else
+                {
+                    // Связующая - оранжевый круг
+                    var node = new Ellipse
+                    {
+                        Width = 10,
+                        Height = 10,
+                        Fill = new SolidColorBrush(Colors.OrangeRed),
+                        Stroke = Brushes.White,
+                        StrokeThickness = 2,
+                        ToolTip = $"{code}\nОбщая точка"
+                    };
+                    Canvas.SetLeft(node, pos.X - 5);
+                    Canvas.SetTop(node, pos.Y - 5);
+                    canvas.Children.Add(node);
+                }
 
+                // Подпись узла
                 var label = new TextBlock
                 {
                     Text = code,
@@ -338,10 +306,34 @@ namespace Nivtropy.Services.Visualization
                     Background = new SolidColorBrush(Color.FromArgb(220, 255, 255, 255)),
                     Padding = new Thickness(2, 0, 2, 0)
                 };
-                Canvas.SetLeft(label, pos.X + 8);
-                Canvas.SetTop(label, pos.Y - 10);
+                Canvas.SetLeft(label, pos.X + 10);
+                Canvas.SetTop(label, pos.Y - 8);
                 canvas.Children.Add(label);
             }
+        }
+
+        /// <summary>
+        /// Рисует треугольник (для реперов)
+        /// </summary>
+        private void DrawTriangle(Canvas canvas, Point center, double size, Color fill, string tooltip)
+        {
+            var half = size / 2;
+            var height = size * 0.866; // √3/2
+
+            var triangle = new Polygon
+            {
+                Points = new PointCollection
+                {
+                    new Point(center.X, center.Y - height * 0.6),           // Верх
+                    new Point(center.X - half, center.Y + height * 0.4),    // Левый низ
+                    new Point(center.X + half, center.Y + height * 0.4)     // Правый низ
+                },
+                Fill = new SolidColorBrush(fill),
+                Stroke = Brushes.White,
+                StrokeThickness = 2,
+                ToolTip = tooltip
+            };
+            canvas.Children.Add(triangle);
         }
 
         private Dictionary<LineSummary, List<string>> CollectPointSequences(List<LineSummary> runs, List<TraverseRow> rows)
