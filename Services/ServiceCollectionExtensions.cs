@@ -45,6 +45,7 @@ namespace Nivtropy.Services
 
             // Сервисы расчётов
             services.AddSingleton<ITraverseCalculationService, TraverseCalculationService>();
+            services.AddSingleton<ISystemConnectivityService, SystemConnectivityService>();
 
             return services;
         }

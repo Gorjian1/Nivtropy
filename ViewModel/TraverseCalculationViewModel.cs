@@ -14,6 +14,7 @@ using ClosedXML.Excel;
 using Microsoft.Win32;
 using Nivtropy.Models;
 using Nivtropy.Services;
+using Nivtropy.Services.Calculation;
 using Nivtropy.Services.Export;
 using Nivtropy.Utilities;
 using Nivtropy.ViewModels.Base;
@@ -27,6 +28,7 @@ namespace Nivtropy.ViewModels
         private readonly SettingsViewModel _settingsViewModel;
         private readonly ITraverseBuilder _traverseBuilder;
         private readonly IExportService _exportService;
+        private readonly ISystemConnectivityService _connectivityService;
         private readonly ObservableCollection<TraverseRow> _rows = new();
         private readonly ObservableCollection<PointItem> _availablePoints = new();
         private readonly ObservableCollection<BenchmarkItem> _benchmarks = new();
@@ -75,12 +77,18 @@ namespace Nivtropy.ViewModels
         private bool _isCalculating;
         private CancellationTokenSource? _calculationCts;
 
-        public TraverseCalculationViewModel(DataViewModel dataViewModel, SettingsViewModel settingsViewModel, ITraverseBuilder traverseBuilder, IExportService exportService)
+        public TraverseCalculationViewModel(
+            DataViewModel dataViewModel,
+            SettingsViewModel settingsViewModel,
+            ITraverseBuilder traverseBuilder,
+            IExportService exportService,
+            ISystemConnectivityService connectivityService)
         {
             _dataViewModel = dataViewModel;
             _settingsViewModel = settingsViewModel;
             _traverseBuilder = traverseBuilder;
             _exportService = exportService;
+            _connectivityService = connectivityService;
             ((INotifyCollectionChanged)_dataViewModel.Records).CollectionChanged += OnRecordsCollectionChanged;
             ((INotifyCollectionChanged)_dataViewModel.Runs).CollectionChanged += (_, __) => OnPropertyChanged(nameof(Runs));
             _dataViewModel.PropertyChanged += DataViewModelOnPropertyChanged;
@@ -1150,125 +1158,40 @@ namespace Nivtropy.ViewModels
             if (Runs.Count == 0)
                 return;
 
-            // Строим граф связности: ход -> список связанных ходов через включённые общие точки
-            var adjacency = new Dictionary<int, HashSet<int>>();
-            foreach (var run in Runs)
-            {
-                adjacency[run.Index] = new HashSet<int>();
-            }
-
-            // Для каждой включённой общей точки добавляем рёбра между ходами
-            foreach (var sp in _sharedPoints.Where(p => p.IsEnabled))
-            {
-                var runsWithPoint = Runs
-                    .Where(r => sp.IsUsedInRun(r.Index))
-                    .Select(r => r.Index)
-                    .ToList();
-
-                // Связываем все ходы, использующие эту точку
-                for (int i = 0; i < runsWithPoint.Count; i++)
-                {
-                    for (int j = i + 1; j < runsWithPoint.Count; j++)
-                    {
-                        adjacency[runsWithPoint[i]].Add(runsWithPoint[j]);
-                        adjacency[runsWithPoint[j]].Add(runsWithPoint[i]);
-                    }
-                }
-            }
-
-            // Находим компоненты связности через BFS
-            var visited = new HashSet<int>();
-            var components = new List<List<int>>();
-
-            foreach (var run in Runs)
-            {
-                if (visited.Contains(run.Index))
-                    continue;
-
-                var component = new List<int>();
-                var queue = new Queue<int>();
-                queue.Enqueue(run.Index);
-                visited.Add(run.Index);
-
-                while (queue.Count > 0)
-                {
-                    var current = queue.Dequeue();
-                    component.Add(current);
-
-                    foreach (var neighbor in adjacency[current])
-                    {
-                        if (!visited.Contains(neighbor))
-                        {
-                            visited.Add(neighbor);
-                            queue.Enqueue(neighbor);
-                        }
-                    }
-                }
-
-                components.Add(component);
-            }
-
-            // Если все ходы в одной компоненте - все в основной системе
-            if (components.Count <= 1)
-            {
-                foreach (var run in Runs)
-                {
-                    run.SystemId = TraverseSystemsManager.DEFAULT_SYSTEM_ID;
-                }
-
-                // Удаляем все автосистемы, т.к. все ходы теперь в одной системе
-                var autoSystems = _systems.Where(s => s.Id.StartsWith("system-auto-")).ToList();
-                foreach (var sys in autoSystems)
-                {
-                    _systems.Remove(sys);
-                }
-                return;
-            }
-
-            // Назначаем системы для каждой компоненты
-            // Первая компонента остаётся в основной системе
-            var sortedComponents = components.OrderByDescending(c => c.Count).ToList();
-
-            for (int i = 0; i < sortedComponents.Count; i++)
-            {
-                var component = sortedComponents[i];
-                string systemId;
-
-                if (i == 0)
-                {
-                    // Самая большая компонента - в основную систему
-                    systemId = TraverseSystemsManager.DEFAULT_SYSTEM_ID;
-                }
-                else
-                {
-                    // Создаём или находим дополнительную систему
-                    systemId = $"system-auto-{i}";
-                    var existingSystem = _systems.FirstOrDefault(s => s.Id == systemId);
-                    if (existingSystem == null)
-                    {
-                        var newSystem = new TraverseSystem(systemId, $"Система {i + 1}", i + 1);
-                        _systems.Add(newSystem);
-                    }
-                }
-
-                // Назначаем ходам систему
-                foreach (var runIndex in component)
-                {
-                    var run = Runs.FirstOrDefault(r => r.Index == runIndex);
-                    if (run != null)
-                    {
-                        run.SystemId = systemId;
-                    }
-                }
-            }
-
-            // Удаляем пустые автосистемы
-            var emptyAutoSystems = _systems
-                .Where(s => s.Id.StartsWith("system-auto-") && !Runs.Any(r => r.SystemId == s.Id))
+            var existingAutoSystemIds = _systems
+                .Where(s => s.Id.StartsWith("system-auto-"))
+                .Select(s => s.Id)
                 .ToList();
-            foreach (var sys in emptyAutoSystems)
+
+            var result = _connectivityService.AnalyzeConnectivity(
+                Runs.ToList(),
+                _sharedPoints.ToList(),
+                existingAutoSystemIds);
+
+            // Применяем результат: назначаем ходам системы
+            foreach (var kvp in result.RunToSystemId)
             {
-                _systems.Remove(sys);
+                var run = Runs.FirstOrDefault(r => r.Index == kvp.Key);
+                if (run != null)
+                {
+                    run.SystemId = kvp.Value;
+                }
+            }
+
+            // Создаём новые системы
+            foreach (var (id, name, order) in result.NewSystems)
+            {
+                _systems.Add(new TraverseSystem(id, name, order));
+            }
+
+            // Удаляем ненужные автосистемы
+            foreach (var systemId in result.SystemsToRemove)
+            {
+                var system = _systems.FirstOrDefault(s => s.Id == systemId);
+                if (system != null)
+                {
+                    _systems.Remove(system);
+                }
             }
         }
 
