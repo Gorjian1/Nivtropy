@@ -10,7 +10,15 @@ namespace Nivtropy.Services
     public interface IDataParser
     {
         /// <summary>
-        /// Загружает и парсит файл данных нивелирования
+        /// Парсит файл данных нивелирования
+        /// </summary>
+        /// <param name="path">Путь к файлу</param>
+        /// <param name="synonymsConfigPath">Путь к конфигурации синонимов (необязательно)</param>
+        /// <returns>Список записей измерений</returns>
+        IEnumerable<MeasurementRecord> Parse(string path, string? synonymsConfigPath = null);
+
+        /// <summary>
+        /// Загружает и парсит файл данных нивелирования асинхронно
         /// </summary>
         /// <param name="filePath">Путь к файлу</param>
         /// <returns>Список записей измерений</returns>
