@@ -293,63 +293,14 @@ namespace Nivtropy.ViewModels
                     var parts = line.Split(';');
                     if (parts.Length >= 12)
                     {
-                        var lineName = parts[1];
-                        var pointCode = parts[2];
-                        var station = parts[3];
-
-                        // Парсим станцию для извлечения BackCode и ForeCode
-                        string? backCode = null;
-                        string? foreCode = null;
-                        if (!string.IsNullOrWhiteSpace(station) && station.Contains("→"))
-                        {
-                            var stationParts = station.Split(new[] { "→" }, StringSplitOptions.None);
-                            if (stationParts.Length == 2)
-                            {
-                                backCode = stationParts[0].Trim();
-                                foreCode = stationParts[1].Trim();
-                                if (backCode == "?") backCode = null;
-                                if (foreCode == "?") foreCode = null;
-                            }
-                        }
-
-                        double? rb = ParseNullableDouble(parts[4]);
-                        double? rf = ParseNullableDouble(parts[5]);
-                        double? height = ParseNullableDouble(parts[10]);
-
-                        // Генерируем расстояния (5-15 метров)
-                        double? hdBack = rb.HasValue ? 5.0 + _random.NextDouble() * 10.0 : null;
-                        double? hdFore = rf.HasValue ? 5.0 + _random.NextDouble() * 10.0 : null;
-
-                        // Добавляем шум к измерениям
-                        if (rb.HasValue)
-                        {
-                            double noise = GenerateNoise(index);
-                            rb = rb.Value + noise / 1000.0;
-                        }
-                        if (rf.HasValue)
-                        {
-                            double noise = GenerateNoise(index);
-                            rf = rf.Value + noise / 1000.0;
-                        }
-
-                        _measurements.Add(new GeneratedMeasurement
-                        {
-                            Index = index++,
-                            LineName = lineName,
-                            PointCode = pointCode,
-                            StationCode = station,
-                            BackPointCode = backCode,
-                            ForePointCode = foreCode,
-                            Rb_m = rb,
-                            Rf_m = rf,
-                            HD_Back_m = hdBack,
-                            HD_Fore_m = hdFore,
-                            Height_m = height,
-                            IsBackSight = rb.HasValue,
-                            OriginalHeight = height,
-                            OriginalHD_Back = hdBack,
-                            OriginalHD_Fore = hdFore
-                        });
+                        _measurements.Add(CreateMeasurement(
+                            index: index++,
+                            lineName: parts[1],
+                            pointCode: parts[2],
+                            station: parts[3],
+                            rb: ParseNullableDouble(parts[4]),
+                            rf: ParseNullableDouble(parts[5]),
+                            height: ParseNullableDouble(parts[10])));
                     }
                 }
             }
@@ -391,21 +342,6 @@ namespace Nivtropy.ViewModels
                     ? worksheet.Cell(row, headers["Станция"]).GetValue<string>()
                     : "";
 
-                // Парсим станцию для извлечения BackCode и ForeCode
-                string? backCode = null;
-                string? foreCode = null;
-                if (!string.IsNullOrWhiteSpace(station) && station.Contains("→"))
-                {
-                    var parts = station.Split(new[] { "→" }, StringSplitOptions.None);
-                    if (parts.Length == 2)
-                    {
-                        backCode = parts[0].Trim();
-                        foreCode = parts[1].Trim();
-                        if (backCode == "?") backCode = null;
-                        if (foreCode == "?") foreCode = null;
-                    }
-                }
-
                 var rbCell = headers.ContainsKey("Отсчет назад, м")
                     ? worksheet.Cell(row, headers["Отсчет назад, м"])
                     : null;
@@ -420,40 +356,14 @@ namespace Nivtropy.ViewModels
                 double? rf = rfCell != null && !rfCell.IsEmpty() ? rfCell.GetValue<double?>() : null;
                 double? height = heightCell != null && !heightCell.IsEmpty() ? heightCell.GetValue<double?>() : null;
 
-                // Генерируем расстояния (5-15 метров)
-                double? hdBack = rb.HasValue ? 5.0 + _random.NextDouble() * 10.0 : null;
-                double? hdFore = rf.HasValue ? 5.0 + _random.NextDouble() * 10.0 : null;
-
-                // Добавляем шум к измерениям
-                if (rb.HasValue)
-                {
-                    double noise = GenerateNoise(index);
-                    rb = rb.Value + noise / 1000.0; // Переводим мм в м
-                }
-                if (rf.HasValue)
-                {
-                    double noise = GenerateNoise(index);
-                    rf = rf.Value + noise / 1000.0;
-                }
-
-                _measurements.Add(new GeneratedMeasurement
-                {
-                    Index = index++,
-                    LineName = lineName,
-                    PointCode = pointCode,
-                    StationCode = station,
-                    BackPointCode = backCode,
-                    ForePointCode = foreCode,
-                    Rb_m = rb,
-                    Rf_m = rf,
-                    HD_Back_m = hdBack,
-                    HD_Fore_m = hdFore,
-                    Height_m = height,
-                    IsBackSight = rb.HasValue,
-                    OriginalHeight = height,
-                    OriginalHD_Back = hdBack,
-                    OriginalHD_Fore = hdFore
-                });
+                _measurements.Add(CreateMeasurement(
+                    index: index++,
+                    lineName: lineName,
+                    pointCode: pointCode,
+                    station: station,
+                    rb: rb,
+                    rf: rf,
+                    height: height));
             }
 
             // Уведомление убрано - данные генерируются автоматически
@@ -815,6 +725,77 @@ namespace Nivtropy.ViewModels
                 _profileRangeCustomized = false;
                 _isUpdatingProfileStats = false;
             }
+        }
+
+        /// <summary>
+        /// Парсит строку станции формата "BackCode → ForeCode" и возвращает коды точек
+        /// </summary>
+        private static (string? BackCode, string? ForeCode) ParseStationCode(string? station)
+        {
+            if (string.IsNullOrWhiteSpace(station) || !station.Contains("→"))
+                return (null, null);
+
+            var parts = station.Split(new[] { "→" }, StringSplitOptions.None);
+            if (parts.Length != 2)
+                return (null, null);
+
+            var backCode = parts[0].Trim();
+            var foreCode = parts[1].Trim();
+
+            return (
+                backCode == "?" ? null : backCode,
+                foreCode == "?" ? null : foreCode
+            );
+        }
+
+        /// <summary>
+        /// Создаёт GeneratedMeasurement с общей логикой генерации шума и расстояний
+        /// </summary>
+        private GeneratedMeasurement CreateMeasurement(
+            int index,
+            string lineName,
+            string pointCode,
+            string station,
+            double? rb,
+            double? rf,
+            double? height)
+        {
+            var (backCode, foreCode) = ParseStationCode(station);
+
+            // Генерируем расстояния (5-15 метров)
+            double? hdBack = rb.HasValue ? 5.0 + _random.NextDouble() * 10.0 : null;
+            double? hdFore = rf.HasValue ? 5.0 + _random.NextDouble() * 10.0 : null;
+
+            // Добавляем шум к измерениям
+            if (rb.HasValue)
+            {
+                double noise = GenerateNoise(index);
+                rb = rb.Value + noise / 1000.0;
+            }
+            if (rf.HasValue)
+            {
+                double noise = GenerateNoise(index);
+                rf = rf.Value + noise / 1000.0;
+            }
+
+            return new GeneratedMeasurement
+            {
+                Index = index,
+                LineName = lineName,
+                PointCode = pointCode,
+                StationCode = station,
+                BackPointCode = backCode,
+                ForePointCode = foreCode,
+                Rb_m = rb,
+                Rf_m = rf,
+                HD_Back_m = hdBack,
+                HD_Fore_m = hdFore,
+                Height_m = height,
+                IsBackSight = rb.HasValue,
+                OriginalHeight = height,
+                OriginalHD_Back = hdBack,
+                OriginalHD_Fore = hdFore
+            };
         }
 
         private double? ParseNullableDouble(string? value)
