@@ -1,7 +1,5 @@
 using System;
-using System.ComponentModel;
 using System.Linq;
-using System.Runtime.CompilerServices;
 using System.Windows;
 using System.Windows.Input;
 using Microsoft.Win32;
@@ -10,13 +8,14 @@ using Nivtropy.Services;
 using Nivtropy.Services.Export;
 using Nivtropy.Services.Visualization;
 using Nivtropy.Services.Statistics;
+using Nivtropy.ViewModels.Base;
 
 namespace Nivtropy.ViewModels
 {
     /// <summary>
     /// Главная ViewModel приложения с поддержкой Dependency Injection
     /// </summary>
-    public class MainViewModel : INotifyPropertyChanged
+    public class MainViewModel : ViewModelBase
     {
         private readonly DataViewControl _dataViewControl;
         private readonly TraverseJournalView _journalView;
@@ -27,25 +26,21 @@ namespace Nivtropy.ViewModels
         private int _selectedRibbonIndex;
 
         public MainViewModel(
+            DataViewModel dataViewModel,
+            SettingsViewModel settingsViewModel,
+            TraverseCalculationViewModel calculationViewModel,
+            TraverseJournalViewModel journalViewModel,
+            DataGeneratorViewModel dataGeneratorViewModel,
             IProfileVisualizationService profileVisualizationService,
             IProfileStatisticsService profileStatisticsService,
-            ITraverseSystemVisualizationService systemVisualizationService,
-            ITraverseBuilder traverseBuilder,
-            IExportService exportService)
+            ITraverseSystemVisualizationService systemVisualizationService)
         {
-            DataViewModel = new DataViewModel();
-            SettingsViewModel = new SettingsViewModel();
+            DataViewModel = dataViewModel;
+            SettingsViewModel = settingsViewModel;
             SettingsViewModel.Load();
-            CalculationViewModel = new TraverseCalculationViewModel(DataViewModel, SettingsViewModel, traverseBuilder, exportService);
-
-            // Создаём JournalViewModel с сервисами из DI
-            JournalViewModel = new TraverseJournalViewModel(
-                CalculationViewModel,
-                profileVisualizationService,
-                profileStatisticsService,
-                systemVisualizationService);
-
-            DataGeneratorViewModel = new DataGeneratorViewModel();
+            CalculationViewModel = calculationViewModel;
+            JournalViewModel = journalViewModel;
+            DataGeneratorViewModel = dataGeneratorViewModel;
 
             _dataViewControl = new DataViewControl { DataContext = DataViewModel };
             _journalView = new TraverseJournalView { DataContext = JournalViewModel };
@@ -56,9 +51,6 @@ namespace Nivtropy.ViewModels
             CurrentView = _dataViewControl;
             SyncSelectionWithData();
         }
-
-        public event PropertyChangedEventHandler? PropertyChanged;
-        private void OnPropertyChanged([CallerMemberName] string? name = null) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 
         public DataViewModel DataViewModel { get; }
         public TraverseCalculationViewModel CalculationViewModel { get; }

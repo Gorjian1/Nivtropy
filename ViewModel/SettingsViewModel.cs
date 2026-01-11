@@ -1,36 +1,32 @@
-using System.ComponentModel;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
 using Nivtropy.Models;
+using Nivtropy.ViewModels.Base;
 
 namespace Nivtropy.ViewModels
 {
-    public class SettingsViewModel : INotifyPropertyChanged
+    public class SettingsViewModel : ViewModelBase
     {
         private static readonly string SettingsPath = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
             "Nivtropy",
             "settings.json"
         );
-        // Общие настройки
+
         private string _tableFontFamily = "Segoe UI";
         private double _tableFontSize = 13;
-        private int _gridLineColorIndex = 0; // 0=светло-серый, 1=серый, 2=темно-серый, 3=голубоватый
+        private int _gridLineColorIndex = 0;
         private RowColoringMode _rowColoringMode = RowColoringMode.Alternating;
         private bool _showColumnHeaderIcons = true;
-
-        // Настройки расчётов
         private bool _checkMinimumRayLength = false;
         private double _minimumRayLength = 5.0;
         private bool _checkMaximumRayLength = false;
         private double _maximumRayLength = 100.0;
         private bool _checkMinimumStationLength = false;
         private double _minimumStationLength = 10.0;
-        private int _heightDecimalPlaces = 1; // Index: 0=3, 1=4, 2=5
-        private int _deltaHDecimalPlaces = 1; // Index: 0=3, 1=4, 2=5
-
-        public event PropertyChangedEventHandler? PropertyChanged;
+        private int _heightDecimalPlaces = 1;
+        private int _deltaHDecimalPlaces = 1;
 
         // Общие настройки - свойства
         public string TableFontFamily
@@ -152,19 +148,17 @@ namespace Nivtropy.ViewModels
             }
         }
 
-        private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
+        /// <summary>
+        /// Устанавливает значение и сохраняет настройки при изменении
+        /// </summary>
+        private new bool SetField<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
         {
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-        }
-
-        private bool SetField<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
-        {
-            if (Equals(field, value))
-                return false;
-            field = value;
-            OnPropertyChanged(propertyName);
-            Save();
-            return true;
+            if (base.SetField(ref field, value, propertyName))
+            {
+                Save();
+                return true;
+            }
+            return false;
         }
 
         public void Save()

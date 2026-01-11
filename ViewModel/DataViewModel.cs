@@ -1,35 +1,29 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.ComponentModel;
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Runtime.CompilerServices;
 using System.Text;
 using Nivtropy.Models;
 using Nivtropy.Services;
+using Nivtropy.ViewModels.Base;
 
 namespace Nivtropy.ViewModels
 {
-    public class DataViewModel : INotifyPropertyChanged
+    public class DataViewModel : ViewModelBase
     {
         private readonly IDataParser _parser;
 
         public ObservableCollection<MeasurementRecord> Records { get; } = new();
         public ObservableCollection<LineSummary> Runs { get; } = new();
 
-        // Служебные версии для отслеживания изменений данных
         public int RecordsVersion { get; private set; }
         public int KnownHeightsVersion { get; private set; }
 
-        // Словарь известных высот точек: ключ - код точки, значение - высота
         private readonly Dictionary<string, double> _knownHeights = new(StringComparer.OrdinalIgnoreCase);
-
-        // Состояние общих точек: включен/выключен обмен
         private readonly Dictionary<string, bool> _sharedPointStates = new(StringComparer.OrdinalIgnoreCase);
 
-        // События для оптимизации массовых обновлений
         public event EventHandler? BeginBatchUpdate;
         public event EventHandler? EndBatchUpdate;
 
@@ -39,12 +33,8 @@ namespace Nivtropy.ViewModels
             get => _sourcePath;
             private set
             {
-                if (_sourcePath != value)
-                {
-                    _sourcePath = value;
-                    OnPropertyChanged();
+                if (SetField(ref _sourcePath, value))
                     OnPropertyChanged(nameof(FileName));
-                }
             }
         }
 
@@ -55,18 +45,6 @@ namespace Nivtropy.ViewModels
         {
             get => _selectedRun;
             set => SetField(ref _selectedRun, value);
-        }
-
-        public event PropertyChangedEventHandler? PropertyChanged;
-        private void OnPropertyChanged([CallerMemberName] string? name = null) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
-
-        private bool SetField<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
-        {
-            if (EqualityComparer<T>.Default.Equals(field, value))
-                return false;
-            field = value;
-            OnPropertyChanged(propertyName);
-            return true;
         }
 
         public DataViewModel(IDataParser parser)

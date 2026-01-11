@@ -58,6 +58,7 @@ namespace Nivtropy.Services
             services.AddTransient<SettingsViewModel>();
             services.AddTransient<TraverseCalculationViewModel>();
             services.AddTransient<TraverseJournalViewModel>();
+            services.AddTransient<DataGeneratorViewModel>();
             services.AddTransient<MainViewModel>();
 
             return services;
