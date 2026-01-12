@@ -69,6 +69,7 @@ namespace Nivtropy.Services
             services.AddSingleton<SettingsViewModel>();
             services.AddSingleton<TraverseCalculationViewModel>();
             services.AddSingleton<TraverseJournalViewModel>();
+            services.AddSingleton<TraverseDesignViewModel>();
             services.AddSingleton<DataGeneratorViewModel>();
             services.AddSingleton<MainViewModel>();
 
