@@ -11,7 +11,7 @@ namespace Nivtropy.ViewModels.Managers
     /// Менеджер систем ходов
     /// Отвечает за группировку ходов в независимые системы с отдельными пространствами высот
     /// </summary>
-    public class TraverseSystemsManager : ViewModelBase
+    public class TraverseSystemsManager : ViewModelBase, ITraverseSystemsManager
     {
         private readonly DataViewModel _dataViewModel;
         private readonly ObservableCollection<TraverseSystem> _systems = new();

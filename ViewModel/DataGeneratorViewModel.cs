@@ -8,11 +8,11 @@ using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
-using System.Windows;
 using System.Windows.Input;
 using ClosedXML.Excel;
 using Microsoft.Win32;
 using Nivtropy.Models;
+using Nivtropy.Services.Dialog;
 using Nivtropy.ViewModels.Base;
 
 namespace Nivtropy.ViewModels
@@ -22,6 +22,7 @@ namespace Nivtropy.ViewModels
     /// </summary>
     public class DataGeneratorViewModel : ViewModelBase
     {
+        private readonly IDialogService _dialogService;
         private readonly ObservableCollection<GeneratedMeasurement> _measurements = new();
         private readonly ObservableCollection<string> _availableLines = new();
         private readonly HashSet<GeneratedMeasurement> _trackedMeasurements = new();
@@ -43,8 +44,9 @@ namespace Nivtropy.ViewModels
         private RelayCommand? _moveHorizontalCommand;
         private RelayCommand? _moveVerticalCommand;
 
-        public DataGeneratorViewModel()
+        public DataGeneratorViewModel(IDialogService dialogService)
         {
+            _dialogService = dialogService ?? throw new ArgumentNullException(nameof(dialogService));
             _measurements.CollectionChanged += Measurements_CollectionChanged;
         }
 
@@ -216,7 +218,7 @@ namespace Nivtropy.ViewModels
 
                 if (string.IsNullOrEmpty(SourceFilePath) || !File.Exists(SourceFilePath))
                 {
-                    MessageBox.Show("Файл не выбран или не существует", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                    _dialogService.ShowError("Файл не выбран или не существует");
                     return;
                 }
 
@@ -232,12 +234,12 @@ namespace Nivtropy.ViewModels
                 }
                 else
                 {
-                    MessageBox.Show("Неподдерживаемый формат файла. Используйте CSV или XLSX.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                    _dialogService.ShowError("Неподдерживаемый формат файла. Используйте CSV или XLSX.");
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка генерации: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                _dialogService.ShowError($"Ошибка генерации: {ex.Message}");
             }
         }
 
@@ -393,12 +395,12 @@ namespace Nivtropy.ViewModels
                 }
                 else
                 {
-                    MessageBox.Show("Формат не выбран", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                    _dialogService.ShowError("Формат не выбран");
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка экспорта: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                _dialogService.ShowError($"Ошибка экспорта: {ex.Message}");
             }
         }
 
@@ -582,10 +584,7 @@ namespace Nivtropy.ViewModels
 
             File.WriteAllText(saveFileDialog.FileName, sb.ToString(), Encoding.UTF8);
 
-            MessageBox.Show($"Данные успешно экспортированы в:\n{saveFileDialog.FileName}",
-                "Экспорт завершён",
-                MessageBoxButton.OK,
-                MessageBoxImage.Information);
+            _dialogService.ShowInfo($"Данные успешно экспортированы в:\n{saveFileDialog.FileName}", "Экспорт завершён");
         }
 
         private void RefreshAvailableLines()

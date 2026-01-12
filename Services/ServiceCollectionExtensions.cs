@@ -4,6 +4,8 @@ using Nivtropy.Services.Calculation;
 using Nivtropy.Services.Export;
 using Nivtropy.Services.Logging;
 using Nivtropy.Services.Statistics;
+using Nivtropy.Services.Dialog;
+using Nivtropy.Services.IO;
 using Nivtropy.Services.Tolerance;
 using Nivtropy.Services.Visualization;
 using Nivtropy.ViewModels;
@@ -24,6 +26,12 @@ namespace Nivtropy.Services
         {
             // Сервис логирования
             services.AddSingleton<ILoggerService, FileLoggerService>();
+
+            // Сервис диалогов
+            services.AddSingleton<IDialogService, DialogService>();
+
+            // Сервис файловых операций
+            services.AddSingleton<IFileService, FileService>();
 
             // Сервисы парсинга и построения данных
             services.AddSingleton<IDataParser, DatParser>();
@@ -72,9 +80,9 @@ namespace Nivtropy.Services
         /// </summary>
         public static IServiceCollection AddManagers(this IServiceCollection services)
         {
-            services.AddSingleton<BenchmarkManager>();
-            services.AddSingleton<SharedPointsManager>();
-            services.AddSingleton<TraverseSystemsManager>();
+            services.AddSingleton<IBenchmarkManager, BenchmarkManager>();
+            services.AddSingleton<ISharedPointsManager, SharedPointsManager>();
+            services.AddSingleton<ITraverseSystemsManager, TraverseSystemsManager>();
 
             return services;
         }

@@ -70,7 +70,7 @@ namespace Nivtropy.Services.Calculation
             {
                 foreach (var run in runs)
                 {
-                    result.RunToSystemId[run.Index] = TraverseSystemsManager.DEFAULT_SYSTEM_ID;
+                    result.RunToSystemId[run.Index] = ITraverseSystemsManager.DEFAULT_SYSTEM_ID;
                 }
 
                 // Помечаем все автосистемы на удаление
@@ -91,7 +91,7 @@ namespace Nivtropy.Services.Calculation
                 if (i == 0)
                 {
                     // Самая большая компонента - в основную систему
-                    systemId = TraverseSystemsManager.DEFAULT_SYSTEM_ID;
+                    systemId = ITraverseSystemsManager.DEFAULT_SYSTEM_ID;
                 }
                 else
                 {

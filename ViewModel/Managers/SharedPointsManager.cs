@@ -13,7 +13,7 @@ namespace Nivtropy.ViewModels.Managers
     /// Менеджер общих точек между ходами
     /// Отвечает за отслеживание и управление точками, используемыми в нескольких ходах
     /// </summary>
-    public class SharedPointsManager : ViewModelBase
+    public class SharedPointsManager : ViewModelBase, ISharedPointsManager
     {
         private readonly DataViewModel _dataViewModel;
         private readonly ObservableCollection<SharedPointLinkItem> _sharedPoints = new();

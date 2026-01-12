@@ -14,7 +14,7 @@ namespace Nivtropy.ViewModels.Managers
     /// Менеджер реперов (точек с известными высотами)
     /// Отвечает за добавление, удаление и обновление реперов
     /// </summary>
-    public class BenchmarkManager : ViewModelBase
+    public class BenchmarkManager : ViewModelBase, IBenchmarkManager
     {
         private readonly DataViewModel _dataViewModel;
         private readonly ObservableCollection<BenchmarkItem> _benchmarks = new();
@@ -94,7 +94,7 @@ namespace Nivtropy.ViewModels.Managers
             _dataViewModel.SetKnownHeight(SelectedPoint.Code, height);
 
             // Привязываем репер к текущей системе
-            _benchmarkSystems[SelectedPoint.Code] = SelectedSystemId ?? TraverseSystemsManager.DEFAULT_SYSTEM_ID;
+            _benchmarkSystems[SelectedPoint.Code] = SelectedSystemId ?? ITraverseSystemsManager.DEFAULT_SYSTEM_ID;
 
             // Очищаем поля ввода
             SelectedPoint = null;
@@ -134,7 +134,7 @@ namespace Nivtropy.ViewModels.Managers
                 if (!_benchmarkSystems.TryGetValue(kvp.Key, out var benchmarkSystemId))
                 {
                     // Если репер еще не привязан к системе, привязываем к системе по умолчанию
-                    benchmarkSystemId = TraverseSystemsManager.DEFAULT_SYSTEM_ID;
+                    benchmarkSystemId = ITraverseSystemsManager.DEFAULT_SYSTEM_ID;
                     _benchmarkSystems[kvp.Key] = benchmarkSystemId;
                 }
 
@@ -153,7 +153,7 @@ namespace Nivtropy.ViewModels.Managers
         {
             return _benchmarkSystems.TryGetValue(pointCode, out var systemId)
                 ? systemId
-                : TraverseSystemsManager.DEFAULT_SYSTEM_ID;
+                : ITraverseSystemsManager.DEFAULT_SYSTEM_ID;
         }
 
         /// <summary>
@@ -163,7 +163,7 @@ namespace Nivtropy.ViewModels.Managers
         {
             if (!_benchmarkSystems.TryGetValue(pointCode, out var benchmarkSystemId))
             {
-                benchmarkSystemId = TraverseSystemsManager.DEFAULT_SYSTEM_ID;
+                benchmarkSystemId = ITraverseSystemsManager.DEFAULT_SYSTEM_ID;
             }
 
             return benchmarkSystemId == systemId;

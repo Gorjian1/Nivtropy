@@ -2,9 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using System.Windows;
 using Microsoft.Win32;
 using Nivtropy.Models;
+using Nivtropy.Services.Dialog;
 
 namespace Nivtropy.Services.Export
 {
@@ -14,6 +14,13 @@ namespace Nivtropy.Services.Export
     /// </summary>
     public class TraverseExportService : IExportService
     {
+        private readonly IDialogService _dialogService;
+
+        public TraverseExportService(IDialogService dialogService)
+        {
+            _dialogService = dialogService ?? throw new ArgumentNullException(nameof(dialogService));
+        }
+
         public bool ExportToCsv(IEnumerable<TraverseRow> rows, string? filePath = null)
         {
             if (filePath == null)
@@ -36,19 +43,13 @@ namespace Nivtropy.Services.Export
                 var csv = BuildCsvContent(rows.ToList());
                 System.IO.File.WriteAllText(filePath, csv, Encoding.UTF8);
 
-                MessageBox.Show($"Данные успешно экспортированы в:\n{filePath}",
-                    "Экспорт завершён",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Information);
+                _dialogService.ShowInfo($"Данные успешно экспортированы в:\n{filePath}", "Экспорт завершён");
 
                 return true;
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка при экспорте:\n{ex.Message}",
-                    "Ошибка экспорта",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Error);
+                _dialogService.ShowError($"Ошибка при экспорте:\n{ex.Message}", "Ошибка экспорта");
 
                 return false;
             }
