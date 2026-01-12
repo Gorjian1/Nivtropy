@@ -364,25 +364,13 @@ namespace Nivtropy.ViewModels
 
             foreach (var traverseRow in _calculationViewModel.Rows)
             {
-                // Проверяем, виртуальная ли это станция (только начальная точка без измерений)
+                // Пропускаем виртуальные станции (только начальная точка без измерений)
+                // Их данные уже содержатся в BackCode/BackHeight первой реальной станции
                 bool isVirtualStation = string.IsNullOrWhiteSpace(traverseRow.ForeCode) && !traverseRow.DeltaH.HasValue;
-
                 if (isVirtualStation)
                 {
-                    // Для виртуальной станции показываем только точку (начальный репер)
-                    _journalRows.Add(new JournalRow
-                    {
-                        RowType = JournalRowType.BackPoint,
-                        StationNumber = traverseRow.Index,
-                        LineName = traverseRow.LineName,
-                        LineSummary = traverseRow.LineSummary,
-                        PointCode = traverseRow.BackCode,
-                        Z0 = traverseRow.BackHeightZ0,
-                        Z = traverseRow.BackHeight
-                    });
-
-                    previousForeCode = traverseRow.BackCode; // Следующая станция начнётся с этой точки
                     previousLineName = traverseRow.LineName;
+                    // НЕ устанавливаем previousForeCode - первая реальная станция покажет свой BackPoint
                     continue;
                 }
 
