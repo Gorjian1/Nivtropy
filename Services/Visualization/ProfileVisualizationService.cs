@@ -5,6 +5,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Shapes;
+using Nivtropy.Constants;
 using Nivtropy.Models;
 
 namespace Nivtropy.Services.Visualization
@@ -15,7 +16,7 @@ namespace Nivtropy.Services.Visualization
     /// </summary>
     public class ProfileVisualizationService : IProfileVisualizationService
     {
-        private const double Margin = 50;
+        private const double Margin = VisualizationDefaults.Margin;
 
         public void DrawProfile(
             Canvas canvas,
@@ -124,7 +125,7 @@ namespace Nivtropy.Services.Visualization
             var gridBrush = new SolidColorBrush(Color.FromRgb(0xE0, 0xE0, 0xE0));
 
             // Вертикальные линии
-            int verticalLines = 10;
+            int verticalLines = VisualizationDefaults.VerticalGridLines;
             for (int i = 0; i <= verticalLines; i++)
             {
                 var x = Margin + (i / (double)verticalLines) * plotWidth;
@@ -135,7 +136,7 @@ namespace Nivtropy.Services.Visualization
                     X2 = x,
                     Y2 = canvasHeight - Margin,
                     Stroke = gridBrush,
-                    StrokeThickness = 0.5
+                    StrokeThickness = VisualizationDefaults.GridStrokeThickness
                 };
                 canvas.Children.Add(line);
 
@@ -145,7 +146,7 @@ namespace Nivtropy.Services.Visualization
                     var label = new TextBlock
                     {
                         Text = $"{distance:F0}",
-                        FontSize = 9,
+                        FontSize = VisualizationDefaults.GridFontSize,
                         Foreground = new SolidColorBrush(Color.FromRgb(0x80, 0x80, 0x80))
                     };
                     Canvas.SetLeft(label, x - 10);
@@ -155,7 +156,7 @@ namespace Nivtropy.Services.Visualization
             }
 
             // Горизонтальные линии
-            int horizontalLines = 8;
+            int horizontalLines = VisualizationDefaults.HorizontalGridLines;
             for (int i = 0; i <= horizontalLines; i++)
             {
                 var y = Margin + (i / (double)horizontalLines) * plotHeight;
@@ -166,7 +167,7 @@ namespace Nivtropy.Services.Visualization
                     X2 = canvasWidth - Margin,
                     Y2 = y,
                     Stroke = gridBrush,
-                    StrokeThickness = 0.5
+                    StrokeThickness = VisualizationDefaults.GridStrokeThickness
                 };
                 canvas.Children.Add(line);
 
@@ -176,7 +177,7 @@ namespace Nivtropy.Services.Visualization
                     var label = new TextBlock
                     {
                         Text = $"{height:F2}",
-                        FontSize = 9,
+                        FontSize = VisualizationDefaults.GridFontSize,
                         Foreground = new SolidColorBrush(Color.FromRgb(0x80, 0x80, 0x80))
                     };
                     Canvas.SetRight(label, canvasWidth - Margin + 5);
@@ -251,11 +252,11 @@ namespace Nivtropy.Services.Visualization
                 {
                     segmentColor = Color.FromRgb(255, 69, 58); // Красный
                 }
-                else if (armDiff > 3.0)
+                else if (armDiff > VisualizationDefaults.ArmDiffErrorThreshold)
                 {
                     segmentColor = Color.FromRgb(255, 159, 10); // Оранжевый
                 }
-                else if (armDiff > 1.5)
+                else if (armDiff > VisualizationDefaults.ArmDiffWarningThreshold)
                 {
                     segmentColor = Color.FromRgb(255, 204, 0); // Жёлтый
                 }

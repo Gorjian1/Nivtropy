@@ -87,4 +87,112 @@ namespace Nivtropy.Constants
         /// </summary>
         public const double OutlierSensitivitySigma = 2.5;
     }
+
+    /// <summary>
+    /// Коэффициенты допусков нивелирования по ГКИНП 03-010-02
+    /// Допуск невязки: коэффициент × √L, где L - длина хода в км
+    /// </summary>
+    public static class ToleranceCoefficients
+    {
+        /// <summary>
+        /// Класс I: 4 мм · √L
+        /// </summary>
+        public const double ClassI = 0.004;
+
+        /// <summary>
+        /// Класс II: 8 мм · √L
+        /// </summary>
+        public const double ClassII = 0.008;
+
+        /// <summary>
+        /// Класс III: 10 мм · √L
+        /// </summary>
+        public const double ClassIII = 0.010;
+
+        /// <summary>
+        /// Класс IV: 20 мм · √L
+        /// </summary>
+        public const double ClassIV = 0.020;
+
+        /// <summary>
+        /// Техническое нивелирование: 50 мм · √L
+        /// </summary>
+        public const double Technical = 0.050;
+
+        /// <summary>
+        /// Двойной ход BF/FB: 4 мм · √n (n - число станций)
+        /// </summary>
+        public const double DoubleRun = 0.004;
+    }
+
+    /// <summary>
+    /// Допуски разности плеч по классам нивелирования (в метрах)
+    /// </summary>
+    public static class ArmDifferenceLimits
+    {
+        /// <summary>
+        /// Допуск разности плеч на станции (м)
+        /// </summary>
+        public static class PerStation
+        {
+            public const double ClassI = 0.5;
+            public const double ClassII = 1.0;
+            public const double ClassIII = 2.0;
+            public const double ClassIV = 5.0;
+            public const double Technical = 10.0;
+        }
+
+        /// <summary>
+        /// Допуск накопления разности плеч за ход (м)
+        /// </summary>
+        public static class Accumulation
+        {
+            public const double ClassI = 1.0;
+            public const double ClassII = 2.0;
+            public const double ClassIII = 5.0;
+            public const double ClassIV = 10.0;
+            public const double Technical = 20.0;
+        }
+    }
+
+    /// <summary>
+    /// Константы для визуализации профилей
+    /// </summary>
+    public static class VisualizationDefaults
+    {
+        /// <summary>
+        /// Отступ от края Canvas (px)
+        /// </summary>
+        public const double Margin = 50;
+
+        /// <summary>
+        /// Количество вертикальных линий сетки
+        /// </summary>
+        public const int VerticalGridLines = 10;
+
+        /// <summary>
+        /// Количество горизонтальных линий сетки
+        /// </summary>
+        public const int HorizontalGridLines = 8;
+
+        /// <summary>
+        /// Размер шрифта для подписей сетки
+        /// </summary>
+        public const double GridFontSize = 9;
+
+        /// <summary>
+        /// Толщина линии сетки
+        /// </summary>
+        public const double GridStrokeThickness = 0.5;
+
+        /// <summary>
+        /// Порог разницы плеч для жёлтого выделения (м)
+        /// </summary>
+        public const double ArmDiffWarningThreshold = 1.5;
+
+        /// <summary>
+        /// Порог разницы плеч для красного выделения (м)
+        /// </summary>
+        public const double ArmDiffErrorThreshold = 3.0;
+    }
 }

@@ -18,7 +18,9 @@ using Nivtropy.Services.Calculation;
 using Nivtropy.Services.Export;
 using Nivtropy.Utilities;
 using Nivtropy.ViewModels.Base;
+using Nivtropy.ViewModels.Helpers;
 using Nivtropy.ViewModels.Managers;
+using Nivtropy.Constants;
 
 namespace Nivtropy.ViewModels
 {
@@ -43,8 +45,8 @@ namespace Nivtropy.ViewModels
         // Допуск: 4 мм × √n, где n - число станций
         private readonly LevelingMethodOption[] _methods =
         {
-            new("BF", "Двойной ход (Back → Forward)", ToleranceMode.SqrtStations, 0.004, 1.0),
-            new("FB", "Двойной ход (Forward → Back)", ToleranceMode.SqrtStations, 0.004, -1.0)
+            new("BF", "Двойной ход (Back → Forward)", ToleranceMode.SqrtStations, ToleranceCoefficients.DoubleRun, 1.0),
+            new("FB", "Двойной ход (Forward → Back)", ToleranceMode.SqrtStations, ToleranceCoefficients.DoubleRun, -1.0)
         };
 
         // Классы нивелирования согласно ГКИНП 03-010-02
@@ -52,11 +54,11 @@ namespace Nivtropy.ViewModels
         // Допуски разности плеч: на станции и накопление за ход
         private readonly LevelingClassOption[] _classes =
         {
-            new("I", "Класс I: 4 мм · √L", ToleranceMode.SqrtLength, 0.004, ArmDiffStation: 0.5, ArmDiffAccumulation: 1.0),
-            new("II", "Класс II: 8 мм · √L", ToleranceMode.SqrtLength, 0.008, ArmDiffStation: 1.0, ArmDiffAccumulation: 2.0),
-            new("III", "Класс III: 10 мм · √L", ToleranceMode.SqrtLength, 0.010, ArmDiffStation: 2.0, ArmDiffAccumulation: 5.0),
-            new("IV", "Класс IV: 20 мм · √L", ToleranceMode.SqrtLength, 0.020, ArmDiffStation: 5.0, ArmDiffAccumulation: 10.0),
-            new("Техническое", "Техническое: 50 мм · √L", ToleranceMode.SqrtLength, 0.050, ArmDiffStation: 10.0, ArmDiffAccumulation: 20.0)
+            new("I", "Класс I: 4 мм · √L", ToleranceMode.SqrtLength, ToleranceCoefficients.ClassI, ArmDiffStation: ArmDifferenceLimits.PerStation.ClassI, ArmDiffAccumulation: ArmDifferenceLimits.Accumulation.ClassI),
+            new("II", "Класс II: 8 мм · √L", ToleranceMode.SqrtLength, ToleranceCoefficients.ClassII, ArmDiffStation: ArmDifferenceLimits.PerStation.ClassII, ArmDiffAccumulation: ArmDifferenceLimits.Accumulation.ClassII),
+            new("III", "Класс III: 10 мм · √L", ToleranceMode.SqrtLength, ToleranceCoefficients.ClassIII, ArmDiffStation: ArmDifferenceLimits.PerStation.ClassIII, ArmDiffAccumulation: ArmDifferenceLimits.Accumulation.ClassIII),
+            new("IV", "Класс IV: 20 мм · √L", ToleranceMode.SqrtLength, ToleranceCoefficients.ClassIV, ArmDiffStation: ArmDifferenceLimits.PerStation.ClassIV, ArmDiffAccumulation: ArmDifferenceLimits.Accumulation.ClassIV),
+            new("Техническое", "Техническое: 50 мм · √L", ToleranceMode.SqrtLength, ToleranceCoefficients.Technical, ArmDiffStation: ArmDifferenceLimits.PerStation.Technical, ArmDiffAccumulation: ArmDifferenceLimits.Accumulation.Technical)
         };
 
         private LevelingMethodOption? _selectedMethod;
@@ -1283,19 +1285,6 @@ namespace Nivtropy.ViewModels
             }
         }
 
-        private sealed class AliasKeyComparer : IEqualityComparer<(TraverseRow row, bool isBack)>
-        {
-            public bool Equals((TraverseRow row, bool isBack) x, (TraverseRow row, bool isBack) y)
-            {
-                return ReferenceEquals(x.row, y.row) && x.isBack == y.isBack;
-            }
-
-            public int GetHashCode((TraverseRow row, bool isBack) obj)
-            {
-                return HashCode.Combine(obj.row, obj.isBack);
-            }
-        }
-
         /// <summary>
         /// Рассчитывает высоты точек внутри конкретного хода и добавляет их в словарь доступных высот
         /// с учётом локального уравнивания и уже пересчитанных смежных ходов.
@@ -1309,7 +1298,39 @@ namespace Nivtropy.ViewModels
             if (items.Count == 0)
                 return;
 
-            // Сбрасываем предыдущие значения
+            // Фаза 1: Сброс предыдущих значений
+            ResetRowHeights(items);
+
+            // Фаза 2: Инициализация alias-менеджера для обработки повторяющихся точек
+            var aliasManager = new RunAliasManager(code => IsAnchorAllowed(code, availableAdjustedHeights.ContainsKey));
+            InitializeAliases(items, aliasManager);
+
+            // Фаза 3: Инициализация локальных словарей высот
+            var adjusted = new Dictionary<string, double>(availableAdjustedHeights, StringComparer.OrdinalIgnoreCase);
+            var raw = new Dictionary<string, double>(availableRawHeights, StringComparer.OrdinalIgnoreCase);
+            UpdateLocalHeightsForDisabledSharedPoints(items, runName, availableAdjustedHeights, availableRawHeights, adjusted, raw);
+
+            // Фаза 4: Итеративное распространение высот
+            PropagateHeightsIteratively(items, adjusted, raw, aliasManager);
+
+            // Фаза 5: Присвоение уравненных высот строкам
+            AssignAdjustedHeightsToRows(items, adjusted, availableAdjustedHeights, aliasManager);
+
+            // Фаза 6: Расчёт Z0 (неуравненных) высот с историей визитов
+            var heightTracker = new RunHeightTracker(raw, availableRawHeights);
+            CalculateRawHeightsForwardPass(items, runName, heightTracker, aliasManager);
+            CalculateRawHeightsBackwardPass(items, adjusted, heightTracker, aliasManager);
+            UpdateVirtualStations(items, adjusted, raw, aliasManager);
+
+            // Фаза 7: Обновление глобальных словарей доступных высот
+            UpdateAvailableHeights(adjusted, availableAdjustedHeights, availableRawHeights, aliasManager);
+        }
+
+        /// <summary>
+        /// Сбрасывает высоты для всех строк хода
+        /// </summary>
+        private static void ResetRowHeights(List<TraverseRow> items)
+        {
             foreach (var row in items)
             {
                 row.BackHeight = null;
@@ -1319,80 +1340,50 @@ namespace Nivtropy.ViewModels
                 row.IsBackHeightKnown = false;
                 row.IsForeHeightKnown = false;
             }
+        }
 
-            // Карта соответствия "код → визит" для повторяющихся точек внутри хода
-            var aliasByRowSide = new Dictionary<(TraverseRow row, bool isBack), string>(
-                new AliasKeyComparer());
-            var aliasToOriginal = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            var occurrenceCount = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-
+        /// <summary>
+        /// Инициализирует alias'ы для всех точек хода
+        /// </summary>
+        private static void InitializeAliases(List<TraverseRow> items, RunAliasManager aliasManager)
+        {
             string? previousForeCode = null;
-            string? previousForeAlias = null;
-
-            string RegisterAlias(string code, bool reusePrevious)
-            {
-                if (IsAnchorAllowed(code, availableAdjustedHeights.ContainsKey))
-                {
-                    aliasToOriginal[code] = code;
-                    return code;
-                }
-
-                if (reusePrevious && previousForeAlias != null &&
-                    string.Equals(previousForeCode, code, StringComparison.OrdinalIgnoreCase))
-                {
-                    aliasToOriginal[previousForeAlias] = code;
-                    return previousForeAlias;
-                }
-
-                var next = occurrenceCount.TryGetValue(code, out var count) ? count + 1 : 1;
-                occurrenceCount[code] = next;
-
-                var alias = next == 1 ? code : $"{code} ({next})";
-                aliasToOriginal[alias] = code;
-                return alias;
-            }
 
             foreach (var row in items)
             {
                 if (!string.IsNullOrWhiteSpace(row.BackCode))
                 {
-                    var alias = RegisterAlias(
-                        row.BackCode!,
-                        reusePrevious: previousForeAlias != null &&
-                                      string.Equals(previousForeCode, row.BackCode, StringComparison.OrdinalIgnoreCase));
-                    aliasByRowSide[(row, true)] = alias;
+                    var reusePrevious = previousForeCode != null &&
+                        string.Equals(previousForeCode, row.BackCode, StringComparison.OrdinalIgnoreCase);
+                    var alias = aliasManager.RegisterAlias(row.BackCode!, reusePrevious);
+                    aliasManager.RegisterRowAlias(row, isBack: true, alias);
                 }
 
                 if (!string.IsNullOrWhiteSpace(row.ForeCode))
                 {
-                    var alias = RegisterAlias(row.ForeCode!, reusePrevious: false);
-                    aliasByRowSide[(row, false)] = alias;
-
+                    var alias = aliasManager.RegisterAlias(row.ForeCode!, reusePrevious: false);
+                    aliasManager.RegisterRowAlias(row, isBack: false, alias);
                     previousForeCode = row.ForeCode;
-                    previousForeAlias = alias;
                 }
                 else
                 {
+                    aliasManager.ResetPreviousFore();
                     previousForeCode = null;
-                    previousForeAlias = null;
                 }
             }
+        }
 
-            string? AliasFor(TraverseRow row, bool isBack)
-            {
-                return aliasByRowSide.TryGetValue((row, isBack), out var value) ? value : null;
-            }
-
-            bool IsCopyAlias(string alias)
-            {
-                return aliasToOriginal.TryGetValue(alias, out var original)
-                    && !string.Equals(alias, original, StringComparison.OrdinalIgnoreCase);
-            }
-
-            var adjusted = new Dictionary<string, double>(availableAdjustedHeights, StringComparer.OrdinalIgnoreCase);
-            var raw = new Dictionary<string, double>(availableRawHeights, StringComparer.OrdinalIgnoreCase);
-
-            // Обновляем локальные словари с учётом отвязанных точек
+        /// <summary>
+        /// Обновляет локальные словари высот для отключённых общих точек
+        /// </summary>
+        private void UpdateLocalHeightsForDisabledSharedPoints(
+            List<TraverseRow> items,
+            string runName,
+            Dictionary<string, double> availableAdjustedHeights,
+            Dictionary<string, double> availableRawHeights,
+            Dictionary<string, double> adjusted,
+            Dictionary<string, double> raw)
+        {
             var pointsInRun = items.SelectMany(r => new[] { r.BackCode, r.ForeCode })
                 .Where(c => !string.IsNullOrWhiteSpace(c))
                 .Distinct(StringComparer.OrdinalIgnoreCase)
@@ -1409,143 +1400,128 @@ namespace Nivtropy.ViewModels
                         raw[pointCode!] = rawValue;
                 }
             }
+        }
 
-            for (int iteration = 0; iteration < 20; iteration++)
+        /// <summary>
+        /// Итеративно распространяет высоты внутри хода
+        /// </summary>
+        private static void PropagateHeightsIteratively(
+            List<TraverseRow> items,
+            Dictionary<string, double> adjusted,
+            Dictionary<string, double> raw,
+            RunAliasManager aliasManager)
+        {
+            const int maxIterations = 20;
+
+            for (int iteration = 0; iteration < maxIterations; iteration++)
             {
-                bool changedRaw = PropagateHeightsWithinRun(items, raw, useAdjusted: false, AliasFor);
-                bool changedAdjusted = PropagateHeightsWithinRun(items, adjusted, useAdjusted: true, AliasFor);
+                bool changedRaw = PropagateHeightsWithinRun(items, raw, useAdjusted: false, aliasManager.GetAlias);
+                bool changedAdjusted = PropagateHeightsWithinRun(items, adjusted, useAdjusted: true, aliasManager.GetAlias);
 
                 if (!changedRaw && !changedAdjusted)
                     break;
             }
+        }
 
+        /// <summary>
+        /// Присваивает уравненные высоты строкам
+        /// </summary>
+        private void AssignAdjustedHeightsToRows(
+            List<TraverseRow> items,
+            Dictionary<string, double> adjusted,
+            Dictionary<string, double> availableAdjustedHeights,
+            RunAliasManager aliasManager)
+        {
             foreach (var row in items)
             {
-                var backAlias = AliasFor(row, isBack: true);
+                var backAlias = aliasManager.GetAlias(row, isBack: true);
                 if (!string.IsNullOrWhiteSpace(backAlias) && adjusted.TryGetValue(backAlias!, out var backZ))
                 {
                     row.BackHeight = backZ;
                     row.IsBackHeightKnown = IsAnchorAllowed(row.BackCode, availableAdjustedHeights.ContainsKey);
                 }
 
-                var foreAlias = AliasFor(row, isBack: false);
+                var foreAlias = aliasManager.GetAlias(row, isBack: false);
                 if (!string.IsNullOrWhiteSpace(foreAlias) && adjusted.TryGetValue(foreAlias!, out var foreZ))
                 {
                     row.ForeHeight = foreZ;
                     row.IsForeHeightKnown = IsAnchorAllowed(row.ForeCode, availableAdjustedHeights.ContainsKey);
                 }
             }
+        }
 
-            var runRawHeights = new Dictionary<string, List<double>>(StringComparer.OrdinalIgnoreCase);
-
-            double? GetRunHeight(string? alias)
-            {
-                if (string.IsNullOrWhiteSpace(alias))
-                    return null;
-
-                if (runRawHeights.TryGetValue(alias, out var history) && history.Count > 0)
-                {
-                    return history[^1];
-                }
-
-                return raw.TryGetValue(alias, out var value) ? value : null;
-            }
-
-            bool HasRunHistory(string? alias)
-            {
-                return !string.IsNullOrWhiteSpace(alias)
-                    && runRawHeights.TryGetValue(alias!, out var history)
-                    && history.Count > 0;
-            }
-
-            void RecordRunHeight(string? alias, double value)
-            {
-                if (string.IsNullOrWhiteSpace(alias))
-                    return;
-
-                if (!runRawHeights.TryGetValue(alias!, out var history))
-                {
-                    history = new List<double>();
-                    runRawHeights[alias!] = history;
-                }
-
-                history.Add(value);
-
-                if (!raw.ContainsKey(alias!) && !availableRawHeights.ContainsKey(alias!))
-                {
-                    raw[alias!] = value;
-                }
-            }
-
+        /// <summary>
+        /// Прямой проход: расчёт Z0 высот от начала хода
+        /// </summary>
+        private void CalculateRawHeightsForwardPass(
+            List<TraverseRow> items,
+            string runName,
+            RunHeightTracker heightTracker,
+            RunAliasManager aliasManager)
+        {
             foreach (var row in items)
             {
                 var delta = row.DeltaH;
+                var backAlias = aliasManager.GetAlias(row, isBack: true);
+                var foreAlias = aliasManager.GetAlias(row, isBack: false);
 
-                var backAlias = AliasFor(row, isBack: true);
-                var foreAlias = AliasFor(row, isBack: false);
-
-                bool backIsAnchor = !string.IsNullOrWhiteSpace(row.BackCode)
-                    && (_dataViewModel.HasKnownHeight(row.BackCode) ||
-                        (!_dataViewModel.IsSharedPointEnabled(row.BackCode) &&
-                         _dataViewModel.HasKnownHeight(_dataViewModel.GetPointCodeForRun(row.BackCode, runName))));
-                bool foreIsAnchor = !string.IsNullOrWhiteSpace(row.ForeCode)
-                    && (_dataViewModel.HasKnownHeight(row.ForeCode) ||
-                        (!_dataViewModel.IsSharedPointEnabled(row.ForeCode) &&
-                         _dataViewModel.HasKnownHeight(_dataViewModel.GetPointCodeForRun(row.ForeCode, runName))));
-
-                // Подхватываем текущее известное значение (якорь или полученное ранее в этом ходе)
+                // Подхватываем текущее известное значение
                 if (row.BackHeightZ0 == null)
                 {
-                    var existingBack = GetRunHeight(backAlias);
+                    var existingBack = heightTracker.GetHeight(backAlias);
                     if (existingBack.HasValue)
                     {
                         row.BackHeightZ0 = existingBack;
-                        RecordRunHeight(backAlias, existingBack.Value);
+                        heightTracker.RecordHeight(backAlias, existingBack.Value);
                     }
                 }
 
                 if (row.ForeHeightZ0 == null)
                 {
-                    var existingFore = GetRunHeight(foreAlias);
+                    var existingFore = heightTracker.GetHeight(foreAlias);
                     if (existingFore.HasValue)
                     {
                         row.ForeHeightZ0 = existingFore;
-                        RecordRunHeight(foreAlias, existingFore.Value);
+                        heightTracker.RecordHeight(foreAlias, existingFore.Value);
                     }
                 }
 
                 if (!delta.HasValue)
                     continue;
 
-                var backHeight = row.BackHeightZ0 ?? GetRunHeight(backAlias);
-                var foreHeight = row.ForeHeightZ0 ?? GetRunHeight(foreAlias);
+                var backHeight = row.BackHeightZ0 ?? heightTracker.GetHeight(backAlias);
+                var foreHeight = row.ForeHeightZ0 ?? heightTracker.GetHeight(foreAlias);
 
                 if (backHeight.HasValue)
                 {
                     var computedFore = backHeight.Value + delta.Value;
                     row.ForeHeightZ0 = computedFore;
-                    RecordRunHeight(foreAlias, computedFore);
+                    heightTracker.RecordHeight(foreAlias, computedFore);
                 }
                 else if (foreHeight.HasValue)
                 {
                     var computedBack = foreHeight.Value - delta.Value;
                     row.BackHeightZ0 = computedBack;
-                    RecordRunHeight(backAlias, computedBack);
+                    heightTracker.RecordHeight(backAlias, computedBack);
                 }
 
-                // Если обе стороны уже имели значения до расчёта, фиксируем их для повторных точек
-                if (backHeight.HasValue && !HasRunHistory(backAlias))
-                {
-                    RecordRunHeight(backAlias, backHeight.Value);
-                }
-                if (foreHeight.HasValue && !HasRunHistory(foreAlias))
-                {
-                    RecordRunHeight(foreAlias, foreHeight.Value);
-                }
+                // Фиксируем значения для повторных точек
+                if (backHeight.HasValue && !heightTracker.HasHistory(backAlias))
+                    heightTracker.RecordHeight(backAlias, backHeight.Value);
+                if (foreHeight.HasValue && !heightTracker.HasHistory(foreAlias))
+                    heightTracker.RecordHeight(foreAlias, foreHeight.Value);
             }
+        }
 
-            // Обратный проход: распространяем высоты Z0 назад от известных точек
-            // Это необходимо когда известная точка находится в середине хода
+        /// <summary>
+        /// Обратный проход: распространение Z0 высот от конца хода
+        /// </summary>
+        private static void CalculateRawHeightsBackwardPass(
+            List<TraverseRow> items,
+            Dictionary<string, double> adjusted,
+            RunHeightTracker heightTracker,
+            RunAliasManager aliasManager)
+        {
             for (int i = items.Count - 1; i >= 0; i--)
             {
                 var row = items[i];
@@ -1555,38 +1531,32 @@ namespace Nivtropy.ViewModels
                 if (!delta.HasValue)
                     continue;
 
-                var backAlias = AliasFor(row, isBack: true);
-                var foreAlias = AliasFor(row, isBack: false);
+                var backAlias = aliasManager.GetAlias(row, isBack: true);
+                var foreAlias = aliasManager.GetAlias(row, isBack: false);
 
-                // Если ForeHeightZ0 известна, а BackHeightZ0 нет - вычисляем назад
                 if (row.ForeHeightZ0.HasValue && !row.BackHeightZ0.HasValue)
                 {
                     var computedBack = row.ForeHeightZ0.Value - delta.Value;
                     row.BackHeightZ0 = computedBack;
-                    RecordRunHeight(backAlias, computedBack);
+                    heightTracker.RecordHeight(backAlias, computedBack);
 
-                    // Также обновляем adjusted и BackHeight для передачи между ходами
                     if (!string.IsNullOrWhiteSpace(backAlias) && !adjusted.ContainsKey(backAlias!))
                     {
-                        // Для adjusted используем ForeHeight (уравненную) если есть, иначе ForeHeightZ0
                         var foreAdjusted = row.ForeHeight ?? row.ForeHeightZ0;
                         if (foreAdjusted.HasValue && adjustedDelta.HasValue)
                         {
                             var computedBackAdj = foreAdjusted.Value - adjustedDelta.Value;
                             adjusted[backAlias!] = computedBackAdj;
-                            // Обновляем BackHeight для отображения в таблице
                             row.BackHeight ??= computedBackAdj;
                         }
                     }
                 }
-                // Если BackHeightZ0 известна, а ForeHeightZ0 нет - вычисляем вперёд (на всякий случай)
                 else if (row.BackHeightZ0.HasValue && !row.ForeHeightZ0.HasValue)
                 {
                     var computedFore = row.BackHeightZ0.Value + delta.Value;
                     row.ForeHeightZ0 = computedFore;
-                    RecordRunHeight(foreAlias, computedFore);
+                    heightTracker.RecordHeight(foreAlias, computedFore);
 
-                    // Также обновляем adjusted и ForeHeight для передачи между ходами
                     if (!string.IsNullOrWhiteSpace(foreAlias) && !adjusted.ContainsKey(foreAlias!))
                     {
                         var backAdjusted = row.BackHeight ?? row.BackHeightZ0;
@@ -1594,20 +1564,27 @@ namespace Nivtropy.ViewModels
                         {
                             var computedForeAdj = backAdjusted.Value + adjustedDelta.Value;
                             adjusted[foreAlias!] = computedForeAdj;
-                            // Обновляем ForeHeight для отображения в таблице
                             row.ForeHeight ??= computedForeAdj;
                         }
                     }
                 }
             }
+        }
 
-            // Обновляем виртуальные станции (первая точка хода без DeltaH)
-            // которые могли получить высоту от следующей станции
+        /// <summary>
+        /// Обновляет виртуальные станции (первая точка хода без DeltaH)
+        /// </summary>
+        private static void UpdateVirtualStations(
+            List<TraverseRow> items,
+            Dictionary<string, double> adjusted,
+            Dictionary<string, double> raw,
+            RunAliasManager aliasManager)
+        {
             foreach (var row in items)
             {
                 if (!row.DeltaH.HasValue && !string.IsNullOrWhiteSpace(row.BackCode))
                 {
-                    var backAlias = AliasFor(row, isBack: true);
+                    var backAlias = aliasManager.GetAlias(row, isBack: true);
                     if (!string.IsNullOrWhiteSpace(backAlias) && adjusted.TryGetValue(backAlias!, out var height))
                     {
                         row.BackHeight ??= height;
@@ -1615,21 +1592,22 @@ namespace Nivtropy.ViewModels
                     }
                 }
             }
+        }
 
+        /// <summary>
+        /// Обновляет глобальные словари доступных высот
+        /// </summary>
+        private static void UpdateAvailableHeights(
+            Dictionary<string, double> adjusted,
+            Dictionary<string, double> availableAdjustedHeights,
+            Dictionary<string, double> availableRawHeights,
+            RunAliasManager aliasManager)
+        {
             foreach (var kvp in adjusted)
             {
-                if (!IsCopyAlias(kvp.Key) && AllowPropagation(kvp.Key))
+                if (!aliasManager.IsCopyAlias(kvp.Key) && AllowPropagation(kvp.Key))
                 {
                     availableAdjustedHeights[kvp.Key] = kvp.Value;
-                }
-            }
-
-            // Для Z0 смежных точек между ходами используем уравненное Z (adjusted),
-            // чтобы невязка предыдущего хода не переносилась в следующий
-            foreach (var kvp in adjusted)
-            {
-                if (!IsCopyAlias(kvp.Key) && AllowPropagation(kvp.Key))
-                {
                     availableRawHeights[kvp.Key] = kvp.Value;
                 }
             }
@@ -1799,17 +1777,13 @@ namespace Nivtropy.ViewModels
         }
 
         /// <summary>
-        /// Обновляет отображение строк в DataGrid путём принудительного уведомления об изменении
+        /// Обновляет отображение строк в DataGrid путём принудительного обновления представления коллекции
         /// </summary>
         private void RefreshRowsDisplay()
         {
-            // Создаём копию для принудительного обновления привязок
-            var tempRows = _rows.ToList();
-            _rows.Clear();
-            foreach (var row in tempRows)
-            {
-                _rows.Add(row);
-            }
+            // Используем CollectionView.Refresh() вместо пересоздания коллекции - это эффективнее
+            var view = System.Windows.Data.CollectionViewSource.GetDefaultView(_rows);
+            view?.Refresh();
         }
     }
 
