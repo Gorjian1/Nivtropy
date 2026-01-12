@@ -351,16 +351,12 @@ namespace Nivtropy.ViewModels
 
         /// <summary>
         /// Конвертирует данные из TraverseRow в журнальный формат.
-        /// Оптимизировано:
-        /// - Виртуальные станции (только BackCode, нет измерений) показывают только точку
-        /// - Пропускает дублирующуюся заднюю точку, если она совпадает с предыдущей передней
+        /// Каждая станция состоит из 3 строк: BackPoint -> Elevation -> ForePoint
+        /// Виртуальные станции (только начальная точка без измерений) пропускаются.
         /// </summary>
         private void UpdateJournalRows()
         {
             _journalRows.Clear();
-
-            string? previousForeCode = null;
-            string? previousLineName = null;
 
             foreach (var traverseRow in _calculationViewModel.Rows)
             {
@@ -369,32 +365,20 @@ namespace Nivtropy.ViewModels
                 bool isVirtualStation = string.IsNullOrWhiteSpace(traverseRow.ForeCode) && !traverseRow.DeltaH.HasValue;
                 if (isVirtualStation)
                 {
-                    previousLineName = traverseRow.LineName;
-                    // НЕ устанавливаем previousForeCode - первая реальная станция покажет свой BackPoint
                     continue;
                 }
 
-                // Определяем, нужно ли показывать заднюю точку
-                // Пропускаем, если это продолжение хода (BackCode = предыдущий ForeCode в том же ходе)
-                bool isNewLine = !string.Equals(traverseRow.LineName, previousLineName, StringComparison.OrdinalIgnoreCase);
-                bool backCodeMatchesPreviousFore = !string.IsNullOrWhiteSpace(previousForeCode) &&
-                    string.Equals(traverseRow.BackCode, previousForeCode, StringComparison.OrdinalIgnoreCase);
-                bool skipBackPoint = !isNewLine && backCodeMatchesPreviousFore;
-
-                // Строка 1: Задняя точка (BackCode) - только если не дубликат
-                if (!skipBackPoint)
+                // Строка 1: Задняя точка (BackCode)
+                _journalRows.Add(new JournalRow
                 {
-                    _journalRows.Add(new JournalRow
-                    {
-                        RowType = JournalRowType.BackPoint,
-                        StationNumber = traverseRow.Index,
-                        LineName = traverseRow.LineName,
-                        LineSummary = traverseRow.LineSummary,
-                        PointCode = traverseRow.BackCode,
-                        Z0 = traverseRow.BackHeightZ0,
-                        Z = traverseRow.BackHeight
-                    });
-                }
+                    RowType = JournalRowType.BackPoint,
+                    StationNumber = traverseRow.Index,
+                    LineName = traverseRow.LineName,
+                    LineSummary = traverseRow.LineSummary,
+                    PointCode = traverseRow.BackCode,
+                    Z0 = traverseRow.BackHeightZ0,
+                    Z = traverseRow.BackHeight
+                });
 
                 // Строка 2: Превышение (средняя строка с расчётными данными)
                 _journalRows.Add(new JournalRow
@@ -420,9 +404,6 @@ namespace Nivtropy.ViewModels
                     Z0 = traverseRow.ForeHeightZ0,
                     Z = traverseRow.ForeHeight
                 });
-
-                previousForeCode = traverseRow.ForeCode;
-                previousLineName = traverseRow.LineName;
             }
 
             OnPropertyChanged(nameof(JournalRows));
