@@ -2,6 +2,7 @@ using System;
 using System.Globalization;
 using System.Linq;
 using System.Windows.Data;
+using Nivtropy.Constants;
 using Nivtropy.Models;
 
 namespace Nivtropy.Converters
@@ -24,7 +25,7 @@ namespace Nivtropy.Converters
                         .Where(r => r.DeltaH.HasValue)
                         .Sum(r => r.DeltaH!.Value);
 
-                    return fallback.ToString("+0.0000;-0.0000;0.0000");
+                    return fallback.ToString(DisplayFormats.DeltaH);
                 }
 
                 var journalRows = group.Items.OfType<JournalRow>().ToList();
@@ -38,10 +39,10 @@ namespace Nivtropy.Converters
                         .Where(r => r.RowType == JournalRowType.Elevation && r.DeltaH.HasValue)
                         .Sum(r => r.DeltaH!.Value);
 
-                    return fallback.ToString("+0.0000;-0.0000;0.0000");
+                    return fallback.ToString(DisplayFormats.DeltaH);
                 }
 
-                return "—";
+                return DisplayFormats.EmptyValue;
             }
 
             return null;

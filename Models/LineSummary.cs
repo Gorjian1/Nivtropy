@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Nivtropy.Constants;
 
 namespace Nivtropy.Models
 {
@@ -131,8 +132,8 @@ namespace Nivtropy.Models
         /// Человекочитаемое представление невязок (через запятую)
         /// </summary>
         public string ClosuresDisplay => Closures.Count > 0
-            ? string.Join(", ", Closures.Select(c => c.ToString("+0.0000;-0.0000;0.0000")))
-            : "—";
+            ? string.Join(", ", Closures.Select(c => c.ToString(DisplayFormats.DeltaH)))
+            : DisplayFormats.EmptyValue;
 
         public void SetClosures(IEnumerable<double> values)
         {
@@ -165,8 +166,8 @@ namespace Nivtropy.Models
             get
             {
                 var delta = DeltaHSum.HasValue
-                    ? string.Format(System.Globalization.CultureInfo.InvariantCulture, "ΣΔh = {0:+0.0000;-0.0000;0.0000} м", DeltaHSum.Value)
-                    : "ΣΔh = —";
+                    ? string.Format(System.Globalization.CultureInfo.InvariantCulture, $"ΣΔh = {{0:{DisplayFormats.DeltaH}}} м", DeltaHSum.Value)
+                    : $"ΣΔh = {DisplayFormats.EmptyValue}";
                 return $"Отсчётов: {RecordCount}, {delta}";
             }
         }

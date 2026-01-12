@@ -1,4 +1,5 @@
 using System;
+using Nivtropy.Constants;
 
 namespace Nivtropy.Models
 {
@@ -100,10 +101,10 @@ namespace Nivtropy.Models
         {
             CorrectionDisplayMode.None => string.Empty,
             CorrectionDisplayMode.Single => Correction.HasValue
-                ? Correction.Value.ToString("+0.0000;-0.0000;0.0000")
+                ? Correction.Value.ToString(DisplayFormats.DeltaH)
                 : string.Empty,
             CorrectionDisplayMode.Local =>
-                $"{BaselineCorrection?.ToString("+0.0000;-0.0000;0.0000") ?? "—"} / {Correction?.ToString("+0.0000;-0.0000;0.0000") ?? "—"}",
+                $"{BaselineCorrection?.ToString(DisplayFormats.DeltaH) ?? DisplayFormats.EmptyValue} / {Correction?.ToString(DisplayFormats.DeltaH) ?? DisplayFormats.EmptyValue}",
             _ => string.Empty
         };
 

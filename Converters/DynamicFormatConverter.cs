@@ -1,6 +1,7 @@
 using System;
 using System.Globalization;
 using System.Windows.Data;
+using Nivtropy.Constants;
 
 namespace Nivtropy.Converters
 {
@@ -12,13 +13,13 @@ namespace Nivtropy.Converters
         public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture)
         {
             if (values.Length != 2)
-                return "—";
+                return DisplayFormats.EmptyValue;
 
             // values[0] - число для форматирования
-            // values[1] - строка формата (например, "F4" или "+0.0000;-0.0000;0.0000")
+            // values[1] - строка формата (например, "F4" или DisplayFormats.DeltaH)
 
             if (values[0] == null || values[0] is not double number)
-                return "—";
+                return DisplayFormats.EmptyValue;
 
             if (values[1] is not string format || string.IsNullOrEmpty(format))
                 return number.ToString(culture);

@@ -1,4 +1,5 @@
 using System;
+using Nivtropy.Constants;
 
 namespace Nivtropy.Models
 {
@@ -84,22 +85,22 @@ namespace Nivtropy.Models
         /// <summary>
         /// Отображаемая длина станции
         /// </summary>
-        public string StationLengthDisplay => StationLength.HasValue ? StationLength.Value.ToString("0.00") : string.Empty;
+        public string StationLengthDisplay => StationLength.HasValue ? StationLength.Value.ToString(DisplayFormats.Distance) : string.Empty;
 
         /// <summary>
         /// Отображаемое превышение
         /// </summary>
-        public string DeltaHDisplay => DeltaH.HasValue ? DeltaH.Value.ToString("+0.0000;-0.0000;0.0000") : string.Empty;
+        public string DeltaHDisplay => DeltaH.HasValue ? DeltaH.Value.ToString(DisplayFormats.DeltaH) : string.Empty;
 
         /// <summary>
         /// Отображаемая поправка
         /// </summary>
-        public string CorrectionDisplay => Correction.HasValue ? Correction.Value.ToString("+0.0000;-0.0000;0.0000") : string.Empty;
+        public string CorrectionDisplay => Correction.HasValue ? Correction.Value.ToString(DisplayFormats.DeltaH) : string.Empty;
 
         /// <summary>
         /// Отображаемое исправленное превышение
         /// </summary>
-        public string AdjustedDeltaHDisplay => AdjustedDeltaH.HasValue ? AdjustedDeltaH.Value.ToString("+0.0000;-0.0000;0.0000") : string.Empty;
+        public string AdjustedDeltaHDisplay => AdjustedDeltaH.HasValue ? AdjustedDeltaH.Value.ToString(DisplayFormats.DeltaH) : string.Empty;
 
         /// <summary>
         /// Отображаемая высота Z0
