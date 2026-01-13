@@ -1323,7 +1323,7 @@ namespace Nivtropy.ViewModels
             UpdateVirtualStations(items, adjusted, raw, aliasManager);
 
             // Фаза 7: Обновление глобальных словарей доступных высот
-            UpdateAvailableHeights(adjusted, availableAdjustedHeights, availableRawHeights, aliasManager);
+            UpdateAvailableHeights(adjusted, availableAdjustedHeights, availableRawHeights, aliasManager, AllowPropagation);
         }
 
         /// <summary>
@@ -1601,11 +1601,12 @@ namespace Nivtropy.ViewModels
             Dictionary<string, double> adjusted,
             Dictionary<string, double> availableAdjustedHeights,
             Dictionary<string, double> availableRawHeights,
-            RunAliasManager aliasManager)
+            RunAliasManager aliasManager,
+            Func<string, bool> allowPropagation)
         {
             foreach (var kvp in adjusted)
             {
-                if (!aliasManager.IsCopyAlias(kvp.Key) && AllowPropagation(kvp.Key))
+                if (!aliasManager.IsCopyAlias(kvp.Key) && allowPropagation(kvp.Key))
                 {
                     availableAdjustedHeights[kvp.Key] = kvp.Value;
                     availableRawHeights[kvp.Key] = kvp.Value;

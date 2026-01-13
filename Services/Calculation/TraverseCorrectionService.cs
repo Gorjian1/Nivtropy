@@ -32,7 +32,7 @@ namespace Nivtropy.Services.Calculation
     /// <summary>
     /// Результат расчёта поправок для хода
     /// </summary>
-    public class CorrectionCalculationResult
+    public record CorrectionCalculationResult
     {
         public List<StationCorrectionResult> Corrections { get; } = new();
         public List<double> Closures { get; } = new();
