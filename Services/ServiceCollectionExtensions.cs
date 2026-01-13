@@ -7,6 +7,7 @@ using Nivtropy.Services.Statistics;
 using Nivtropy.Services.Dialog;
 using Nivtropy.Services.IO;
 using Nivtropy.Services.Tolerance;
+using Nivtropy.Services.Validation;
 using Nivtropy.Services.Visualization;
 using Nivtropy.ViewModels;
 using Nivtropy.ViewModels.Managers;
@@ -55,6 +56,9 @@ namespace Nivtropy.Services
             services.AddSingleton<ITraverseCalculationService, TraverseCalculationService>();
             services.AddSingleton<ISystemConnectivityService, SystemConnectivityService>();
             services.AddSingleton<ITraverseCorrectionService, TraverseCorrectionService>();
+
+            // Сервис валидации импорта
+            services.AddSingleton<IImportValidationService, ImportValidationService>();
 
             return services;
         }

@@ -7,6 +7,7 @@ using System.Linq;
 using System.Text;
 using Nivtropy.Models;
 using Nivtropy.Services;
+using Nivtropy.Services.Validation;
 using Nivtropy.ViewModels.Base;
 
 namespace Nivtropy.ViewModels
@@ -14,6 +15,7 @@ namespace Nivtropy.ViewModels
     public class DataViewModel : ViewModelBase
     {
         private readonly IDataParser _parser;
+        private readonly IImportValidationService? _validationService;
 
         public ObservableCollection<MeasurementRecord> Records { get; } = new();
         public ObservableCollection<LineSummary> Runs { get; } = new();
@@ -47,9 +49,17 @@ namespace Nivtropy.ViewModels
             set => SetField(ref _selectedRun, value);
         }
 
-        public DataViewModel(IDataParser parser)
+        /// <summary>
+        /// Результат последней валидации импортированных данных
+        /// </summary>
+        public ValidationResult? LastValidationResult { get; private set; }
+
+        public DataViewModel(IDataParser parser) : this(parser, null) { }
+
+        public DataViewModel(IDataParser parser, IImportValidationService? validationService)
         {
             _parser = parser ?? throw new ArgumentNullException(nameof(parser));
+            _validationService = validationService;
             Records.CollectionChanged += (_, __) => IncrementRecordsVersion();
         }
 
@@ -68,6 +78,7 @@ namespace Nivtropy.ViewModels
         public void LoadFromFile(string path)
         {
             SourcePath = path;
+            LastValidationResult = null;
 
             // Уведомляем о начале массового обновления
             BeginBatchUpdate?.Invoke(this, EventArgs.Empty);
@@ -79,6 +90,13 @@ namespace Nivtropy.ViewModels
                 IncrementKnownHeightsVersion();
 
                 var parsed = _parser.Parse(path).ToList();
+
+                // Валидируем данные если сервис доступен
+                if (_validationService != null)
+                {
+                    LastValidationResult = _validationService.Validate(parsed);
+                    OnPropertyChanged(nameof(LastValidationResult));
+                }
 
                 // Фильтрация теперь выполняется в парсере
                 AnnotateRuns(parsed);

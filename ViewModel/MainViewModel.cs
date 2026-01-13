@@ -1,10 +1,12 @@
 using System;
 using System.Linq;
+using System.Text;
 using System.Windows;
 using System.Windows.Input;
 using Microsoft.Win32;
 using Nivtropy.Views;
 using Nivtropy.Services;
+using Nivtropy.Services.Dialog;
 using Nivtropy.Services.Export;
 using Nivtropy.Services.Visualization;
 using Nivtropy.Services.Statistics;
@@ -21,6 +23,7 @@ namespace Nivtropy.ViewModels
         private readonly TraverseJournalView _journalView;
         private readonly TraverseDesignView _designView;
         private readonly SettingsView _settingsView;
+        private readonly IDialogService _dialogService;
 
         private object? _currentView;
         private int _selectedRibbonIndex;
@@ -33,7 +36,8 @@ namespace Nivtropy.ViewModels
             DataGeneratorViewModel dataGeneratorViewModel,
             IProfileVisualizationService profileVisualizationService,
             IProfileStatisticsService profileStatisticsService,
-            ITraverseSystemVisualizationService systemVisualizationService)
+            ITraverseSystemVisualizationService systemVisualizationService,
+            IDialogService dialogService)
         {
             DataViewModel = dataViewModel;
             SettingsViewModel = settingsViewModel;
@@ -41,6 +45,7 @@ namespace Nivtropy.ViewModels
             CalculationViewModel = calculationViewModel;
             JournalViewModel = journalViewModel;
             DataGeneratorViewModel = dataGeneratorViewModel;
+            _dialogService = dialogService;
 
             _dataViewControl = new DataViewControl { DataContext = DataViewModel };
             _journalView = new TraverseJournalView { DataContext = JournalViewModel };
@@ -113,6 +118,47 @@ namespace Nivtropy.ViewModels
                 DataViewModel.LoadFromFile(dlg.FileName);
                 SyncSelectionWithData();
                 UpdateCurrentView();
+
+                // Показываем результат валидации при наличии проблем
+                ShowValidationResults();
+            }
+        }
+
+        private void ShowValidationResults()
+        {
+            var result = DataViewModel.LastValidationResult;
+            if (result == null)
+                return;
+
+            if (!result.IsValid)
+            {
+                var sb = new StringBuilder();
+                sb.AppendLine("При загрузке данных обнаружены ошибки:");
+                sb.AppendLine();
+                foreach (var error in result.Errors.Take(10))
+                {
+                    sb.AppendLine($"• {error}");
+                }
+                if (result.Errors.Count > 10)
+                {
+                    sb.AppendLine($"... и ещё {result.Errors.Count - 10} ошибок");
+                }
+                _dialogService.ShowError(sb.ToString(), "Ошибки валидации");
+            }
+            else if (result.HasWarnings)
+            {
+                var sb = new StringBuilder();
+                sb.AppendLine("При загрузке данных обнаружены предупреждения:");
+                sb.AppendLine();
+                foreach (var warning in result.Warnings.Take(10))
+                {
+                    sb.AppendLine($"• {warning}");
+                }
+                if (result.Warnings.Count > 10)
+                {
+                    sb.AppendLine($"... и ещё {result.Warnings.Count - 10} предупреждений");
+                }
+                _dialogService.ShowWarning(sb.ToString(), "Предупреждения валидации");
             }
         }
 
