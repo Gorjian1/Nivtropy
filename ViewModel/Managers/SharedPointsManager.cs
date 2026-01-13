@@ -102,9 +102,7 @@ namespace Nivtropy.ViewModels.Managers
 
             // Сортируем точки
             var ordered = _sharedPoints
-                .OrderBy(p => PointCodeHelper.Parse(p.Code).isNumeric ? 0 : 1)
-                .ThenBy(p => PointCodeHelper.Parse(p.Code).number)
-                .ThenBy(p => p.Code, StringComparer.OrdinalIgnoreCase)
+                .OrderBy(p => PointCodeHelper.GetSortKey(p.Code))
                 .ToList();
 
             _sharedPoints.Clear();
@@ -126,9 +124,7 @@ namespace Nivtropy.ViewModels.Managers
 
             return _sharedPoints
                 .Where(p => p.IsUsedInRun(run.Index))
-                .OrderBy(p => PointCodeHelper.Parse(p.Code).isNumeric ? 0 : 1)
-                .ThenBy(p => PointCodeHelper.Parse(p.Code).number)
-                .ThenBy(p => p.Code, StringComparer.OrdinalIgnoreCase)
+                .OrderBy(p => PointCodeHelper.GetSortKey(p.Code))
                 .ToList();
         }
 

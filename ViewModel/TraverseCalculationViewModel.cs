@@ -534,9 +534,7 @@ namespace Nivtropy.ViewModels
             // Сортируем по индексу хода, затем по естественному порядку кода (числовой/алфавитный)
             var sortedPoints = pointsDict.Values
                 .OrderBy(p => p.LineIndex)
-                .ThenBy(p => PointCodeHelper.Parse(p.Code).isNumeric ? 0 : 1)
-                .ThenBy(p => PointCodeHelper.Parse(p.Code).number)
-                .ThenBy(p => p.Code, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(p => PointCodeHelper.GetSortKey(p.Code))
                 .ToList();
 
             foreach (var point in sortedPoints)
@@ -555,9 +553,7 @@ namespace Nivtropy.ViewModels
             var selectedSystemId = SelectedSystem?.Id;
 
             foreach (var kvp in _dataViewModel.KnownHeights
-                             .OrderBy(k => PointCodeHelper.Parse(k.Key).isNumeric ? 0 : 1)
-                             .ThenBy(k => PointCodeHelper.Parse(k.Key).number)
-                             .ThenBy(k => k.Key, StringComparer.OrdinalIgnoreCase))
+                             .OrderBy(k => PointCodeHelper.GetSortKey(k.Key)))
             {
                 // Определяем систему для этого репера
                 if (!_benchmarkSystems.TryGetValue(kvp.Key, out var benchmarkSystemId))
@@ -1113,9 +1109,7 @@ namespace Nivtropy.ViewModels
             }
 
             var ordered = _sharedPoints
-                .OrderBy(p => PointCodeHelper.Parse(p.Code).isNumeric ? 0 : 1)
-                .ThenBy(p => PointCodeHelper.Parse(p.Code).number)
-                .ThenBy(p => p.Code, StringComparer.OrdinalIgnoreCase)
+                .OrderBy(p => PointCodeHelper.GetSortKey(p.Code))
                 .ToList();
 
             _sharedPoints.Clear();
@@ -1207,9 +1201,7 @@ namespace Nivtropy.ViewModels
 
             return _sharedPoints
                 .Where(p => p.IsUsedInRun(run.Index))
-                .OrderBy(p => PointCodeHelper.Parse(p.Code).isNumeric ? 0 : 1)
-                .ThenBy(p => PointCodeHelper.Parse(p.Code).number)
-                .ThenBy(p => p.Code, StringComparer.OrdinalIgnoreCase)
+                .OrderBy(p => PointCodeHelper.GetSortKey(p.Code))
                 .ToList();
         }
 

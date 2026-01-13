@@ -126,9 +126,7 @@ namespace Nivtropy.ViewModels.Managers
             _benchmarks.Clear();
 
             foreach (var kvp in _dataViewModel.KnownHeights
-                             .OrderBy(k => PointCodeHelper.Parse(k.Key).isNumeric ? 0 : 1)
-                             .ThenBy(k => PointCodeHelper.Parse(k.Key).number)
-                             .ThenBy(k => k.Key, StringComparer.OrdinalIgnoreCase))
+                             .OrderBy(k => PointCodeHelper.GetSortKey(k.Key)))
             {
                 // Определяем систему для этого репера
                 if (!_benchmarkSystems.TryGetValue(kvp.Key, out var benchmarkSystemId))
