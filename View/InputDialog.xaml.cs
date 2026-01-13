@@ -26,12 +26,13 @@ namespace Nivtropy.Views
             ResponseTextBox.Focus();
         }
 
-        public string Title
+        public new string Title
         {
             get => _title;
             set
             {
                 _title = value;
+                base.Title = value; // Синхронизируем с Window.Title
                 OnPropertyChanged();
             }
         }
