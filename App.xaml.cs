@@ -10,7 +10,7 @@ namespace Nivtropy
     /// Interaction logic for App.xaml
     /// Управляет Dependency Injection контейнером для приложения
     /// </summary>
-    public partial class App : Application
+    public partial class App : System.Windows.Application
     {
         private IServiceProvider? _serviceProvider;
 
