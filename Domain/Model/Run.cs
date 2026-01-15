@@ -22,9 +22,8 @@ public class Run
     /// <summary>Активен ли ход</summary>
     public bool IsActive { get; private set; } = true;
 
-    // TODO: TraverseSystem will be implemented in Stage 3
-    // /// <summary>Система, к которой принадлежит ход</summary>
-    // public TraverseSystem? System { get; internal set; }
+    /// <summary>Система, к которой принадлежит ход</summary>
+    public TraverseSystem? System { get; internal set; }
 
     /// <summary>Наблюдения (станции) хода</summary>
     public IReadOnlyList<Observation> Observations => _observations;
