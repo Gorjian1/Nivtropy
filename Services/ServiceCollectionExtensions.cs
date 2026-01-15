@@ -11,6 +11,8 @@ using Nivtropy.Services.Validation;
 using Nivtropy.Services.Visualization;
 using Nivtropy.ViewModels;
 using Nivtropy.ViewModels.Managers;
+using Nivtropy.Domain.Services;
+using Nivtropy.Application.Mappers;
 
 namespace Nivtropy.Services
 {
@@ -64,6 +66,21 @@ namespace Nivtropy.Services
         }
 
         /// <summary>
+        /// Регистрирует Domain Services (новая архитектура)
+        /// </summary>
+        public static IServiceCollection AddDomainServices(this IServiceCollection services)
+        {
+            // Domain Services (чистая бизнес-логика)
+            services.AddSingleton<IHeightPropagator, HeightPropagator>();
+            services.AddSingleton<IClosureDistributor, ProportionalClosureDistributor>();
+
+            // Application Layer
+            services.AddSingleton<INetworkMapper, NetworkMapper>();
+
+            return services;
+        }
+
+        /// <summary>
         /// Регистрирует ViewModels приложения
         /// </summary>
         public static IServiceCollection AddViewModels(this IServiceCollection services)
@@ -76,6 +93,9 @@ namespace Nivtropy.Services
             services.AddSingleton<TraverseDesignViewModel>();
             services.AddSingleton<DataGeneratorViewModel>();
             services.AddSingleton<MainViewModel>();
+
+            // Новая архитектура (proof-of-concept)
+            services.AddSingleton<NetworkViewModel>();
 
             return services;
         }

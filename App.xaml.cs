@@ -28,6 +28,7 @@ namespace Nivtropy
 
             // Регистрация сервисов, менеджеров и ViewModels
             services.AddApplicationServices();
+            services.AddDomainServices(); // Новая архитектура (DDD + граф)
             services.AddManagers();
             services.AddViewModels();
 
