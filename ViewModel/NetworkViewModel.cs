@@ -9,9 +9,9 @@ using Nivtropy.Domain.Model;
 using Nivtropy.Infrastructure.Persistence;
 using Nivtropy.Legacy.Adapters;
 using Nivtropy.Models;
-using Nivtropy.ViewModel.Base;
+using Nivtropy.ViewModels.Base;
 
-namespace Nivtropy.ViewModel
+namespace Nivtropy.ViewModels
 {
     /// <summary>
     /// ViewModel для работы с нивелирной сетью через новую архитектуру (DDD + граф).
