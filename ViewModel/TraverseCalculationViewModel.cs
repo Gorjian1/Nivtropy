@@ -644,7 +644,7 @@ namespace Nivtropy.ViewModels
 
                 if (records.Count == 0)
                 {
-                    await Application.Current.Dispatcher.InvokeAsync(() =>
+                    await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
                     {
                         _rows.Clear();
                         Closure = null;

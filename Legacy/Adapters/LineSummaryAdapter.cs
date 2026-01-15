@@ -12,7 +12,7 @@ public static class LineSummaryAdapter
     /// <summary>Конвертировать Run в LineSummary для UI</summary>
     public static LineSummary ToLineSummary(Run run, int index)
     {
-        return new LineSummary(
+        var summary = new LineSummary(
             index: index,
             startTarget: run.StartPoint?.Code.Value,
             startStation: run.StartPoint?.Code.Value,
@@ -27,12 +27,15 @@ public static class LineSummaryAdapter
             systemId: run.System?.Id.ToString(),
             isActive: run.IsActive,
             originalLineNumber: run.OriginalNumber ?? index.ToString()
-        )
+        );
+
+        // Устанавливаем невязки через метод
+        if (run.Closure != null)
         {
-            Closures = run.Closure != null
-                ? new List<double> { run.Closure.Value.ValueMm / 1000.0 }
-                : new List<double>()
-        };
+            summary.SetClosures(new[] { run.Closure.Value.ValueMm / 1000.0 });
+        }
+
+        return summary;
     }
 
     /// <summary>Конвертировать все ходы сети в LineSummaries</summary>

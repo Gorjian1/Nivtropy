@@ -187,7 +187,7 @@ namespace Nivtropy.ViewModels
         {
             var aboutWindow = new Views.AboutWindow
             {
-                Owner = Application.Current.MainWindow
+                Owner = System.Windows.Application.Current.MainWindow
             };
             aboutWindow.ShowDialog();
         }

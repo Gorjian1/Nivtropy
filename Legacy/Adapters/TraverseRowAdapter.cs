@@ -27,8 +27,8 @@ public static class TraverseRowAdapter
             BackHeight = obs.From.Height.IsKnown ? obs.From.Height.Value : null,
             ForeHeight = obs.To.Height.IsKnown ? obs.To.Height.Value : null,
             IsBackHeightKnown = obs.From.Height.IsKnown && obs.From.Type == PointType.Benchmark,
-            IsForeHeightKnown = obs.To.Height.IsKnown && obs.To.Type == PointType.Benchmark,
-            IsVirtualStation = false
+            IsForeHeightKnown = obs.To.Height.IsKnown && obs.To.Type == PointType.Benchmark
+            // IsVirtualStation вычисляется автоматически
         };
     }
 
@@ -45,8 +45,7 @@ public static class TraverseRowAdapter
                 LineName = run.Name,
                 Index = 0,
                 BackCode = run.StartPoint.Code.Value,
-                ForeCode = "",
-                IsVirtualStation = true,
+                ForeCode = "", // Пустой ForeCode делает IsVirtualStation = true автоматически
                 BackHeight = run.StartPoint.Height.IsKnown ? run.StartPoint.Height.Value : null,
                 IsBackHeightKnown = run.StartPoint.Type == PointType.Benchmark
             });
