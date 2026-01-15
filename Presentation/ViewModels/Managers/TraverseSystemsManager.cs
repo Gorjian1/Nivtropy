@@ -3,9 +3,9 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using Nivtropy.Presentation.Models;
-using Nivtropy.Presentation.ViewModelss.Base;
+using Nivtropy.Presentation.ViewModels.Base;
 
-namespace Nivtropy.Presentation.ViewModelss.Managers
+namespace Nivtropy.Presentation.ViewModels.Managers
 {
     /// <summary>
     /// Менеджер систем ходов

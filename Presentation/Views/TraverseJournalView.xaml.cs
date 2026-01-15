@@ -2,9 +2,9 @@ using System.Collections.Specialized;
 using System.Windows;
 using System.Windows.Controls;
 using Nivtropy.Models;
-using Nivtropy.Presentation.ViewModelss;
+using Nivtropy.Presentation.ViewModels;
 
-namespace Nivtropy.Presentation.Viewss
+namespace Nivtropy.Presentation.Views
 {
     /// <summary>
     /// Логика взаимодействия для TraverseJournalView.xaml

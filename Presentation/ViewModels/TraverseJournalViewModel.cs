@@ -9,9 +9,9 @@ using System.Windows.Media;
 using Nivtropy.Presentation.Models;
 using Nivtropy.Application.Services;
 using Nivtropy.Presentation.Services;
-using Nivtropy.Presentation.ViewModelss.Base;
+using Nivtropy.Presentation.ViewModels.Base;
 
-namespace Nivtropy.Presentation.ViewModelss
+namespace Nivtropy.Presentation.ViewModels
 {
     /// <summary>
     /// ViewModel для журнального представления нивелирного хода.

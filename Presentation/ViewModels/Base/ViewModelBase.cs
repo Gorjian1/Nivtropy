@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 
-namespace Nivtropy.Presentation.ViewModelss.Base
+namespace Nivtropy.Presentation.ViewModels.Base
 {
     /// <summary>
     /// Базовый класс для всех ViewModel с общей логикой:

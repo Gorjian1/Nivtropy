@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using Nivtropy.Presentation.Models;
 
-namespace Nivtropy.Presentation.ViewModelss.Helpers
+namespace Nivtropy.Presentation.ViewModels.Helpers
 {
     /// <summary>
     /// Управляет alias'ами точек для обработки повторяющихся кодов внутри хода.

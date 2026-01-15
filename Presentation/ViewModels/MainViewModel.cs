@@ -4,15 +4,15 @@ using System.Text;
 using System.Windows;
 using System.Windows.Input;
 using Microsoft.Win32;
-using Nivtropy.Presentation.Viewss;
+using Nivtropy.Presentation.Views;
 using Nivtropy.Services;
 using Nivtropy.Presentation.Services;
 using Nivtropy.Infrastructure.Export;
 using Nivtropy.Presentation.Services;
 using Nivtropy.Application.Services;
-using Nivtropy.Presentation.ViewModelss.Base;
+using Nivtropy.Presentation.ViewModels.Base;
 
-namespace Nivtropy.Presentation.ViewModelss
+namespace Nivtropy.Presentation.ViewModels
 {
     /// <summary>
     /// Главная ViewModel приложения с поддержкой Dependency Injection

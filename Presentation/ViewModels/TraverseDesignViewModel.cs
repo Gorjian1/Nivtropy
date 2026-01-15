@@ -6,9 +6,9 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using Nivtropy.Presentation.Models;
 using Nivtropy.Services;
-using Nivtropy.Presentation.ViewModelss.Base;
+using Nivtropy.Presentation.ViewModels.Base;
 
-namespace Nivtropy.Presentation.ViewModelss
+namespace Nivtropy.Presentation.ViewModels
 {
     public class TraverseDesignViewModel : ViewModelBase
     {

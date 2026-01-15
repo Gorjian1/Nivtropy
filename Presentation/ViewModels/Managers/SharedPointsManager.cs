@@ -5,9 +5,9 @@ using System.Globalization;
 using System.Linq;
 using Nivtropy.Presentation.Models;
 using Nivtropy.Utilities;
-using Nivtropy.Presentation.ViewModelss.Base;
+using Nivtropy.Presentation.ViewModels.Base;
 
-namespace Nivtropy.Presentation.ViewModelss.Managers
+namespace Nivtropy.Presentation.ViewModels.Managers
 {
     /// <summary>
     /// Менеджер общих точек между ходами

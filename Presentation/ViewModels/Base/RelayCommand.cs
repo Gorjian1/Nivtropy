@@ -1,7 +1,7 @@
 using System;
 using System.Windows.Input;
 
-namespace Nivtropy.Presentation.ViewModelss.Base
+namespace Nivtropy.Presentation.ViewModels.Base
 {
     /// <summary>
     /// Реализация ICommand для привязки команд в MVVM

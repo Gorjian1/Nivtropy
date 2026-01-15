@@ -13,9 +13,9 @@ using ClosedXML.Excel;
 using Microsoft.Win32;
 using Nivtropy.Presentation.Models;
 using Nivtropy.Presentation.Services;
-using Nivtropy.Presentation.ViewModelss.Base;
+using Nivtropy.Presentation.ViewModels.Base;
 
-namespace Nivtropy.Presentation.ViewModelss
+namespace Nivtropy.Presentation.ViewModels
 {
     /// <summary>
     /// ViewModel для генерации синтетических данных измерений

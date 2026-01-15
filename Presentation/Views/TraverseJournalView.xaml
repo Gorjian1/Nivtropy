@@ -1,4 +1,4 @@
-<UserControl x:Class="Nivtropy.Views.TraverseJournalView"
+<UserControl x:Class="Nivtropy.Presentation.Views.TraverseJournalView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:converters="clr-namespace:Nivtropy.Presentation.Converters"

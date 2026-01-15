@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 
-namespace Nivtropy.Presentation.ViewModelss.Helpers
+namespace Nivtropy.Presentation.ViewModels.Helpers
 {
     /// <summary>
     /// Отслеживает историю высот точек внутри хода.

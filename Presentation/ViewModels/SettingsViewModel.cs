@@ -2,9 +2,9 @@ using System.IO;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
 using Nivtropy.Presentation.Models;
-using Nivtropy.Presentation.ViewModelss.Base;
+using Nivtropy.Presentation.ViewModels.Base;
 
-namespace Nivtropy.Presentation.ViewModelss
+namespace Nivtropy.Presentation.ViewModels
 {
     public class SettingsViewModel : ViewModelBase
     {

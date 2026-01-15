@@ -6,7 +6,7 @@ using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Shapes;
 using Nivtropy.Models;
-using Nivtropy.Presentation.ViewModelss;
+using Nivtropy.Presentation.ViewModels;
 
 namespace Nivtropy.Presentation.Services
 {

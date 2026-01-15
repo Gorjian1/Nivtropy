@@ -11,9 +11,9 @@ using System.Windows.Shapes;
 using Microsoft.Extensions.DependencyInjection;
 using Nivtropy.Models;
 using Nivtropy.Presentation.Services;
-using Nivtropy.Presentation.ViewModelss;
+using Nivtropy.Presentation.ViewModels;
 
-namespace Nivtropy.Presentation.Viewss
+namespace Nivtropy.Presentation.Views
 {
     public partial class TraverseDesignView : UserControl
     {

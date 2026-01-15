@@ -1,6 +1,6 @@
 using System.Windows.Controls;
 
-namespace Nivtropy.Presentation.Viewss
+namespace Nivtropy.Presentation.Views
 {
     public partial class SettingsView : UserControl
     {

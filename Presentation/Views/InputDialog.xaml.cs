@@ -2,7 +2,7 @@ using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Windows;
 
-namespace Nivtropy.Presentation.Viewss
+namespace Nivtropy.Presentation.Views
 {
     /// <summary>
     /// Простой диалог для ввода текста

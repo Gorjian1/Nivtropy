@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using Nivtropy.Presentation.Models;
 
-namespace Nivtropy.Presentation.ViewModelss.Managers
+namespace Nivtropy.Presentation.ViewModels.Managers
 {
     /// <summary>
     /// Интерфейс менеджера общих точек между ходами

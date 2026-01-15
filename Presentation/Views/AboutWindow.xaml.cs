@@ -4,7 +4,7 @@ using System.Windows;
 using System.Windows.Documents;
 using System.Windows.Media;
 
-namespace Nivtropy.Presentation.Viewss
+namespace Nivtropy.Presentation.Views
 {
     public partial class AboutWindow : Window
     {

@@ -17,12 +17,12 @@ using Nivtropy.Services;
 using Nivtropy.Services.Calculation;
 using Nivtropy.Infrastructure.Export;
 using Nivtropy.Utilities;
-using Nivtropy.Presentation.ViewModelss.Base;
-using Nivtropy.Presentation.ViewModelss.Helpers;
-using Nivtropy.Presentation.ViewModelss.Managers;
+using Nivtropy.Presentation.ViewModels.Base;
+using Nivtropy.Presentation.ViewModels.Helpers;
+using Nivtropy.Presentation.ViewModels.Managers;
 using Nivtropy.Constants;
 
-namespace Nivtropy.Presentation.ViewModelss
+namespace Nivtropy.Presentation.ViewModels
 {
     public class TraverseCalculationViewModel : ViewModelBase
     {

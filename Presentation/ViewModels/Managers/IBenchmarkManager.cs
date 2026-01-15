@@ -4,7 +4,7 @@ using System.Collections.ObjectModel;
 using System.Windows.Input;
 using Nivtropy.Presentation.Models;
 
-namespace Nivtropy.Presentation.ViewModelss.Managers
+namespace Nivtropy.Presentation.ViewModels.Managers
 {
     /// <summary>
     /// Интерфейс менеджера реперов (точек с известными высотами)
