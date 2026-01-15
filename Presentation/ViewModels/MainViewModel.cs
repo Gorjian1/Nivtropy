@@ -7,9 +7,9 @@ using Microsoft.Win32;
 using Nivtropy.Presentation.Viewss;
 using Nivtropy.Services;
 using Nivtropy.Presentation.Services;
-using Nivtropy.Services.Export;
+using Nivtropy.Infrastructure.Export;
 using Nivtropy.Presentation.Services;
-using Nivtropy.Services.Statistics;
+using Nivtropy.Application.Services;
 using Nivtropy.Presentation.ViewModelss.Base;
 
 namespace Nivtropy.Presentation.ViewModelss

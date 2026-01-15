@@ -4,25 +4,24 @@ using Nivtropy.Models;
 namespace Nivtropy.Infrastructure.Parsers
 {
     /// <summary>
-    /// Интерфейс для парсеров специфичных форматов файлов нивелирования.
-    /// Реализует паттерн Strategy для поддержки разных форматов данных.
+    /// Интерфейс парсера для конкретного формата файлов нивелирования
     /// </summary>
     public interface IFormatParser
     {
         /// <summary>
-        /// Парсит строки данных в записи измерений
+        /// Вычисляет оценку (0-100) соответствия данных этому формату
         /// </summary>
-        /// <param name="lines">Строки данных</param>
-        /// <param name="filePath">Путь к файлу (для загрузки конфигов)</param>
-        /// <param name="synonymsConfigPath">Путь к конфигурации синонимов</param>
-        /// <returns>Последовательность записей измерений</returns>
-        IEnumerable<MeasurementRecord> Parse(string[] lines, string? filePath = null, string? synonymsConfigPath = null);
+        /// <param name="sampleLines">Первые N строк файла для анализа</param>
+        /// <returns>Оценка от 0 до 100, где 100 - точное соответствие</returns>
+        int GetFormatScore(string[] sampleLines);
 
         /// <summary>
-        /// Проверяет, поддерживает ли парсер данный формат
+        /// Парсит строки файла в записи измерений
         /// </summary>
-        /// <param name="sampleLines">Образец строк для анализа</param>
-        /// <returns>Оценка совместимости (0-100)</returns>
-        int GetFormatScore(string[] sampleLines);
+        /// <param name="lines">Строки файла</param>
+        /// <param name="filePath">Путь к файлу (для резолва конфигов)</param>
+        /// <param name="synonymsConfigPath">Путь к конфигу синонимов</param>
+        /// <returns>Перечисление записей измерений</returns>
+        IEnumerable<MeasurementRecord> Parse(string[] lines, string? filePath = null, string? synonymsConfigPath = null);
     }
 }

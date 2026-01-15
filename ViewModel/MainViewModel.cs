@@ -7,9 +7,9 @@ using Microsoft.Win32;
 using Nivtropy.Views;
 using Nivtropy.Services;
 using Nivtropy.Services.Dialog;
-using Nivtropy.Services.Export;
+using Nivtropy.Infrastructure.Export;
 using Nivtropy.Services.Visualization;
-using Nivtropy.Services.Statistics;
+using Nivtropy.Application.Services;
 using Nivtropy.ViewModels.Base;
 
 namespace Nivtropy.ViewModels

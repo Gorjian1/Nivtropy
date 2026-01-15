@@ -1,17 +1,14 @@
 using Microsoft.Extensions.DependencyInjection;
-using Nivtropy.Services;
-using Nivtropy.Services.Calculation;
-using Nivtropy.Services.Export;
+using Nivtropy.Infrastructure.Parsers;
+using Nivtropy.Infrastructure.Export;
 using Nivtropy.Services.Logging;
-using Nivtropy.Services.Statistics;
+using Nivtropy.Application.Services;
 using Nivtropy.Services.Dialog;
 using Nivtropy.Services.IO;
-using Nivtropy.Services.Tolerance;
-using Nivtropy.Services.Validation;
+using Nivtropy.Domain.Services;
 using Nivtropy.Services.Visualization;
 using Nivtropy.ViewModels;
 using Nivtropy.ViewModels.Managers;
-using Nivtropy.Domain.Services;
 using Nivtropy.Application.Mappers;
 using Nivtropy.Application.Commands.Handlers;
 using Nivtropy.Application.Queries;
@@ -41,7 +38,7 @@ namespace Nivtropy.Services
 
             // Сервисы парсинга и построения данных
             services.AddSingleton<IDataParser, DatParser>();
-            services.AddSingleton<ITraverseBuilder, TraverseBuilder>();
+            // services.AddSingleton<ITraverseBuilder, TraverseBuilder>(); // REMOVED: Stage 8 - replaced by Application commands
 
             // Сервисы визуализации
             services.AddSingleton<IProfileVisualizationService, ProfileVisualizationService>();
@@ -54,13 +51,13 @@ namespace Nivtropy.Services
             // Сервисы экспорта
             services.AddSingleton<IExportService, TraverseExportService>();
 
-            // Сервисы работы с допусками
-            services.AddSingleton<IToleranceService, ToleranceService>();
+            // Сервисы работы с допусками (moved to Domain)
+            services.AddSingleton<IToleranceCalculator, ToleranceCalculator>();
 
-            // Сервисы расчётов
-            services.AddSingleton<ITraverseCalculationService, TraverseCalculationService>();
-            services.AddSingleton<ISystemConnectivityService, SystemConnectivityService>();
-            services.AddSingleton<ITraverseCorrectionService, TraverseCorrectionService>();
+            // REMOVED: Stage 8 - Legacy calculation services replaced by Domain services
+            // services.AddSingleton<ITraverseCalculationService, TraverseCalculationService>();
+            // services.AddSingleton<ISystemConnectivityService, SystemConnectivityService>();
+            // services.AddSingleton<ITraverseCorrectionService, TraverseCorrectionService>();
 
             // Сервис валидации импорта
             services.AddSingleton<IImportValidationService, ImportValidationService>();

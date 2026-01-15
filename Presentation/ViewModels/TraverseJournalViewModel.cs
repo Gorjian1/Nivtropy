@@ -7,7 +7,7 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Windows.Media;
 using Nivtropy.Models;
-using Nivtropy.Services.Statistics;
+using Nivtropy.Application.Services;
 using Nivtropy.Presentation.Services;
 using Nivtropy.Presentation.ViewModelss.Base;
 

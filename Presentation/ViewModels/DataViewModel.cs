@@ -6,8 +6,8 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using Nivtropy.Models;
-using Nivtropy.Services;
-using Nivtropy.Services.Validation;
+using Nivtropy.Infrastructure.Parsers;
+using Nivtropy.Application.Services;
 using Nivtropy.Presentation.ViewModelss.Base;
 
 namespace Nivtropy.Presentation.ViewModelss
