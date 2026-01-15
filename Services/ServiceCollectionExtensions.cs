@@ -13,6 +13,9 @@ using Nivtropy.ViewModels;
 using Nivtropy.ViewModels.Managers;
 using Nivtropy.Domain.Services;
 using Nivtropy.Application.Mappers;
+using Nivtropy.Application.Commands.Handlers;
+using Nivtropy.Application.Queries;
+using Nivtropy.Infrastructure.Persistence;
 
 namespace Nivtropy.Services
 {
@@ -66,16 +69,23 @@ namespace Nivtropy.Services
         }
 
         /// <summary>
-        /// Регистрирует Domain Services (новая архитектура)
+        /// Регистрирует Domain Services и Application Layer (новая архитектура)
         /// </summary>
         public static IServiceCollection AddDomainServices(this IServiceCollection services)
         {
+            // Infrastructure: Repository
+            services.AddSingleton<INetworkRepository, InMemoryNetworkRepository>();
+
             // Domain Services (чистая бизнес-логика)
             services.AddSingleton<IHeightPropagator, HeightPropagator>();
             services.AddSingleton<IClosureDistributor, ProportionalClosureDistributor>();
 
-            // Application Layer
+            // Application Layer: Mappers
             services.AddSingleton<INetworkMapper, NetworkMapper>();
+
+            // Application Layer: Handlers (CQRS)
+            services.AddSingleton<CalculateHeightsHandler>();
+            services.AddSingleton<GetNetworkSummaryHandler>();
 
             return services;
         }

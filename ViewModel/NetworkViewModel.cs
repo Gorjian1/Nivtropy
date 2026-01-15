@@ -1,9 +1,12 @@
 using System;
 using System.Collections.ObjectModel;
+using System.Threading.Tasks;
 using Nivtropy.Application.DTOs;
-using Nivtropy.Application.Mappers;
+using Nivtropy.Application.Commands;
+using Nivtropy.Application.Commands.Handlers;
+using Nivtropy.Application.Queries;
 using Nivtropy.Domain.Model;
-using Nivtropy.Domain.Services;
+using Nivtropy.Infrastructure.Persistence;
 using Nivtropy.Legacy.Adapters;
 using Nivtropy.Models;
 using Nivtropy.ViewModel.Base;
@@ -12,25 +15,26 @@ namespace Nivtropy.ViewModel
 {
     /// <summary>
     /// ViewModel для работы с нивелирной сетью через новую архитектуру (DDD + граф).
-    /// Proof-of-concept для демонстрации миграции на новую архитектуру.
+    /// Фаза 2: Использует Commands/Queries/Handlers (Application Layer).
     /// </summary>
     public class NetworkViewModel : ViewModelBase
     {
-        private readonly IHeightPropagator _heightPropagator;
-        private readonly IClosureDistributor _closureDistributor;
-        private readonly INetworkMapper _networkMapper;
+        private readonly INetworkRepository _repository;
+        private readonly CalculateHeightsHandler _calculateHandler;
+        private readonly GetNetworkSummaryHandler _summaryHandler;
 
+        private Guid _networkId;
         private LevelingNetwork? _network;
         private NetworkAdapter? _adapter;
 
         public NetworkViewModel(
-            IHeightPropagator heightPropagator,
-            IClosureDistributor closureDistributor,
-            INetworkMapper networkMapper)
+            INetworkRepository repository,
+            CalculateHeightsHandler calculateHandler,
+            GetNetworkSummaryHandler summaryHandler)
         {
-            _heightPropagator = heightPropagator;
-            _closureDistributor = closureDistributor;
-            _networkMapper = networkMapper;
+            _repository = repository;
+            _calculateHandler = calculateHandler;
+            _summaryHandler = summaryHandler;
         }
 
         /// <summary>Текущая нивелирная сеть</summary>
@@ -58,15 +62,20 @@ namespace Nivtropy.ViewModel
         /// <summary>Сводка по сети (DTO)</summary>
         public NetworkSummaryDto? Summary { get; private set; }
 
-        /// <summary>Создать новую пустую сеть</summary>
-        public void CreateNewNetwork(string name = "Новый проект")
+        /// <summary>Невязки ходов</summary>
+        public ObservableCollection<RunClosureDto> Closures { get; } = new();
+
+        /// <summary>Создать новую сеть (Фаза 2: через репозиторий)</summary>
+        public async Task CreateNewNetworkAsync(string name = "Новый проект")
         {
             Network = new LevelingNetwork(name);
-            RefreshUI();
+            _networkId = Network.Id;
+            await _repository.SaveAsync(Network);
+            await RefreshUIAsync();
         }
 
-        /// <summary>Установить высоту репера</summary>
-        public void SetBenchmarkHeight(string pointCode, double heightMeters)
+        /// <summary>Установить высоту репера (Фаза 2)</summary>
+        public async Task SetBenchmarkHeightAsync(string pointCode, double heightMeters)
         {
             if (_network == null) return;
 
@@ -74,40 +83,34 @@ namespace Nivtropy.ViewModel
                 new Domain.ValueObjects.PointCode(pointCode),
                 Domain.ValueObjects.Height.Known(heightMeters));
 
-            RefreshUI();
+            await _repository.SaveAsync(_network);
+            await RefreshUIAsync();
         }
 
-        /// <summary>Вычислить высоты</summary>
-        public void CalculateHeights()
+        /// <summary>Вычислить высоты (Фаза 2: через Handler)</summary>
+        public async Task CalculateHeightsAsync()
         {
-            if (_network == null) return;
+            if (_networkId == Guid.Empty) return;
 
-            // 1. Вычисляем невязки и распределяем поправки
-            foreach (var run in _network.Runs)
-            {
-                if (!run.IsActive) continue;
+            // Используем Handler (Application Layer)
+            var result = await _calculateHandler.HandleAsync(
+                new CalculateHeightsCommand(_networkId));
 
-                // Вычисляем допуск (упрощённо: 10мм на корень из длины в км)
-                var lengthKm = run.TotalLength.Kilometers;
-                var toleranceMm = 10.0 * Math.Sqrt(lengthKm);
+            // Обновляем невязки
+            Closures.Clear();
+            foreach (var closure in result.Closures)
+                Closures.Add(closure);
 
-                run.CalculateClosure(toleranceMm);
-
-                if (run.Closure?.IsWithinTolerance == true)
-                {
-                    _closureDistributor.DistributeClosureWithSections(run);
-                }
-            }
-
-            // 2. Распространяем высоты от реперов
-            _heightPropagator.PropagateHeights(_network);
-
-            RefreshUI();
+            await RefreshUIAsync();
         }
 
-        /// <summary>Обновить UI данные</summary>
-        private void RefreshUI()
+        /// <summary>Обновить UI (Фаза 2: через Query Handler)</summary>
+        private async Task RefreshUIAsync()
         {
+            // Получаем актуальную сеть из репозитория
+            _network = await _repository.GetByIdAsync(_networkId);
+            _adapter = _network != null ? new NetworkAdapter(_network) : null;
+
             if (_network == null || _adapter == null)
             {
                 Runs.Clear();
@@ -116,7 +119,7 @@ namespace Nivtropy.ViewModel
                 return;
             }
 
-            // Обновляем через адаптер (для обратной совместимости)
+            // Обновляем Legacy коллекции (для обратной совместимости)
             Runs.Clear();
             foreach (var run in _adapter.GetLineSummaries())
                 Runs.Add(run);
@@ -125,8 +128,9 @@ namespace Nivtropy.ViewModel
             foreach (var row in _adapter.GetAllTraverseRows())
                 Rows.Add(row);
 
-            // Обновляем DTO (новый подход)
-            Summary = _networkMapper.ToSummaryDto(_network);
+            // Обновляем DTO через Query Handler
+            Summary = await _summaryHandler.HandleAsync(
+                new GetNetworkSummaryQuery(_networkId));
             OnPropertyChanged(nameof(Summary));
         }
     }
