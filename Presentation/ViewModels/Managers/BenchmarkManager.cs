@@ -4,7 +4,7 @@ using System.Collections.ObjectModel;
 using System.Globalization;
 using System.Linq;
 using System.Windows.Input;
-using Nivtropy.Models;
+using Nivtropy.Presentation.Models;
 using Nivtropy.Utilities;
 using Nivtropy.Presentation.ViewModelss.Base;
 

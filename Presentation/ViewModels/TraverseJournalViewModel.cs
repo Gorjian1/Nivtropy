@@ -6,7 +6,7 @@ using System.ComponentModel;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Windows.Media;
-using Nivtropy.Models;
+using Nivtropy.Presentation.Models;
 using Nivtropy.Application.Services;
 using Nivtropy.Presentation.Services;
 using Nivtropy.Presentation.ViewModelss.Base;

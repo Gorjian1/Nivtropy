@@ -5,7 +5,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
-using Nivtropy.Models;
+using Nivtropy.Presentation.Models;
 using Nivtropy.Infrastructure.Parsers;
 using Nivtropy.Application.Services;
 using Nivtropy.Presentation.ViewModelss.Base;

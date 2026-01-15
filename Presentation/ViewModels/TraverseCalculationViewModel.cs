@@ -12,7 +12,7 @@ using System.Windows;
 using System.Windows.Input;
 using ClosedXML.Excel;
 using Microsoft.Win32;
-using Nivtropy.Models;
+using Nivtropy.Presentation.Models;
 using Nivtropy.Services;
 using Nivtropy.Services.Calculation;
 using Nivtropy.Infrastructure.Export;

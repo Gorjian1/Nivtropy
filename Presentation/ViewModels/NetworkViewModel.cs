@@ -8,7 +8,7 @@ using Nivtropy.Application.Queries;
 using Nivtropy.Domain.Model;
 using Nivtropy.Infrastructure.Persistence;
 using Nivtropy.Legacy.Adapters;
-using Nivtropy.Models;
+using Nivtropy.Presentation.Models;
 using Nivtropy.Presentation.ViewModelss.Base;
 
 namespace Nivtropy.Presentation.ViewModelss

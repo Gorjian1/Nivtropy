@@ -1,7 +1,7 @@
 namespace Nivtropy.Legacy.Adapters;
 
 using Nivtropy.Domain.Model;
-using Nivtropy.Models;
+using Nivtropy.Presentation.Models;
 
 /// <summary>
 /// Адаптер для получения данных в старом формате из LevelingNetwork.

@@ -2,7 +2,7 @@ namespace Nivtropy.Legacy.Adapters;
 
 using Nivtropy.Domain.Model;
 using Nivtropy.Domain.ValueObjects;
-using Nivtropy.Models;
+using Nivtropy.Presentation.Models;
 
 /// <summary>
 /// Адаптер для конвертации между TraverseRow (старый) и Observation (новый).

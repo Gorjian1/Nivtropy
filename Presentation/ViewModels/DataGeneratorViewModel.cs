@@ -11,7 +11,7 @@ using System.Text;
 using System.Windows.Input;
 using ClosedXML.Excel;
 using Microsoft.Win32;
-using Nivtropy.Models;
+using Nivtropy.Presentation.Models;
 using Nivtropy.Presentation.Services;
 using Nivtropy.Presentation.ViewModelss.Base;
 

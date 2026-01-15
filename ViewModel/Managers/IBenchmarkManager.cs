@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Windows.Input;
-using Nivtropy.Models;
+using Nivtropy.Presentation.Models;
 
 namespace Nivtropy.ViewModels.Managers
 {

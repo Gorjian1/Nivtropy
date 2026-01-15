@@ -4,7 +4,7 @@ using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Linq;
 using System.Runtime.CompilerServices;
-using Nivtropy.Models;
+using Nivtropy.Presentation.Models;
 using Nivtropy.Services;
 using Nivtropy.Presentation.ViewModelss.Base;
 

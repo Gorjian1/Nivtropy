@@ -1,7 +1,7 @@
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
-using Nivtropy.Models;
+using Nivtropy.Presentation.Models;
 using Nivtropy.Presentation.ViewModelss.Base;
 
 namespace Nivtropy.Presentation.ViewModelss

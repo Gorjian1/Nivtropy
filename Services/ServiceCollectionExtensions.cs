@@ -17,13 +17,18 @@ using Nivtropy.Infrastructure.Persistence;
 namespace Nivtropy.Services
 {
     /// <summary>
-    /// Методы расширения для регистрации сервисов приложения в DI контейнере
-    /// Следует принципам SOLID - все зависимости регистрируются в одном месте
+    /// Методы расширения для регистрации сервисов приложения в DI контейнере.
+    /// Организованы по слоям DDD архитектуры:
+    /// - Domain Services (бизнес-логика)
+    /// - Application Services (use cases, orchestration)
+    /// - Infrastructure Services (parsers, persistence, export)
+    /// - Presentation Services (UI-specific)
     /// </summary>
     public static class ServiceCollectionExtensions
     {
         /// <summary>
-        /// Регистрирует все сервисы приложения
+        /// Регистрирует Infrastructure и Application сервисы (legacy + new)
+        /// TODO: Разделить на InfrastructureServices и ApplicationServices после полной миграции
         /// </summary>
         public static IServiceCollection AddApplicationServices(this IServiceCollection services)
         {
