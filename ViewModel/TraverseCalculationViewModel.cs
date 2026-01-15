@@ -670,7 +670,7 @@ namespace Nivtropy.ViewModels
                 token.ThrowIfCancellationRequested();
 
                 // Обновление UI в главном потоке
-                await Application.Current.Dispatcher.InvokeAsync(() =>
+                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
                 {
                     if (token.IsCancellationRequested)
                         return;
