@@ -1,4 +1,5 @@
 using System;
+using Nivtropy.Presentation.Models;
 
 namespace Nivtropy.Models
 {

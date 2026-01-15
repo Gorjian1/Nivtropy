@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using Microsoft.Win32;
 using Nivtropy.Models;
+using Nivtropy.Presentation.Models; // TODO: Remove after migrating to Domain models
 using Nivtropy.Services.Dialog;
 
 namespace Nivtropy.Infrastructure.Export
