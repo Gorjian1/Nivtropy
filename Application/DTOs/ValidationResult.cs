@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 
-namespace Nivtropy.Models
+namespace Nivtropy.Application.DTOs
 {
     /// <summary>
     /// Результат валидации данных с ошибками и предупреждениями
