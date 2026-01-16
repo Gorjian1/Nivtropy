@@ -60,6 +60,9 @@ namespace Nivtropy.Services
             // Сервисы работы с допусками (moved to Domain)
             services.AddSingleton<IToleranceCalculator, ToleranceCalculator>();
 
+            // Сервис расчёта невязки и допусков (Application layer)
+            services.AddSingleton<IClosureCalculationService, ClosureCalculationService>();
+
             // Legacy calculation services (temporary - will migrate to Domain services)
             services.AddSingleton<ISystemConnectivityService, SystemConnectivityService>();
             services.AddSingleton<ITraverseCorrectionService, TraverseCorrectionService>();
