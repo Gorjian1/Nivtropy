@@ -328,15 +328,17 @@ public class LevelingNetwork
     /// <summary>Найти циклы в сети (замкнутые полигоны)</summary>
     public IEnumerable<IReadOnlyList<Point>> FindCycles()
     {
-        // Simplified DFS cycle detection
+        // DFS cycle detection с оптимизированными структурами данных
         var cycles = new List<List<Point>>();
         var visited = new HashSet<Point>();
-        var recursionStack = new List<Point>();
+        var inStack = new HashSet<Point>();  // O(1) для Contains
+        var stack = new List<Point>();       // Для восстановления пути цикла
 
         void DFS(Point current, Point? parent)
         {
             visited.Add(current);
-            recursionStack.Add(current);
+            inStack.Add(current);
+            stack.Add(current);
 
             foreach (var neighbor in current.AdjacentPoints)
             {
@@ -344,16 +346,17 @@ public class LevelingNetwork
                 {
                     DFS(neighbor, current);
                 }
-                else if (neighbor != parent && recursionStack.Contains(neighbor))
+                else if (neighbor != parent && inStack.Contains(neighbor))
                 {
-                    // Найден цикл
-                    var cycleStart = recursionStack.IndexOf(neighbor);
-                    var cycle = recursionStack.Skip(cycleStart).ToList();
+                    // Найден цикл - извлекаем его из стека
+                    var cycleStart = stack.IndexOf(neighbor);
+                    var cycle = stack.Skip(cycleStart).ToList();
                     cycles.Add(cycle);
                 }
             }
 
-            recursionStack.Remove(current);
+            stack.RemoveAt(stack.Count - 1);  // O(1) удаление с конца
+            inStack.Remove(current);
         }
 
         foreach (var point in _points.Values)

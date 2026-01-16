@@ -70,6 +70,7 @@ public class HeightPropagator : IHeightPropagator
         var calculatedCount = 0;
 
         // Пытаемся распространить от начала к концу
+        // Формула: H_fore = H_back + h, где h = Back - Fore
         if (run.StartPoint?.Height.IsKnown == true)
         {
             Height currentHeight = run.StartPoint.Height;
@@ -78,7 +79,7 @@ public class HeightPropagator : IHeightPropagator
             {
                 if (!obs.To.Height.IsKnown)
                 {
-                    var newHeight = Height.Known(currentHeight.Value - obs.AdjustedDeltaH);
+                    var newHeight = Height.Known(currentHeight.Value + obs.AdjustedDeltaH);
                     obs.To.SetCalculatedHeight(newHeight);
                     calculatedCount++;
                 }
@@ -86,6 +87,7 @@ public class HeightPropagator : IHeightPropagator
             }
         }
         // Или от конца к началу
+        // Формула: H_back = H_fore - h
         else if (run.EndPoint?.Height.IsKnown == true)
         {
             Height currentHeight = run.EndPoint.Height;
@@ -95,7 +97,7 @@ public class HeightPropagator : IHeightPropagator
                 var obs = run.Observations[i];
                 if (!obs.From.Height.IsKnown)
                 {
-                    var newHeight = Height.Known(currentHeight.Value + obs.AdjustedDeltaH);
+                    var newHeight = Height.Known(currentHeight.Value - obs.AdjustedDeltaH);
                     obs.From.SetCalculatedHeight(newHeight);
                     calculatedCount++;
                 }

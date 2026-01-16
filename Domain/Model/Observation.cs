@@ -89,21 +89,29 @@ public class Observation
     }
 
     /// <summary>Вычислить высоту передней точки по задней</summary>
+    /// <remarks>
+    /// Формула: H_fore = H_back + h, где h = Back - Fore (превышение).
+    /// При положительном превышении передняя точка выше задней.
+    /// </remarks>
     public Height CalculateForeHeight()
     {
         if (!From.Height.IsKnown)
             return Height.Unknown;
 
-        return Height.Known(From.Height.Value - AdjustedDeltaH);
+        return Height.Known(From.Height.Value + AdjustedDeltaH);
     }
 
     /// <summary>Вычислить высоту задней точки по передней</summary>
+    /// <remarks>
+    /// Формула: H_back = H_fore - h, где h = Back - Fore (превышение).
+    /// Обратная операция к CalculateForeHeight.
+    /// </remarks>
     public Height CalculateBackHeight()
     {
         if (!To.Height.IsKnown)
             return Height.Unknown;
 
-        return Height.Known(To.Height.Value + AdjustedDeltaH);
+        return Height.Known(To.Height.Value - AdjustedDeltaH);
     }
 
     public override string ToString() =>
