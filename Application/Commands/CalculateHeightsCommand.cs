@@ -1,11 +1,12 @@
 namespace Nivtropy.Application.Commands;
 
 using System;
+using Nivtropy.Application.Enums;
 
 /// <summary>
 /// Команда для вычисления высот в сети.
 /// </summary>
-public record CalculateHeightsCommand(Guid NetworkId);
+public record CalculateHeightsCommand(Guid NetworkId, AdjustmentMode Mode);
 
 /// <summary>
 /// Результат вычисления высот.

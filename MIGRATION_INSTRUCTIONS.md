@@ -1,164 +1,566 @@
 # DDD Migration Instructions for Codex
 
-## Current State (after this session)
+## О проекте
 
-The codebase is in a transitional state with:
-- **New DDD architecture** partially implemented in `Domain/`, `Application/`, `Infrastructure/`
-- **Legacy models** still used by ViewModels in `Models/` and `Presentation/Models/`
-- **Duplicate model files** exist in both locations
+**Nivtropy** - WPF приложение для обработки данных геометрического нивелирования.
+Выполняет импорт данных с цифровых нивелиров, расчёт высот точек, уравнивание ходов и экспорт результатов.
 
-### Folder Structure
+## Что было сделано (сессия review-ddd-legacy-removal)
+
+### Исправленные проблемы
+
+1. **Опечатка в namespace** - `ViewModelss` → `ViewModels` (24 файла)
+2. **Удалены дубликаты папок:**
+   - `ViewModel/` (старая) - удалена, используется `Presentation/ViewModels/`
+   - `View/` (старая) - удалена, используется `Presentation/Views/`
+   - `Converters/` (старая) - удалена, используется `Presentation/Converters/`
+   - `Legacy/` - удалена полностью
+   - `Presentation/Services/` - удалена (дубликат `Services/`)
+
+3. **Удалены дубликаты моделей из `Models/`:**
+   - `DesignRow.cs` → оставлен только `Presentation/Models/DesignRow.cs`
+   - `JournalRow.cs` → оставлен только `Presentation/Models/JournalRow.cs`
+   - `OutlierPoint.cs` → оставлен только `Presentation/Models/OutlierPoint.cs`
+   - `RowColoringMode.cs` → оставлен только `Presentation/Models/RowColoringMode.cs`
+
+4. **Исправлены using директивы во всех файлах:**
+   - `Nivtropy.ViewModels` → `Nivtropy.Presentation.ViewModels`
+   - `Nivtropy.Views` → `Nivtropy.Presentation.Views`
+   - `Nivtropy.Presentation.Services` → `Nivtropy.Services.Dialog` / `Nivtropy.Services.Visualization`
+   - Добавлены `using Nivtropy.Presentation.Models` где нужны UI-модели
+
+5. **Исправлен NetworkViewModel:**
+   - `_mapper.ToObservationDto()` → `_mapper.ToDto()`
+
+6. **Восстановлены удалённые файлы (нужны для работы):**
+   - `Presentation/Models/PointItem.cs` (PointItem + BenchmarkItem)
+   - `Presentation/Models/SharedPointLinkItem.cs`
+   - `Presentation/Models/TraverseSystem.cs` (UI версия)
+   - `Services/ITraverseBuilder.cs`
+   - `Services/TraverseBuilder.cs`
+   - `Services/Calculation/TraverseCorrectionService.cs`
+   - `Services/Calculation/SystemConnectivityService.cs`
+
+---
+
+## Текущее состояние кода
+
+### Статистика
+
+| Слой | Файлов | Строк | Статус |
+|------|--------|-------|--------|
+| **Domain/Application/Infrastructure** | 42 | ~3,800 | ✅ Новая DDD архитектура |
+| **Models + Services + Presentation/Models** | 25 | ~2,800 | ⚠️ Legacy (переходный) |
+| **Presentation/ViewModels** | 18 | ~4,800 | 🔄 Рефакторинг идёт |
+| **Presentation/Views + Converters** | - | ~1,850 | ✅ UI (останется) |
+
+### Прогресс миграции
+
+```
+┌─────────────────────────────────────┐
+│  DDD готово:        ~60%           │
+│  Нужно мигрировать: ~25%           │
+│  Удалить потом:     ~15%           │
+└─────────────────────────────────────┘
+```
+
+---
+
+## Архитектура проекта
+
+### Структура папок
 
 ```
 Nivtropy/
-├── Domain/                    # NEW: DDD Domain layer
-│   ├── Model/                 # Domain entities (TraverseSystem, MeasurementStation, etc.)
-│   ├── Services/              # Domain services
-│   └── ValueObjects/          # Value objects (Height, Distance, etc.)
-├── Application/               # NEW: Application layer (CQRS)
-│   ├── Commands/              # Command handlers
-│   ├── Queries/               # Query handlers
-│   ├── DTOs/                  # Data transfer objects
-│   └── Services/              # Application services
-├── Infrastructure/            # NEW: Infrastructure layer
-│   ├── Parsers/               # File parsers
-│   ├── Export/                # Export services
-│   └── Persistence/           # Data persistence
-├── Presentation/              # UI Layer (WPF)
-│   ├── ViewModels/            # MVVM ViewModels (STILL USE LEGACY MODELS)
-│   ├── Views/                 # XAML views
-│   ├── Models/                # UI-specific models (TraverseRow, LineSummary, etc.)
-│   ├── Converters/            # WPF converters
-│   └── Resources/             # Resources, styles
-├── Models/                    # LEGACY: Old models (MeasurementRecord, GeneratedMeasurement, etc.)
-├── Services/                  # Mixed: Some legacy, some new
-│   ├── Dialog/                # Dialog service
-│   ├── Visualization/         # Visualization services
-│   ├── Calculation/           # Calculation services
-│   ├── TraverseBuilder.cs     # Legacy traverse builder
-│   └── ITraverseBuilder.cs
-└── Constants/                 # Application constants
+├── Domain/                      # ✅ DDD Domain Layer
+│   ├── Model/                   # Доменные сущности
+│   │   ├── LevelingNetwork.cs   # Агрегат нивелирной сети
+│   │   ├── Run.cs               # Нивелирный ход
+│   │   ├── Point.cs             # Точка (репер/связующая)
+│   │   ├── Observation.cs       # Наблюдение (станция)
+│   │   └── TraverseSystem.cs    # Система ходов (DOMAIN версия!)
+│   ├── Services/                # Доменные сервисы
+│   └── ValueObjects/            # Value Objects
+│       ├── Height.cs            # Высота (Known/Unknown)
+│       ├── Distance.cs          # Расстояние
+│       ├── PointCode.cs         # Код точки
+│       └── Closure.cs           # Невязка хода
+│
+├── Application/                 # ✅ Application Layer (CQRS)
+│   ├── Commands/                # Команды (изменение состояния)
+│   │   ├── CalculateHeightsCommand.cs
+│   │   └── Handlers/
+│   ├── Queries/                 # Запросы (чтение данных)
+│   │   ├── GetNetworkSummaryQuery.cs
+│   │   └── Handlers/
+│   ├── DTOs/                    # Data Transfer Objects
+│   │   ├── NetworkSummaryDto.cs
+│   │   ├── RunSummaryDto.cs
+│   │   ├── ObservationDto.cs
+│   │   └── PointDto.cs
+│   ├── Mappers/                 # Маппинг Domain → DTO
+│   │   └── NetworkMapper.cs
+│   └── Services/                # Application Services
+│       ├── IProfileStatisticsService.cs
+│       └── ProfileStatisticsService.cs
+│
+├── Infrastructure/              # ✅ Infrastructure Layer
+│   ├── Parsers/                 # Парсеры файлов нивелиров
+│   │   ├── IDataParser.cs
+│   │   ├── DatParser.cs         # Trimble DiNi
+│   │   ├── ForFormatParser.cs   # Leica формат
+│   │   └── TrimbleDiniParser.cs
+│   ├── Export/                  # Экспорт результатов
+│   │   └── TraverseExportService.cs
+│   └── Persistence/             # Хранение данных
+│       ├── INetworkRepository.cs
+│       └── InMemoryNetworkRepository.cs
+│
+├── Presentation/                # UI Layer (WPF MVVM)
+│   ├── ViewModels/              # 🔄 ViewModels (частично на DDD)
+│   │   ├── Base/
+│   │   │   ├── ViewModelBase.cs
+│   │   │   └── RelayCommand.cs
+│   │   ├── MainViewModel.cs
+│   │   ├── NetworkViewModel.cs        # ✅ Использует DDD
+│   │   ├── TraverseCalculationViewModel.cs  # ⚠️ GOD FILE (1824 строки!)
+│   │   ├── TraverseJournalViewModel.cs
+│   │   ├── DataViewModel.cs
+│   │   ├── DataGeneratorViewModel.cs
+│   │   └── TraverseDesignViewModel.cs
+│   ├── Views/                   # XAML Views
+│   ├── Models/                  # ⚠️ UI Models (для DataGrid binding)
+│   │   ├── TraverseRow.cs       # Строка журнала нивелирования
+│   │   ├── LineSummary.cs       # Сводка по ходу
+│   │   ├── JournalRow.cs        # Строка журнала
+│   │   ├── DesignRow.cs         # Строка проектирования
+│   │   ├── PointItem.cs         # Элемент списка точек
+│   │   ├── BenchmarkItem.cs     # Элемент списка реперов
+│   │   ├── SharedPointLinkItem.cs
+│   │   ├── OutlierPoint.cs      # Аномалия
+│   │   ├── RowColoringMode.cs
+│   │   └── TraverseSystem.cs    # UI версия (с INotifyPropertyChanged!)
+│   ├── Converters/              # WPF Value Converters
+│   └── Resources/               # Стили, темы
+│
+├── Models/                      # ⚠️ LEGACY Models
+│   ├── MeasurementRecord.cs     # Запись измерения (используется везде!)
+│   ├── GeneratedMeasurement.cs  # Для генератора тестовых данных
+│   ├── ProfileStatistics.cs     # Статистика профиля
+│   └── ValidationResult.cs      # Результат валидации
+│
+├── Services/                    # ⚠️ Mixed Services
+│   ├── Dialog/                  # UI сервисы
+│   │   ├── IDialogService.cs
+│   │   └── DialogService.cs
+│   ├── Visualization/           # Сервисы визуализации
+│   │   ├── IProfileVisualizationService.cs
+│   │   ├── ProfileVisualizationService.cs
+│   │   └── ...
+│   ├── Calculation/             # Legacy расчёты
+│   │   ├── TraverseCorrectionService.cs
+│   │   └── SystemConnectivityService.cs
+│   ├── ITraverseBuilder.cs      # Legacy builder
+│   ├── TraverseBuilder.cs
+│   └── ServiceCollectionExtensions.cs  # DI регистрация
+│
+└── Constants/                   # Константы приложения
 ```
 
-## Migration Tasks (Priority Order)
+---
 
-### Phase 1: Fix Compilation (DONE by previous sessions)
-- [x] Fix namespace typos (ViewModelss → ViewModels)
-- [x] Delete duplicate folders
-- [x] Restore missing UI models (PointItem, BenchmarkItem, SharedPointLinkItem)
-- [x] Restore missing services (ITraverseBuilder, TraverseBuilder, etc.)
-- [x] Fix using directives across all files
+## ВАЖНО: Два TraverseSystem!
 
-### Phase 2: Consolidate Models (NEXT)
+В проекте есть ДВА класса `TraverseSystem` с РАЗНЫМИ реализациями:
 
-**Goal:** Remove duplication between `Models/` and `Presentation/Models/`
+### 1. Domain версия (`Domain/Model/TraverseSystem.cs`)
+```csharp
+namespace Nivtropy.Domain.Model
+{
+    public class TraverseSystem
+    {
+        public Guid Id { get; }
+        public string Name { get; private set; }
+        public IReadOnlyList<Run> Runs => _runs.AsReadOnly();
 
-Files in `Models/` (namespace `Nivtropy.Models`):
-- `DesignRow.cs` - DUPLICATE, check if same as Presentation version
-- `GeneratedMeasurement.cs` - UNIQUE, used by DataGeneratorViewModel
-- `JournalRow.cs` - DUPLICATE
-- `MeasurementRecord.cs` - UNIQUE, core data model
-- `OutlierPoint.cs` - DUPLICATE
-- `ProfileStatistics.cs` - UNIQUE, used by services
-- `RowColoringMode.cs` - DUPLICATE
-- `ValidationResult.cs` - UNIQUE
+        public void AddRun(Run run) { ... }
+        public void RemoveRun(Run run) { ... }
+        // Бизнес-логика группировки ходов в системы
+    }
+}
+```
 
-Files in `Presentation/Models/` (namespace `Nivtropy.Presentation.Models`):
-- `DesignRow.cs` - UI version
-- `JournalRow.cs` - UI version
-- `LineSummary.cs` - UNIQUE, used by many ViewModels
-- `OutlierPoint.cs` - UI version
-- `PointItem.cs` - UNIQUE, UI model
-- `RowColoringMode.cs` - UI version
-- `SharedPointLinkItem.cs` - UNIQUE, UI model
-- `TraverseRow.cs` - UNIQUE, used everywhere
-- `TraverseSystem.cs` - UI version (different from Domain/Model/TraverseSystem.cs!)
+### 2. UI версия (`Presentation/Models/TraverseSystem.cs`)
+```csharp
+namespace Nivtropy.Presentation.Models
+{
+    public class TraverseSystem : INotifyPropertyChanged
+    {
+        public string Id { get; }
+        public string Name { get; set; }  // С уведомлением UI
+        public List<int> RunIndexes { get; }
 
-**Action items:**
-1. Compare duplicate files, keep only one version
-2. Move unique Models/ files to appropriate location:
-   - `MeasurementRecord.cs` → Keep in Models/ or move to Domain if pure data
-   - `GeneratedMeasurement.cs` → Keep in Models/ (UI-specific)
-   - `ProfileStatistics.cs` → Move to Application/DTOs/ or keep
-   - `ValidationResult.cs` → Move to Application/DTOs/
-3. Update all using directives after consolidation
+        // Для отображения в UI, binding к DataGrid
+    }
+}
+```
 
-### Phase 3: Migrate TraverseCalculationViewModel to DDD
+**НЕ ПУТАТЬ!** При миграции ViewModels нужно маппить между ними.
 
-**This is the most complex ViewModel** (~2000 lines, god-file)
+---
 
-Current dependencies:
-- `TraverseRow` (Presentation/Models)
-- `LineSummary` (Presentation/Models)
-- `MeasurementRecord` (Models)
-- `ITraverseBuilder` (Services)
-- Various calculation methods inline
+## План миграции (для Codex)
 
-**Migration strategy:**
-1. Extract calculation logic to `Application/Services/TraverseCalculationService.cs`
-2. Create Commands/Queries:
-   - `LoadMeasurementsCommand` / `LoadMeasurementsHandler`
-   - `CalculateTraverseQuery` / `CalculateTraverseHandler`
-   - `ApplyCorrectionCommand` / `ApplyCorrectionHandler`
-3. Create DTOs for data transfer:
-   - `TraverseCalculationResultDto`
-   - `StationDataDto`
-4. Refactor ViewModel to use CQRS pattern via MediatR or simple dispatch
-5. Keep UI-specific models (TraverseRow) for DataGrid binding
+### Фаза 1: ✅ ВЫПОЛНЕНО - Компиляция работает
 
-### Phase 4: Migrate Other ViewModels
+Все ошибки компиляции исправлены. Приложение запускается и работает.
 
-Order of complexity (easiest first):
-1. `DataViewModel` - Simple, just displays data
-2. `TraverseDesignViewModel` - Medium complexity
-3. `NetworkViewModel` - Already partially migrated
-4. `DataGeneratorViewModel` - Medium, generates test data
-5. `TraverseJournalViewModel` - Complex, depends on TraverseCalculationViewModel
+---
 
-### Phase 5: Clean Up Legacy Services
+### Фаза 2: ✅ ВЫПОЛНЕНО - Чистая архитектура моделей
 
-After ViewModels are migrated:
-1. Remove `Services/TraverseBuilder.cs` → Use Domain services
-2. Remove `Services/Calculation/TraverseCorrectionService.cs` → Use Application handlers
-3. Remove `Services/Calculation/SystemConnectivityService.cs` → Use Domain services
-4. Update `ServiceCollectionExtensions.cs` to register only DDD services
+**Результат:**
+- `ValidationResult` перенесён в `Application/DTOs/`
+- `ProfileStatistics` перенесён в `Application/DTOs/`
+- `MeasurementRecord` остаётся в `Models/` (зависит от LineSummary)
+- `GeneratedMeasurement` остаётся в `Models/` (UI-специфичная модель)
 
-## Key Files Reference
+#### Текущая структура моделей:
 
-### ViewModels that need migration:
-- `Presentation/ViewModels/TraverseCalculationViewModel.cs` - GOD FILE, priority #1
-- `Presentation/ViewModels/TraverseJournalViewModel.cs` - Depends on above
-- `Presentation/ViewModels/DataViewModel.cs`
-- `Presentation/ViewModels/DataGeneratorViewModel.cs`
-- `Presentation/ViewModels/NetworkViewModel.cs`
-- `Presentation/ViewModels/TraverseDesignViewModel.cs`
+```
+Models/                          # "Входные" модели (данные из файлов)
+├── MeasurementRecord.cs         # Запись измерения с нивелира
+└── GeneratedMeasurement.cs      # Сгенерированные тестовые данные
 
-### DDD infrastructure already in place:
-- `Domain/Model/TraverseSystem.cs` - Domain entity
-- `Domain/Model/MeasurementStation.cs` - Domain entity
-- `Domain/ValueObjects/Height.cs`, `Distance.cs` - Value objects
-- `Application/Commands/` - Command infrastructure
-- `Application/Queries/` - Query infrastructure
-- `Application/DTOs/` - Data transfer objects
+Presentation/Models/             # "UI" модели (для отображения в DataGrid)
+├── TraverseRow.cs               # Строка журнала нивелирования
+├── LineSummary.cs               # Сводка по ходу
+├── JournalRow.cs                # Строка журнала
+├── DesignRow.cs                 # Строка проектирования
+├── PointItem.cs                 # Элемент ComboBox точек
+├── BenchmarkItem.cs             # Элемент ComboBox реперов
+├── SharedPointLinkItem.cs       # Общая точка между ходами
+├── OutlierPoint.cs              # Аномалия
+├── RowColoringMode.cs           # Режим окраски строк
+└── TraverseSystem.cs            # Система ходов (UI версия!)
+```
 
-### DI Registration:
-- `Services/ServiceCollectionExtensions.cs` - Register all services here
+#### Что НЕ нужно делать:
+- ❌ Не перемещать файлы между папками
+- ❌ Не удалять Models/ или Presentation/Models/
+- ❌ Не объединять модели
 
-## Testing After Changes
+#### Что нужно сделать:
 
-After each phase, verify:
-1. Build compiles without errors
-2. Application launches
-3. Data import works
-4. Calculations produce correct results
-5. UI displays data correctly
+**Шаг 2.1:** Перенести `MeasurementRecord` в Domain слой
 
-## Notes
+Файл `Models/MeasurementRecord.cs` - это ключевая модель данных.
+Она должна быть в `Domain/Model/` как доменная сущность.
 
-- `TraverseSystem` exists in TWO places with DIFFERENT implementations:
-  - `Domain/Model/TraverseSystem.cs` - Domain entity with business logic
-  - `Presentation/Models/TraverseSystem.cs` - UI model with INotifyPropertyChanged
+```bash
+# Действие:
+1. Создать Domain/Model/MeasurementRecord.cs (скопировать содержимое)
+2. Изменить namespace на Nivtropy.Domain.Model
+3. Обновить все using директивы в проекте
+4. Удалить Models/MeasurementRecord.cs
+```
 
-- Keep UI models separate from Domain entities. ViewModels should map between them.
+**Шаг 2.2:** Перенести `ValidationResult` в Application слой
 
-- The goal is NOT to delete all legacy code immediately, but to gradually migrate while keeping the app functional.
+```bash
+# Действие:
+1. Переместить Models/ValidationResult.cs → Application/DTOs/ValidationResult.cs
+2. Изменить namespace на Nivtropy.Application.DTOs
+3. Обновить using директивы
+```
+
+**Шаг 2.3:** Перенести `ProfileStatistics` в Application слой
+
+```bash
+# Действие:
+1. Переместить Models/ProfileStatistics.cs → Application/DTOs/ProfileStatistics.cs
+2. Изменить namespace на Nivtropy.Application.DTOs
+3. Обновить using директивы
+```
+
+**Шаг 2.4:** Оставить `GeneratedMeasurement` в Models/
+
+Это специфичная модель для генератора тестовых данных, не относится к Domain.
+
+#### Результат Фазы 2 (фактический):
+
+```
+Models/                          # Входные модели (парсинг файлов)
+├── MeasurementRecord.cs         # Запись измерения (зависит от LineSummary!)
+└── GeneratedMeasurement.cs      # Для генератора тестов
+
+Application/DTOs/                # DTO для передачи данных
+├── NetworkSummaryDto.cs
+├── RunSummaryDto.cs
+├── ObservationDto.cs
+├── PointDto.cs
+├── ValidationResult.cs          # ✅ ПЕРЕНЕСЁН
+└── ProfileStatistics.cs         # ✅ ПЕРЕНЕСЁН
+
+Presentation/Models/             # UI модели (без изменений)
+└── ... (все файлы остаются)
+```
+
+**Примечание:** MeasurementRecord не перенесён в Domain, т.к. содержит UI-зависимости (LineSummary).
+
+---
+
+### Фаза 3: ✅ ВЫПОЛНЕНО - Рефакторинг TraverseCalculationViewModel
+
+**Файл:** `Presentation/ViewModels/TraverseCalculationViewModel.cs`
+**Размер:** ~~1824~~ → ~1700 строк (после рефакторинга)
+
+#### ✅ Созданные сервисы:
+
+| Сервис | Файл | Статус |
+|--------|------|--------|
+| `ITraverseCalculationService` | `Application/Services/TraverseCalculationService.cs` | ✅ Создан, интегрирован в ViewModel |
+| `IClosureCalculationService` | `Application/Services/ClosureCalculationService.cs` | ✅ Создан, зарегистрирован в DI |
+| `IRunAnnotationService` | `Application/Services/RunAnnotationService.cs` | ✅ Создан, используется в DataViewModel |
+| `INetworkAdjuster` | `Domain/Services/LeastSquaresNetworkAdjuster.cs` | ✅ Создан |
+| `AdjustmentMode` | `Application/Enums/AdjustmentMode.cs` | ✅ Добавлен (Local/Global режимы) |
+
+#### Шаг 3.1: Анализ текущей структуры (ВЫПОЛНЕНО)
+
+Прочитай файл и выдели следующие группы методов:
+
+```
+ГРУППА A: Работа с данными (должна уйти в Application/Services)
+- BuildTraverseRows()
+- RecalculateHeights()
+- CalculateLineSummaries()
+- ApplyCorrections()
+
+ГРУППА B: Работа с системами (должна уйти в Domain/Services)
+- CreateSystem()
+- DeleteSystem()
+- MergeRuns()
+- SplitRun()
+
+ГРУППА C: UI логика (остаётся в ViewModel)
+- Commands (RelayCommand)
+- ObservableCollection свойства
+- PropertyChanged уведомления
+```
+
+#### Шаг 3.2: ✅ ВЫПОЛНЕНО - Создать Application Services
+
+**ITraverseCalculationService** - строки, высоты, поправки:
+- `BuildTraverseRows()` - построение строк хода
+- `RecalculateHeights()` - пересчёт высот
+- `CalculateLineSummaries()` - расчёт итогов секций
+- `ApplyCorrections()` - применение поправок с режимами (Local/Global)
+
+**IClosureCalculationService** - невязка и допуски:
+- `CalculateClosure()` - расчёт невязки хода
+- `CalculateTolerance()` - расчёт допуска (SqrtStations/SqrtLength)
+- `Calculate()` - полный расчёт с вердиктом
+- `GenerateVerdict()` - формирование текстового вывода
+
+#### Шаг 3.3: ✅ ВЫПОЛНЕНО - Методы перенесены
+
+ViewModel теперь использует:
+```csharp
+private readonly ITraverseCalculationService _calculationService;
+
+// Вместо _traverseBuilder.Build():
+var items = _calculationService.BuildTraverseRows(records, Runs);
+
+// Вместо RecalculateHeightsForRunInternal():
+_calculationService.RecalculateHeights(runRows, code => knownHeights.TryGetValue(code, out var h) ? h : null);
+
+// Вместо CalculateCorrections():
+_calculationService.ApplyCorrections(groupItems, anchorChecker, MethodOrientationSign, AdjustmentMode);
+```
+
+#### Шаг 3.4: ✅ ВЫПОЛНЕНО - DI регистрация
+
+```csharp
+services.AddSingleton<ITraverseCalculationService, TraverseCalculationService>();
+services.AddSingleton<IClosureCalculationService, ClosureCalculationService>();
+services.AddSingleton<IRunAnnotationService, RunAnnotationService>();
+```
+
+#### Шаг 3.5: ✅ ВЫПОЛНЕНО - Интегрировать IClosureCalculationService
+
+ViewModel теперь использует сервис:
+```csharp
+private readonly IClosureCalculationService _closureService;
+
+// RecalculateClosure():
+Closure = _closureService.CalculateClosure(_rows.ToList(), MethodOrientationSign);
+
+// UpdateTolerance():
+ClosureVerdict = _closureService.GenerateVerdict(
+    Closure, AllowableClosure, MethodTolerance, ClassTolerance,
+    SelectedMethod?.Code, SelectedClass?.Code);
+```
+
+#### Результат Фазы 3:
+
+- ✅ ViewModel уменьшился с 1824 до ~1700 строк
+- ✅ ITraverseCalculationService интегрирован
+- ✅ IClosureCalculationService интегрирован
+- ✅ ITraverseBuilder больше не используется напрямую
+- ✅ Бизнес-логика вынесена в Application Services
+
+---
+
+### Фаза 4: 🔄 ЧАСТИЧНО - Миграция остальных ViewModels
+
+Порядок миграции (от простого к сложному):
+
+#### 4.1 DataViewModel - ✅ ЧАСТИЧНО ВЫПОЛНЕНО
+
+**Создан сервис:** `IRunAnnotationService`
+- `AnnotateRuns()` - перенесён в сервис
+- ViewModel теперь ~290 строк (было 436)
+
+**Осталось:**
+- Перенести логику `BuildSummary()`
+
+#### 4.2 TraverseDesignViewModel (408 строк) - СРЕДНЯЯ сложность
+
+**Что вынести:**
+- Расчёт проектных высот → `Application/Services/IDesignCalculationService`
+- Распределение невязки → туда же
+
+#### 4.3 TraverseJournalViewModel (413 строк) - СРЕДНЯЯ сложность
+
+**Зависит от:** TraverseCalculationViewModel
+
+**Что вынести:**
+- Конвертация TraverseRow → JournalRow (уже есть частично)
+- Статистика профиля (уже использует IProfileStatisticsService)
+
+#### 4.4 DataGeneratorViewModel (842 строки) - СРЕДНЯЯ сложность
+
+**Что вынести:**
+- Генерация шума → `Application/Services/INoiseGeneratorService`
+- Экспорт в формат Nivelir → `Infrastructure/Export/INivelorExportService`
+
+---
+
+### Фаза 5: Удаление Legacy кода
+
+**ВАЖНО:** Выполнять ТОЛЬКО после успешного завершения Фаз 2-4!
+
+#### Шаг 5.1: Удалить legacy services
+
+После переноса логики в Application/Services:
+```bash
+# Удалить:
+Services/TraverseBuilder.cs
+Services/ITraverseBuilder.cs
+Services/Calculation/TraverseCorrectionService.cs
+Services/Calculation/SystemConnectivityService.cs
+```
+
+#### Шаг 5.2: Объединить TraverseSystem
+
+После того как все ViewModels используют Domain версию:
+```bash
+# Удалить:
+Presentation/Models/TraverseSystem.cs
+
+# Создать маппер:
+Application/Mappers/TraverseSystemMapper.cs
+```
+
+#### Шаг 5.3: Очистить DI регистрацию
+
+Удалить из `ServiceCollectionExtensions.cs`:
+```csharp
+// УДАЛИТЬ:
+services.AddSingleton<ITraverseBuilder, TraverseBuilder>();
+services.AddSingleton<ITraverseCorrectionService, TraverseCorrectionService>();
+services.AddSingleton<ISystemConnectivityService, SystemConnectivityService>();
+```
+
+---
+
+### Чек-лист для каждой фазы
+
+После завершения каждой фазы проверь:
+
+- [ ] `dotnet build` - компиляция без ошибок
+- [ ] Приложение запускается
+- [ ] Импорт .dat/.for файлов работает
+- [ ] Расчёт высот выдаёт корректные результаты
+- [ ] Экспорт в Excel/CSV работает
+- [ ] UI отображает данные правильно
+
+---
+
+## DI Регистрация
+
+Файл: `Services/ServiceCollectionExtensions.cs`
+
+```csharp
+// Уже зарегистрировано:
+services.AddSingleton<INetworkRepository, InMemoryNetworkRepository>();
+services.AddSingleton<INetworkMapper, NetworkMapper>();
+services.AddSingleton<CalculateHeightsHandler>();
+services.AddSingleton<GetNetworkSummaryHandler>();
+
+// Legacy (пока нужно):
+services.AddSingleton<ITraverseBuilder, TraverseBuilder>();
+services.AddSingleton<IDialogService, DialogService>();
+services.AddSingleton<IProfileVisualizationService, ProfileVisualizationService>();
+```
+
+---
+
+## Тестирование после изменений
+
+1. **Сборка** - `dotnet build` без ошибок
+2. **Запуск** - приложение открывается
+3. **Импорт** - загрузка .dat/.for файлов работает
+4. **Расчёт** - высоты вычисляются корректно
+5. **Журнал** - данные отображаются в таблицах
+6. **Экспорт** - сохранение результатов работает
+
+---
+
+## Полезные команды
+
+```bash
+# Найти все файлы использующие legacy namespace
+grep -r "using Nivtropy.Models" --include="*.cs" | grep -v obj/
+
+# Найти все ViewModels использующие DDD
+grep -l "using Nivtropy.Domain\|using Nivtropy.Application" Presentation/ViewModels/*.cs
+
+# Подсчитать строки в слоях
+find Domain Application Infrastructure -name "*.cs" | xargs wc -l
+```
+
+---
+
+## Контакты и история
+
+- **Ветка:** `claude/review-ddd-legacy-removal-j5Icw`
+- **Сессия:** Исправление ошибок + продолжение миграции DDD
+- **Статус:** Фаза 3 завершена, Фаза 4 частично
+
+---
+
+## Оценка оставшейся работы
+
+| Задача | Сложность | Оценка |
+|--------|-----------|--------|
+| ~~Интегрировать IClosureCalculationService в ViewModel~~ | ~~Низкая~~ | ✅ Готово |
+| Завершить DataViewModel (BuildSummary) | Низкая | ~30 мин |
+| TraverseDesignViewModel → IDesignCalculationService | Средняя | ~2 часа |
+| TraverseJournalViewModel (минимальные изменения) | Низкая | ~30 мин |
+| DataGeneratorViewModel → INoiseGeneratorService | Средняя | ~2 часа |
+| Удаление legacy кода (Phase 5) | Низкая | ~1 час |
+
+**Общая оценка: ~60% выполнено, осталось ~40%**
+
+Фаза 3 завершена - TraverseCalculationViewModel использует DDD сервисы.

@@ -53,12 +53,17 @@ namespace Nivtropy.Services
 
             // Сервисы статистики и анализа
             services.AddSingleton<IProfileStatisticsService, ProfileStatisticsService>();
+            services.AddSingleton<IRunAnnotationService, RunAnnotationService>();
+            services.AddSingleton<ITraverseCalculationService, TraverseCalculationService>();
 
             // Сервисы экспорта
             services.AddSingleton<IExportService, TraverseExportService>();
 
             // Сервисы работы с допусками (moved to Domain)
             services.AddSingleton<IToleranceCalculator, ToleranceCalculator>();
+
+            // Сервис расчёта невязки и допусков (Application layer)
+            services.AddSingleton<IClosureCalculationService, ClosureCalculationService>();
 
             // Legacy calculation services (temporary - will migrate to Domain services)
             services.AddSingleton<ISystemConnectivityService, SystemConnectivityService>();
@@ -81,6 +86,7 @@ namespace Nivtropy.Services
             // Domain Services (чистая бизнес-логика)
             services.AddSingleton<IHeightPropagator, HeightPropagator>();
             services.AddSingleton<IClosureDistributor, ProportionalClosureDistributor>();
+            services.AddSingleton<INetworkAdjuster, LeastSquaresNetworkAdjuster>();
 
             // Application Layer: Mappers
             services.AddSingleton<INetworkMapper, NetworkMapper>();

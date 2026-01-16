@@ -6,7 +6,7 @@ using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Shapes;
 using Nivtropy.Constants;
-using Nivtropy.Models;
+using Nivtropy.Application.DTOs;
 using Nivtropy.Presentation.Models;
 
 namespace Nivtropy.Services.Visualization

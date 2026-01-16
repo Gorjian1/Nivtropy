@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using Nivtropy.Presentation.Models;
 
-namespace Nivtropy.Models
+namespace Nivtropy.Application.DTOs
 {
     /// <summary>
     /// Статистика профиля хода с анализом аномалий
