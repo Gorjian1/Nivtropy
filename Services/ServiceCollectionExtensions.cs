@@ -53,6 +53,7 @@ namespace Nivtropy.Services
 
             // Сервисы статистики и анализа
             services.AddSingleton<IProfileStatisticsService, ProfileStatisticsService>();
+            services.AddSingleton<IRunAnnotationService, RunAnnotationService>();
             services.AddSingleton<ITraverseCalculationService, TraverseCalculationService>();
 
             // Сервисы экспорта
