@@ -4,7 +4,7 @@ using System.Linq;
 using Nivtropy.Application.Enums;
 using Nivtropy.Presentation.Models;
 
-namespace Nivtropy.Services.Calculation
+namespace Nivtropy.Domain.Services
 {
     public class StationCorrectionInput
     {

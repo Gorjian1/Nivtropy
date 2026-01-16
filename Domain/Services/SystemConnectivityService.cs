@@ -3,7 +3,7 @@ using System.Linq;
 using Nivtropy.Presentation.Models;
 using Nivtropy.Presentation.ViewModels.Managers;
 
-namespace Nivtropy.Services.Calculation
+namespace Nivtropy.Domain.Services
 {
     public class ConnectivityResult
     {

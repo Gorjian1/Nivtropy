@@ -16,7 +16,7 @@ using Nivtropy.Presentation.Models;
 using Nivtropy.Models;
 using Nivtropy.Application.Enums;
 using Nivtropy.Application.Services;
-using Nivtropy.Services.Calculation;
+using Nivtropy.Domain.Services;
 using Nivtropy.Infrastructure.Export;
 using Nivtropy.Utilities;
 using Nivtropy.Presentation.ViewModels.Base;

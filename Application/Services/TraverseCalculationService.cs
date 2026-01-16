@@ -5,7 +5,7 @@ using Nivtropy.Application.Enums;
 using Nivtropy.Models;
 using Nivtropy.Presentation.Models;
 using Nivtropy.Services;
-using Nivtropy.Services.Calculation;
+using Nivtropy.Domain.Services;
 
 namespace Nivtropy.Application.Services;
 

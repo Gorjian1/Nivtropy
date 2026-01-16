@@ -13,7 +13,6 @@ using Nivtropy.Application.Mappers;
 using Nivtropy.Application.Commands.Handlers;
 using Nivtropy.Application.Queries;
 using Nivtropy.Infrastructure.Persistence;
-using Nivtropy.Services.Calculation;
 
 namespace Nivtropy.Services
 {
@@ -28,8 +27,8 @@ namespace Nivtropy.Services
     public static class ServiceCollectionExtensions
     {
         /// <summary>
-        /// Регистрирует Infrastructure и Application сервисы (legacy + new)
-        /// TODO: Разделить на InfrastructureServices и ApplicationServices после полной миграции
+        /// Регистрирует Infrastructure и Application сервисы
+        /// Domain Services регистрируются отдельно через AddDomainServices()
         /// </summary>
         public static IServiceCollection AddApplicationServices(this IServiceCollection services)
         {
@@ -68,7 +67,7 @@ namespace Nivtropy.Services
             // Сервис расчёта невязки и допусков (Application layer)
             services.AddSingleton<IClosureCalculationService, ClosureCalculationService>();
 
-            // Legacy calculation services (temporary - will migrate to Domain services)
+            // Domain Services (calculation services)
             services.AddSingleton<ISystemConnectivityService, SystemConnectivityService>();
             services.AddSingleton<ITraverseCorrectionService, TraverseCorrectionService>();
 

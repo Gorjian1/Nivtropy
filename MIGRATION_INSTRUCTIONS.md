@@ -465,13 +465,17 @@ ClosureVerdict = _closureService.GenerateVerdict(
 - `Services/TraverseBuilder.cs` - используется внутри TraverseCalculationService
 - `Services/ITraverseBuilder.cs` - интерфейс для внутреннего использования
 
-#### Шаг 5.2: ⚠️ Legacy сервисы сохранены
+#### Шаг 5.2: ✅ Legacy сервисы мигрированы в Domain
 
-**Сохранены (требуются для работы):**
-- `Services/Calculation/TraverseCorrectionService.cs` - используется TraverseCalculationService
-- `Services/Calculation/SystemConnectivityService.cs` - используется для связности систем
+**Мигрировано в Domain/Services:**
+- `Domain/Services/TraverseCorrectionService.cs` - перенесён из Services/Calculation
+- `Domain/Services/SystemConnectivityService.cs` - перенесён из Services/Calculation
 
-**Примечание:** Эти сервисы будут мигрированы в Domain/Services в будущем
+**Выполнено:**
+- Изменён namespace с `Nivtropy.Services.Calculation` на `Nivtropy.Domain.Services`
+- Обновлены все using директивы во всех файлах проекта
+- Удалена директория `Services/Calculation/`
+- Обновлены комментарии в ServiceCollectionExtensions.cs
 
 #### Шаг 5.3: ✅ DI регистрация очищена
 
@@ -548,15 +552,15 @@ find Domain Application Infrastructure -name "*.cs" | xargs wc -l
 
 ## Контакты и история
 
-- **Ветка:** `claude/review-ddd-legacy-removal-j5Icw`
-- **Сессия:** Исправление ошибок + продолжение миграции DDD
-- **Статус:** Фаза 3 завершена, Фаза 4 частично
+- **Ветка:** `claude/complete-ddd-migration-FTStU`
+- **Сессия:** Завершение полной миграции на DDD архитектуру
+- **Статус:** ✅ Все 5 фаз завершены - миграция на DDD 100% выполнена
 
 ---
 
 ## ✅ Итоги миграции на DDD
 
-### Прогресс: ~95% ЗАВЕРШЕНО
+### Прогресс: ✅ 100% ЗАВЕРШЕНО
 
 | Фаза | Статус | Описание |
 |------|--------|----------|
@@ -564,7 +568,7 @@ find Domain Application Infrastructure -name "*.cs" | xargs wc -l
 | Фаза 2 | ✅ 100% | Чистая архитектура моделей |
 | Фаза 3 | ✅ 100% | TraverseCalculationViewModel на DDD |
 | Фаза 4 | ✅ 100% | Все ViewModels мигрированы |
-| Фаза 5 | ✅ 80% | Legacy код инкапсулирован/удалён |
+| Фаза 5 | ✅ 100% | Legacy код инкапсулирован/удалён |
 
 ### Созданные DDD сервисы
 
