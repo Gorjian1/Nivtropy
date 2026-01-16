@@ -31,12 +31,11 @@ public class TraverseCalculationService : ITraverseCalculationService
     private readonly ITraverseBuilder _traverseBuilder;
     private readonly ITraverseCorrectionService _correctionService;
 
-    public TraverseCalculationService(
-        ITraverseBuilder traverseBuilder,
-        ITraverseCorrectionService correctionService)
+    public TraverseCalculationService(ITraverseCorrectionService correctionService)
     {
-        _traverseBuilder = traverseBuilder;
-        _correctionService = correctionService;
+        // Создаём TraverseBuilder как internal dependency (implementation detail)
+        _traverseBuilder = new TraverseBuilder();
+        _correctionService = correctionService ?? throw new ArgumentNullException(nameof(correctionService));
     }
 
     public List<TraverseRow> BuildTraverseRows(IReadOnlyList<MeasurementRecord> records, IReadOnlyList<LineSummary> runs)

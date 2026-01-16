@@ -6,7 +6,7 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using Nivtropy.Presentation.Models;
 using Nivtropy.Models;
-using Nivtropy.Services;
+using Nivtropy.Application.Services;
 using Nivtropy.Presentation.ViewModels.Base;
 
 namespace Nivtropy.Presentation.ViewModels
@@ -14,7 +14,8 @@ namespace Nivtropy.Presentation.ViewModels
     public class TraverseDesignViewModel : ViewModelBase
     {
         private readonly DataViewModel _dataViewModel;
-        private readonly ITraverseBuilder _traverseBuilder;
+        private readonly ITraverseCalculationService _calculationService;
+        private readonly IDesignCalculationService _designService;
         private readonly ObservableCollection<DesignRow> _rows = new();
 
         private double _targetClosure;
@@ -26,10 +27,14 @@ namespace Nivtropy.Presentation.ViewModels
         private string _closureStatus = "Нет данных";
         private double _totalDistance;
 
-        public TraverseDesignViewModel(DataViewModel dataViewModel, ITraverseBuilder traverseBuilder)
+        public TraverseDesignViewModel(
+            DataViewModel dataViewModel,
+            ITraverseCalculationService calculationService,
+            IDesignCalculationService designService)
         {
-            _dataViewModel = dataViewModel;
-            _traverseBuilder = traverseBuilder;
+            _dataViewModel = dataViewModel ?? throw new ArgumentNullException(nameof(dataViewModel));
+            _calculationService = calculationService ?? throw new ArgumentNullException(nameof(calculationService));
+            _designService = designService ?? throw new ArgumentNullException(nameof(designService));
 
             ((INotifyCollectionChanged)_dataViewModel.Records).CollectionChanged += OnRecordsCollectionChanged;
             ((INotifyCollectionChanged)_dataViewModel.Runs).CollectionChanged += (_, __) => OnPropertyChanged(nameof(Runs));
@@ -177,11 +182,12 @@ namespace Nivtropy.Presentation.ViewModels
                 return;
             }
 
-            var items = _traverseBuilder.Build(
+            // Используем TraverseCalculationService для построения строк хода
+            var traverseRows = _calculationService.BuildTraverseRows(
                 _dataViewModel.Records.Where(r => ReferenceEquals(r.LineSummary, SelectedRun)),
-                SelectedRun);
+                new[] { SelectedRun });
 
-            if (items.Count == 0)
+            if (traverseRows.Count == 0)
             {
                 ActualClosure = null;
                 DesignedClosure = null;
@@ -192,90 +198,23 @@ namespace Nivtropy.Presentation.ViewModels
                 return;
             }
 
-            // Расчет фактической невязки
-            var originalClosure = items.Where(r => r.DeltaH.HasValue).Sum(r => r.DeltaH!.Value);
-            ActualClosure = originalClosure;
+            // Используем DesignCalculationService для расчёта проектных данных
+            var result = _designService.BuildDesignRows(traverseRows, StartHeight, TargetClosure);
 
-            // Расчет общей длины хода (в метрах)
-            var totalDistance = 0.0;
-            foreach (var row in items)
+            // Обновляем свойства ViewModel
+            ActualClosure = result.ActualClosure;
+            DesignedClosure = result.DesignedClosure;
+            CorrectionPerStation = result.CorrectionPerStation;
+            TotalDistance = result.TotalDistance;
+            AllowableClosure = result.AllowableClosure;
+            ClosureStatus = result.ClosureStatus;
+
+            // Добавляем строки и подписываемся на изменения
+            foreach (var designRow in result.Rows)
             {
-                var avgDist = ((row.HdBack_m ?? 0) + (row.HdFore_m ?? 0)) / 2.0;
-                totalDistance += avgDist;
-            }
-            TotalDistance = totalDistance;
-
-            // Расчет допустимой невязки по формуле для IV класса: 20 мм × √L (L в км)
-            var lengthKm = totalDistance / 1000.0;
-            AllowableClosure = 0.020 * Math.Sqrt(Math.Max(lengthKm, 1e-6)); // в метрах
-
-            // Проверка допуска
-            var absActualClosure = Math.Abs(originalClosure);
-            if (absActualClosure <= AllowableClosure.Value)
-            {
-                ClosureStatus = "✓ В пределах допуска";
-            }
-            else
-            {
-                ClosureStatus = $"✗ ПРЕВЫШЕНИЕ допуска! ({absActualClosure:F4} м > {AllowableClosure:F4} м)";
-            }
-
-            // Расчет невязки для распределения
-            var closureToDistribute = TargetClosure - originalClosure;
-
-            // Распределение поправок ПРОПОРЦИОНАЛЬНО ДЛИНАМ секций
-            double correctionFactor = totalDistance > 0 ? closureToDistribute / totalDistance : 0;
-
-            double runningHeight = StartHeight;
-            double adjustedSum = 0;
-
-            foreach (var row in items)
-            {
-                // Средняя длина для данного хода
-                var avgDistance = ((row.HdBack_m ?? 0) + (row.HdFore_m ?? 0)) / 2.0;
-
-                // Поправка пропорционально длине данного хода
-                double correction = row.DeltaH.HasValue
-                    ? correctionFactor * avgDistance
-                    : 0;
-
-                double? adjustedDelta = row.DeltaH.HasValue
-                    ? row.DeltaH + correction
-                    : null;
-
-                if (adjustedDelta.HasValue)
-                {
-                    runningHeight += adjustedDelta.Value;
-                    adjustedSum += adjustedDelta.Value;
-                }
-
-                var designRow = new DesignRow
-                {
-                    Index = row.Index,
-                    Station = string.IsNullOrWhiteSpace(row.BackCode) && string.IsNullOrWhiteSpace(row.ForeCode)
-                        ? row.LineName
-                        : $"{row.BackCode ?? "?"} → {row.ForeCode ?? "?"}",
-                    Distance_m = avgDistance > 0 ? avgDistance : null,
-                    OriginalDeltaH = row.DeltaH,
-                    Correction = correction,
-                    AdjustedDeltaH = adjustedDelta,
-                    DesignedHeight = runningHeight,
-                    OriginalHeight = runningHeight,
-                    OriginalDistance = avgDistance > 0 ? avgDistance : null,
-                    IsEdited = false
-                };
-
-                // Подписываемся на изменения в строке для автоматического пересчета
                 designRow.PropertyChanged += OnDesignRowPropertyChanged;
-
                 _rows.Add(designRow);
             }
-
-            DesignedClosure = adjustedSum;
-
-            // Средняя поправка на станцию (для информации)
-            var adjustableCount = items.Count(r => r.DeltaH.HasValue);
-            CorrectionPerStation = adjustableCount > 0 ? closureToDistribute / adjustableCount : 0;
         }
 
         /// <summary>
@@ -317,23 +256,19 @@ namespace Nivtropy.Presentation.ViewModels
         /// </summary>
         private void RecalculateHeightsFromIndex(int startIndex)
         {
-            // Начинаем со следующей строки
-            for (int i = startIndex + 1; i < _rows.Count; i++)
+            // Временно отписываемся от событий
+            foreach (var row in _rows)
             {
-                var prevRow = _rows[i - 1];
-                var currentRow = _rows[i];
+                row.PropertyChanged -= OnDesignRowPropertyChanged;
+            }
 
-                // Временно отписываемся от событий, чтобы избежать рекурсии
-                currentRow.PropertyChanged -= OnDesignRowPropertyChanged;
+            // Используем сервис для пересчёта
+            _designService.RecalculateHeightsFrom(_rows, startIndex);
 
-                // Пересчитываем высоту: H_current = H_prev + ΔH_adjusted
-                if (currentRow.AdjustedDeltaH.HasValue)
-                {
-                    currentRow.DesignedHeight = prevRow.DesignedHeight + currentRow.AdjustedDeltaH.Value;
-                }
-
-                // Подписываемся обратно
-                currentRow.PropertyChanged += OnDesignRowPropertyChanged;
+            // Подписываемся обратно
+            foreach (var row in _rows)
+            {
+                row.PropertyChanged += OnDesignRowPropertyChanged;
             }
         }
 
@@ -346,63 +281,31 @@ namespace Nivtropy.Presentation.ViewModels
             if (_rows.Count == 0)
                 return;
 
-            // Рассчитываем фактическую невязку (сумма исходных превышений)
-            var originalClosure = _rows
-                .Where(r => r.OriginalDeltaH.HasValue)
-                .Sum(r => r.OriginalDeltaH!.Value);
-
-            // Рассчитываем общую длину хода с учетом отредактированных дистанций
-            var totalDistance = _rows.Sum(r => r.Distance_m ?? 0);
-
-            // Расчет невязки для распределения
-            var closureToDistribute = TargetClosure - originalClosure;
-
-            // Распределение поправок ПРОПОРЦИОНАЛЬНО ДЛИНАМ
-            double correctionFactor = totalDistance > 0 ? closureToDistribute / totalDistance : 0;
-
-            double runningHeight = StartHeight;
-            double adjustedSum = 0;
-
-            for (int i = 0; i < _rows.Count; i++)
+            // Временно отписываемся от событий
+            foreach (var row in _rows)
             {
-                var row = _rows[i];
-
-                // Временно отписываемся от событий, чтобы избежать рекурсии
                 row.PropertyChanged -= OnDesignRowPropertyChanged;
-
-                // Поправка пропорционально длине данного хода
-                double correction = row.OriginalDeltaH.HasValue
-                    ? correctionFactor * (row.Distance_m ?? 0)
-                    : 0;
-
-                double? adjustedDelta = row.OriginalDeltaH.HasValue
-                    ? row.OriginalDeltaH + correction
-                    : null;
-
-                row.Correction = correction;
-                row.AdjustedDeltaH = adjustedDelta;
-
-                if (adjustedDelta.HasValue)
-                {
-                    runningHeight += adjustedDelta.Value;
-                    adjustedSum += adjustedDelta.Value;
-                }
-
-                // Обновляем высоту только если строка не была отредактирована вручную
-                if (!row.IsEdited || i == 0)
-                {
-                    row.DesignedHeight = runningHeight;
-                }
-
-                // Подписываемся обратно
-                row.PropertyChanged += OnDesignRowPropertyChanged;
             }
+
+            // Используем сервис для пересчёта поправок и высот
+            var adjustedSum = _designService.RecalculateCorrectionsAndHeights(
+                _rows, StartHeight, TargetClosure);
 
             DesignedClosure = adjustedSum;
 
             // Обновляем среднюю поправку на станцию
+            var originalClosure = _rows
+                .Where(r => r.OriginalDeltaH.HasValue)
+                .Sum(r => r.OriginalDeltaH!.Value);
+            var closureToDistribute = TargetClosure - originalClosure;
             var adjustableCount = _rows.Count(r => r.OriginalDeltaH.HasValue);
             CorrectionPerStation = adjustableCount > 0 ? closureToDistribute / adjustableCount : 0;
+
+            // Подписываемся обратно
+            foreach (var row in _rows)
+            {
+                row.PropertyChanged += OnDesignRowPropertyChanged;
+            }
         }
     }
 }

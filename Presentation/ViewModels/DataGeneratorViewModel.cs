@@ -13,6 +13,8 @@ using ClosedXML.Excel;
 using Microsoft.Win32;
 using Nivtropy.Models;
 using Nivtropy.Presentation.Models;
+using Nivtropy.Application.Services;
+using Nivtropy.Infrastructure.Export;
 using Nivtropy.Services.Dialog;
 using Nivtropy.Presentation.ViewModels.Base;
 
@@ -24,6 +26,8 @@ namespace Nivtropy.Presentation.ViewModels
     public class DataGeneratorViewModel : ViewModelBase
     {
         private readonly IDialogService _dialogService;
+        private readonly INoiseGeneratorService _noiseService;
+        private readonly INivelorExportService _exportService;
         private readonly ObservableCollection<GeneratedMeasurement> _measurements = new();
         private readonly ObservableCollection<string> _availableLines = new();
         private readonly HashSet<GeneratedMeasurement> _trackedMeasurements = new();
@@ -39,15 +43,20 @@ namespace Nivtropy.Presentation.ViewModels
         private bool _profileRangeCustomized;
         private bool _isUpdatingProfileStats;
         private DragConstraintMode _dragConstraintMode = DragConstraintMode.Free;
-        private Random _random = new Random();
+        private readonly Random _random = new Random(); // Для генерации случайных расстояний
         private RelayCommand? _smoothCommand;
         private RelayCommand? _resetEditsCommand;
         private RelayCommand? _moveHorizontalCommand;
         private RelayCommand? _moveVerticalCommand;
 
-        public DataGeneratorViewModel(IDialogService dialogService)
+        public DataGeneratorViewModel(
+            IDialogService dialogService,
+            INoiseGeneratorService noiseService,
+            INivelorExportService exportService)
         {
             _dialogService = dialogService ?? throw new ArgumentNullException(nameof(dialogService));
+            _noiseService = noiseService ?? throw new ArgumentNullException(nameof(noiseService));
+            _exportService = exportService ?? throw new ArgumentNullException(nameof(exportService));
             _measurements.CollectionChanged += Measurements_CollectionChanged;
         }
 
@@ -374,16 +383,12 @@ namespace Nivtropy.Presentation.ViewModels
 
         private double GenerateNoise(int index)
         {
-            // Проверяем, нужно ли добавить грубую ошибку
-            bool isGrossError = GrossErrorFrequency > 0 && index % GrossErrorFrequency == 0;
-            double stdDev = isGrossError ? StdDevGrossError : StdDevMeasurement;
-
-            // Генерируем нормально распределённый шум (Box-Muller transform)
-            double u1 = 1.0 - _random.NextDouble();
-            double u2 = 1.0 - _random.NextDouble();
-            double randStdNormal = Math.Sqrt(-2.0 * Math.Log(u1)) * Math.Sin(2.0 * Math.PI * u2);
-
-            return randStdNormal * stdDev; // в мм
+            // Используем сервис для генерации шума
+            return _noiseService.GenerateNoise(
+                index,
+                StdDevMeasurement,
+                StdDevGrossError,
+                GrossErrorFrequency);
         }
 
         private void Export()
@@ -503,87 +508,8 @@ namespace Nivtropy.Presentation.ViewModels
             if (saveFileDialog.ShowDialog() != true)
                 return;
 
-            var sb = new StringBuilder();
-            int lineNumber = 1;
-
-            // Заголовок файла
-            sb.AppendLine($"For M5|Adr     {lineNumber++}|TO  {Path.GetFileName(saveFileDialog.FileName)}               |                      |                      |                      | ");
-            sb.AppendLine($"For M5|Adr     {lineNumber++}|TO  Start-Line         BF  0214|                      |                      |                      | ");
-
-            // Группируем измерения по ходам
-            var traverseGroups = _measurements.GroupBy(m => m.LineName).ToList();
-
-            foreach (var traverse in traverseGroups)
-            {
-                var traverseMeasurements = traverse.ToList();
-
-                // Вычисляем статистику хода
-                double totalLength = 0;
-                double totalArmDifference = 0;
-                int stationCount = 0;
-
-                foreach (var m in traverseMeasurements)
-                {
-                    if (m.HD_Back_m.HasValue && m.HD_Fore_m.HasValue)
-                    {
-                        totalLength += m.HD_Back_m.Value + m.HD_Fore_m.Value;
-                        totalArmDifference += Math.Abs(m.HD_Back_m.Value - m.HD_Fore_m.Value);
-                        stationCount++;
-                    }
-                }
-
-                // Разделитель и заголовок хода
-                sb.AppendLine($"For M5|Adr {lineNumber++,6}|-- ========================================== | ");
-                sb.AppendLine($"For M5|Adr {lineNumber++,6}|-- {traverse.Key,-40} | ");
-                sb.AppendLine($"For M5|Adr {lineNumber++,6}|-- Станций: {stationCount,-6}  Длина хода: {totalLength,8:F2} м | ");
-                sb.AppendLine($"For M5|Adr {lineNumber++,6}|-- Σ|разность плеч|: {totalArmDifference,8:F4} м          | ");
-                sb.AppendLine($"For M5|Adr {lineNumber++,6}|-- ========================================== | ");
-
-                // Данные хода
-                string? previousForePoint = null;
-                double? previousForeHeight = null;
-
-                foreach (var m in traverseMeasurements)
-                {
-                    // Выводим высоту предыдущей точки если она есть
-                    if (previousForeHeight.HasValue && !string.IsNullOrEmpty(previousForePoint))
-                    {
-                        sb.AppendLine($"For M5|Adr {lineNumber++,6}|KD1 {previousForePoint,10}               0214|                      |                      |Z {previousForeHeight:F4} m   | ");
-                    }
-
-                    // Выводим отсчеты (и Rb и Rf, если оба есть)
-                    if (m.Rb_m.HasValue && !string.IsNullOrEmpty(m.BackPointCode))
-                    {
-                        sb.AppendLine($"For M5|Adr {lineNumber++,6}|KD1 {m.BackPointCode,10}              10214|Rb {m.Rb_m:F4} m   |HD {m.HD_Back_m:F2} m   |                      | ");
-                    }
-
-                    if (m.Rf_m.HasValue && !string.IsNullOrEmpty(m.ForePointCode))
-                    {
-                        sb.AppendLine($"For M5|Adr {lineNumber++,6}|KD1 {m.ForePointCode,10}              10214|Rf {m.Rf_m:F4} m   |HD {m.HD_Fore_m:F2} m   |                      | ");
-                    }
-
-                    // Сохраняем переднюю точку для следующей итерации
-                    if (m.Rf_m.HasValue)
-                    {
-                        previousForePoint = m.ForePointCode;
-                        previousForeHeight = m.Height_m;
-                    }
-                }
-
-                // Завершающие строки хода - выводим последнюю точку
-                if (previousForeHeight.HasValue && !string.IsNullOrEmpty(previousForePoint))
-                {
-                    sb.AppendLine($"For M5|Adr {lineNumber++,6}|KD1 {previousForePoint,10}               0214|                      |                      |Z {previousForeHeight:F4} m   | ");
-                }
-
-                // Граница хода
-                sb.AppendLine($"For M5|Adr {lineNumber++,6}|-- ------------------------------------------ | ");
-                sb.AppendLine();
-            }
-
-            sb.AppendLine($"For M5|Adr {lineNumber++,6}|TO  End-Line               0214|                      |                      |                      | ");
-
-            File.WriteAllText(saveFileDialog.FileName, sb.ToString(), Encoding.UTF8);
+            // Используем сервис для экспорта
+            _exportService.Export(_measurements, saveFileDialog.FileName);
 
             _dialogService.ShowInfo($"Данные успешно экспортированы в:\n{saveFileDialog.FileName}", "Экспорт завершён");
         }

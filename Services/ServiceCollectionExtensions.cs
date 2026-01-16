@@ -44,7 +44,7 @@ namespace Nivtropy.Services
 
             // Сервисы парсинга и построения данных
             services.AddSingleton<IDataParser, DatParser>();
-            services.AddSingleton<ITraverseBuilder, TraverseBuilder>();
+            // ITraverseBuilder больше не регистрируется - он стал implementation detail TraverseCalculationService
 
             // Сервисы визуализации
             services.AddSingleton<IProfileVisualizationService, ProfileVisualizationService>();
@@ -55,9 +55,12 @@ namespace Nivtropy.Services
             services.AddSingleton<IProfileStatisticsService, ProfileStatisticsService>();
             services.AddSingleton<IRunAnnotationService, RunAnnotationService>();
             services.AddSingleton<ITraverseCalculationService, TraverseCalculationService>();
+            services.AddSingleton<IDesignCalculationService, DesignCalculationService>();
+            services.AddSingleton<INoiseGeneratorService, NoiseGeneratorService>();
 
             // Сервисы экспорта
             services.AddSingleton<IExportService, TraverseExportService>();
+            services.AddSingleton<INivelorExportService, NivelorExportService>();
 
             // Сервисы работы с допусками (moved to Domain)
             services.AddSingleton<IToleranceCalculator, ToleranceCalculator>();
