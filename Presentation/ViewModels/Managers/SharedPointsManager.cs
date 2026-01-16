@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Globalization;
 using System.Linq;
+using Nivtropy.Models;
 using Nivtropy.Presentation.Models;
 using Nivtropy.Utilities;
 using Nivtropy.Presentation.ViewModels.Base;

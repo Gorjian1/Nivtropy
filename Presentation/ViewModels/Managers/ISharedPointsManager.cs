@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using Nivtropy.Models;
 using Nivtropy.Presentation.Models;
 
 namespace Nivtropy.Presentation.ViewModels.Managers
