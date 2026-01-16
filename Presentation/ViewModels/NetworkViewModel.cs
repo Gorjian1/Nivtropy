@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 using Nivtropy.Application.DTOs;
 using Nivtropy.Application.Commands;
 using Nivtropy.Application.Commands.Handlers;
-using Nivtropy.Application.Enums;
+using Nivtropy.Domain.Enums;
 using Nivtropy.Application.Queries;
 using Nivtropy.Application.Mappers;
 using Nivtropy.Domain.Model;

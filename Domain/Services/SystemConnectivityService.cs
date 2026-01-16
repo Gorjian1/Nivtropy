@@ -1,9 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
-using Nivtropy.Presentation.Models;
-using Nivtropy.Presentation.ViewModels.Managers;
 
-namespace Nivtropy.Services.Calculation
+namespace Nivtropy.Domain.Services
 {
     public class ConnectivityResult
     {
@@ -15,28 +13,30 @@ namespace Nivtropy.Services.Calculation
     public interface ISystemConnectivityService
     {
         ConnectivityResult AnalyzeConnectivity(
-            IReadOnlyList<LineSummary> runs,
-            IReadOnlyList<SharedPointLinkItem> sharedPoints,
-            IReadOnlyList<string> existingAutoSystemIds);
+            IReadOnlyList<int> runIndexes,
+            IReadOnlyList<SharedPointLink> sharedPoints,
+            IReadOnlyList<string> existingAutoSystemIds,
+            string defaultSystemId);
     }
 
     public class SystemConnectivityService : ISystemConnectivityService
     {
         public ConnectivityResult AnalyzeConnectivity(
-            IReadOnlyList<LineSummary> runs,
-            IReadOnlyList<SharedPointLinkItem> sharedPoints,
-            IReadOnlyList<string> existingAutoSystemIds)
+            IReadOnlyList<int> runIndexes,
+            IReadOnlyList<SharedPointLink> sharedPoints,
+            IReadOnlyList<string> existingAutoSystemIds,
+            string defaultSystemId)
         {
             var result = new ConnectivityResult();
-            if (runs.Count == 0) return result;
+            if (runIndexes.Count == 0) return result;
 
-            var adjacency = BuildAdjacencyGraph(runs, sharedPoints);
-            var components = FindConnectedComponents(runs, adjacency);
+            var adjacency = BuildAdjacencyGraph(runIndexes, sharedPoints);
+            var components = FindConnectedComponents(runIndexes, adjacency);
 
             if (components.Count <= 1)
             {
-                foreach (var run in runs)
-                    result.RunToSystemId[run.Index] = ITraverseSystemsManager.DEFAULT_SYSTEM_ID;
+                foreach (var runIndex in runIndexes)
+                    result.RunToSystemId[runIndex] = defaultSystemId;
                 result.SystemsToRemove.AddRange(existingAutoSystemIds);
                 return result;
             }
@@ -51,7 +51,7 @@ namespace Nivtropy.Services.Calculation
 
                 if (i == 0)
                 {
-                    systemId = ITraverseSystemsManager.DEFAULT_SYSTEM_ID;
+                    systemId = defaultSystemId;
                 }
                 else
                 {
@@ -73,16 +73,16 @@ namespace Nivtropy.Services.Calculation
         }
 
         private static Dictionary<int, HashSet<int>> BuildAdjacencyGraph(
-            IReadOnlyList<LineSummary> runs,
-            IReadOnlyList<SharedPointLinkItem> sharedPoints)
+            IReadOnlyList<int> runIndexes,
+            IReadOnlyList<SharedPointLink> sharedPoints)
         {
             var adjacency = new Dictionary<int, HashSet<int>>();
-            foreach (var run in runs)
-                adjacency[run.Index] = new HashSet<int>();
+            foreach (var runIndex in runIndexes)
+                adjacency[runIndex] = new HashSet<int>();
 
             foreach (var sp in sharedPoints.Where(p => p.IsEnabled))
             {
-                var runsWithPoint = runs.Where(r => sp.IsUsedInRun(r.Index)).Select(r => r.Index).ToList();
+                var runsWithPoint = sp.RunIndexes.Where(adjacency.ContainsKey).ToList();
                 for (int i = 0; i < runsWithPoint.Count; i++)
                     for (int j = i + 1; j < runsWithPoint.Count; j++)
                     {
@@ -94,19 +94,19 @@ namespace Nivtropy.Services.Calculation
         }
 
         private static List<List<int>> FindConnectedComponents(
-            IReadOnlyList<LineSummary> runs,
+            IReadOnlyList<int> runIndexes,
             Dictionary<int, HashSet<int>> adjacency)
         {
             var visited = new HashSet<int>();
             var components = new List<List<int>>();
 
-            foreach (var run in runs)
+            foreach (var runIndex in runIndexes)
             {
-                if (visited.Contains(run.Index)) continue;
+                if (visited.Contains(runIndex)) continue;
                 var component = new List<int>();
                 var queue = new Queue<int>();
-                queue.Enqueue(run.Index);
-                visited.Add(run.Index);
+                queue.Enqueue(runIndex);
+                visited.Add(runIndex);
 
                 while (queue.Count > 0)
                 {

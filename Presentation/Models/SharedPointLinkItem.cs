@@ -44,6 +44,8 @@ namespace Nivtropy.Presentation.Models
             ? string.Join(", ", _runIndexes.OrderBy(i => i).Select(i => $"Ход {i:D2}"))
             : "—";
 
+        public IReadOnlyCollection<int> RunIndexes => _runIndexes;
+
         public bool IsUsedInRun(int runIndex) => _runIndexes.Contains(runIndex);
 
         public void SetRunIndexes(IEnumerable<int> indexes)

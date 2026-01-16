@@ -1,10 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Nivtropy.Application.Enums;
-using Nivtropy.Presentation.Models;
+using Nivtropy.Domain.Enums;
 
-namespace Nivtropy.Services.Calculation
+namespace Nivtropy.Domain.Services
 {
     public class StationCorrectionInput
     {

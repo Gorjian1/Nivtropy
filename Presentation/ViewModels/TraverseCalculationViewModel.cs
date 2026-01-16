@@ -14,9 +14,9 @@ using ClosedXML.Excel;
 using Microsoft.Win32;
 using Nivtropy.Presentation.Models;
 using Nivtropy.Models;
-using Nivtropy.Application.Enums;
+using Nivtropy.Domain.Enums;
 using Nivtropy.Application.Services;
-using Nivtropy.Services.Calculation;
+using Nivtropy.Domain.Services;
 using Nivtropy.Infrastructure.Export;
 using Nivtropy.Utilities;
 using Nivtropy.Presentation.ViewModels.Base;
@@ -1107,10 +1107,16 @@ namespace Nivtropy.Presentation.ViewModels
                 .Select(s => s.Id)
                 .ToList();
 
+            var runIndexes = Runs.Select(run => run.Index).ToList();
+            var sharedLinks = _sharedPoints
+                .Select(point => new SharedPointLink(point.RunIndexes, point.IsEnabled))
+                .ToList();
+
             var result = _connectivityService.AnalyzeConnectivity(
-                Runs.ToList(),
-                _sharedPoints.ToList(),
-                existingAutoSystemIds);
+                runIndexes,
+                sharedLinks,
+                existingAutoSystemIds,
+                ITraverseSystemsManager.DEFAULT_SYSTEM_ID);
 
             // Применяем результат: назначаем ходам системы
             foreach (var kvp in result.RunToSystemId)

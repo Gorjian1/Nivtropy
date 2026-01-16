@@ -1,4 +1,4 @@
-namespace Nivtropy.Application.Enums;
+namespace Nivtropy.Domain.Enums;
 
 public enum AdjustmentMode
 {
