@@ -1,6 +1,7 @@
 namespace Nivtropy.Application.Queries;
 
 using Nivtropy.Domain.DTOs;
+using Nivtropy.Application.DTOs;
 using Nivtropy.Application.Mappers;
 using Nivtropy.Infrastructure.Persistence;
 
