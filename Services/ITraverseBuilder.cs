@@ -1,5 +1,5 @@
 using System.Collections.Generic;
-using Nivtropy.Models;
+using Nivtropy.Domain.Model;
 using Nivtropy.Presentation.Models;
 
 namespace Nivtropy.Services

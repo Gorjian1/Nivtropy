@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
-using Nivtropy.Models;
+using Nivtropy.Application.DTOs;
+using Nivtropy.Domain.Model;
 
 namespace Nivtropy.Application.Services
 {

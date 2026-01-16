@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using Nivtropy.Models;
+using Nivtropy.Domain.Model;
 
 namespace Nivtropy.Infrastructure.Parsers
 {

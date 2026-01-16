@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Nivtropy.Models;
+using Nivtropy.Application.DTOs;
 using Nivtropy.Presentation.Models; // TODO: Remove after migrating to Domain models
 
 namespace Nivtropy.Application.Services

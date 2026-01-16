@@ -1,7 +1,7 @@
 using System;
 using Nivtropy.Presentation.Models;
 
-namespace Nivtropy.Models
+namespace Nivtropy.Domain.Model
 {
     public class MeasurementRecord
     {

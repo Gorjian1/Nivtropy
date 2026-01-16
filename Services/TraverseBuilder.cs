@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Nivtropy.Models;
+using Nivtropy.Domain.Model;
 using Nivtropy.Presentation.Models;
 
 namespace Nivtropy.Services

@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Text.RegularExpressions;
-using Nivtropy.Models;
+using Nivtropy.Domain.Model;
 using Nivtropy.Services.Logging;
 
 namespace Nivtropy.Infrastructure.Parsers
