@@ -2,7 +2,7 @@ using System;
 using System.Globalization;
 using System.Windows.Data;
 using System.Windows.Media;
-using Nivtropy.Models;
+using Nivtropy.Presentation.Models;
 
 namespace Nivtropy.Presentation.Converters
 {
