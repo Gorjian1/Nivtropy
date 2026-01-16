@@ -1,7 +1,7 @@
-namespace Nivtropy.Application.DTOs;
+namespace Nivtropy.Domain.DTOs;
 
 /// <summary>
-/// DTO общей точки для расчётов связности (замена SharedPointLinkItem).
+/// DTO общей точки для расчётов связности.
 /// </summary>
 public class SharedPointDto
 {

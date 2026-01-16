@@ -1,6 +1,6 @@
 namespace Nivtropy.Application.Commands.Handlers;
 
-using Nivtropy.Application.Enums;
+using Nivtropy.Domain.Enums;
 using Nivtropy.Domain.Services;
 using Nivtropy.Infrastructure.Persistence;
 

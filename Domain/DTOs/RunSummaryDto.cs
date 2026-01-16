@@ -1,7 +1,7 @@
-namespace Nivtropy.Application.DTOs;
+namespace Nivtropy.Domain.DTOs;
 
 /// <summary>
-/// DTO сводки по ходу для расчётов (замена LineSummary).
+/// DTO сводки по нивелирному ходу для расчётов.
 /// </summary>
 public class RunSummaryDto
 {

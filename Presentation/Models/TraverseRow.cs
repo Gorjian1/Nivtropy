@@ -1,5 +1,5 @@
 using System;
-using Nivtropy.Application.Enums;
+using Nivtropy.Domain.Enums;
 using Nivtropy.Constants;
 
 namespace Nivtropy.Presentation.Models

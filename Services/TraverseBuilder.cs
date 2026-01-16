@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Nivtropy.Application.DTOs;
+using Nivtropy.Domain.DTOs;
 using Nivtropy.Models;
 using Nivtropy.Presentation.Models;
 

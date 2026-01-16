@@ -9,7 +9,7 @@ using Nivtropy.Presentation.Models;
 using Nivtropy.Models;
 using Nivtropy.Infrastructure.Parsers;
 using Nivtropy.Application.Services;
-using Nivtropy.Application.DTOs;
+using Nivtropy.Domain.DTOs;
 using Nivtropy.Presentation.Mappers;
 using Nivtropy.Presentation.ViewModels.Base;
 

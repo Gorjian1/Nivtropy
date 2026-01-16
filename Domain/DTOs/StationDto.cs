@@ -1,9 +1,9 @@
-using Nivtropy.Application.Enums;
+using Nivtropy.Domain.Enums;
 
-namespace Nivtropy.Application.DTOs;
+namespace Nivtropy.Domain.DTOs;
 
 /// <summary>
-/// DTO станции нивелирования для расчётов (замена TraverseRow).
+/// DTO станции нивелирования для расчётов.
 /// Не содержит UI-логики (INotifyPropertyChanged, Display-свойства).
 /// </summary>
 public class StationDto
