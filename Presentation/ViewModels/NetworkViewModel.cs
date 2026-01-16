@@ -56,7 +56,7 @@ namespace Nivtropy.Presentation.ViewModels
         public bool IsNetworkLoaded => _network != null;
 
         /// <summary>Ходы для отображения (DTOs)</summary>
-        public ObservableCollection<RunSummaryDto> Runs { get; } = new();
+        public ObservableCollection<NetworkRunSummaryDto> Runs { get; } = new();
 
         /// <summary>Наблюдения для отображения (DTOs)</summary>
         public ObservableCollection<ObservationDto> Observations { get; } = new();

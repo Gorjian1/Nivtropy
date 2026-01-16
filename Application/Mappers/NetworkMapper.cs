@@ -9,7 +9,7 @@ using Nivtropy.Domain.Model;
 public interface INetworkMapper
 {
     NetworkSummaryDto ToSummaryDto(LevelingNetwork network);
-    RunSummaryDto ToSummaryDto(Run run);
+    NetworkRunSummaryDto ToSummaryDto(Run run);
     ObservationDto ToDto(Observation observation);
     PointDto ToDto(Point point);
 }
@@ -34,9 +34,9 @@ public class NetworkMapper : INetworkMapper
         );
     }
 
-    public RunSummaryDto ToSummaryDto(Run run)
+    public NetworkRunSummaryDto ToSummaryDto(Run run)
     {
-        return new RunSummaryDto(
+        return new NetworkRunSummaryDto(
             Id: run.Id,
             Name: run.Name,
             OriginalNumber: run.OriginalNumber,

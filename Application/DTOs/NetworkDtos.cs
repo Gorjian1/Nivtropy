@@ -13,13 +13,13 @@ public record NetworkSummaryDto(
     int TotalStationCount,
     double TotalLengthMeters,
     bool IsConnected,
-    IReadOnlyList<RunSummaryDto> Runs
+    IReadOnlyList<NetworkRunSummaryDto> Runs
 );
 
 /// <summary>
 /// DTO для сводной информации о ходе.
 /// </summary>
-public record RunSummaryDto(
+public record NetworkRunSummaryDto(
     Guid Id,
     string Name,
     string? OriginalNumber,
