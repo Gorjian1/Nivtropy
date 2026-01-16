@@ -1,5 +1,6 @@
 namespace Nivtropy.Application.Commands.Handlers;
 
+using Nivtropy.Application.Enums;
 using Nivtropy.Domain.Services;
 using Nivtropy.Infrastructure.Persistence;
 
@@ -12,15 +13,18 @@ public class CalculateHeightsHandler
     private readonly INetworkRepository _repository;
     private readonly IHeightPropagator _heightPropagator;
     private readonly IClosureDistributor _closureDistributor;
+    private readonly INetworkAdjuster _networkAdjuster;
 
     public CalculateHeightsHandler(
         INetworkRepository repository,
         IHeightPropagator heightPropagator,
-        IClosureDistributor closureDistributor)
+        IClosureDistributor closureDistributor,
+        INetworkAdjuster networkAdjuster)
     {
         _repository = repository;
         _heightPropagator = heightPropagator;
         _closureDistributor = closureDistributor;
+        _networkAdjuster = networkAdjuster;
     }
 
     public async Task<CalculateHeightsResult> HandleAsync(CalculateHeightsCommand command)
@@ -31,6 +35,8 @@ public class CalculateHeightsHandler
 
         var closures = new List<RunClosureDto>();
 
+        network.ResetCorrections();
+
         // 1. Вычисляем невязки и распределяем поправки
         foreach (var run in network.Runs.Where(r => r.IsActive))
         {
@@ -38,7 +44,7 @@ public class CalculateHeightsHandler
             var toleranceMm = 10.0 * Math.Sqrt(run.TotalLength.Kilometers);
             run.CalculateClosure(toleranceMm);
 
-            if (run.Closure?.IsWithinTolerance == true)
+            if (command.Mode == AdjustmentMode.Local && run.Closure?.IsWithinTolerance == true)
             {
                 _closureDistributor.DistributeClosureWithSections(run);
             }
@@ -50,6 +56,11 @@ public class CalculateHeightsHandler
                 run.Closure?.ToleranceMm,
                 run.Closure?.IsWithinTolerance
             ));
+        }
+
+        if (command.Mode == AdjustmentMode.Network)
+        {
+            _networkAdjuster.Adjust(network);
         }
 
         // 2. Распространяем высоты от реперов

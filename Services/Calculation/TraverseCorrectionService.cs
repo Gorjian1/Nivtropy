@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Nivtropy.Application.Enums;
 using Nivtropy.Presentation.Models;
 
 namespace Nivtropy.Services.Calculation
@@ -37,7 +38,7 @@ namespace Nivtropy.Services.Calculation
             IReadOnlyList<StationCorrectionInput> stations,
             Func<string?, bool> isAnchor,
             double methodOrientationSign,
-            bool useLocalAdjustment);
+            AdjustmentMode adjustmentMode);
     }
 
     public class TraverseCorrectionService : ITraverseCorrectionService
@@ -48,7 +49,7 @@ namespace Nivtropy.Services.Calculation
             IReadOnlyList<StationCorrectionInput> stations,
             Func<string?, bool> isAnchor,
             double methodOrientationSign,
-            bool useLocalAdjustment)
+            AdjustmentMode adjustmentMode)
         {
             var result = new CorrectionCalculationResult();
             if (stations.Count == 0)
@@ -61,7 +62,7 @@ namespace Nivtropy.Services.Calculation
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .Count();
 
-            var closureMode = DetermineClosureMode(stations, isAnchor, anchorPoints, useLocalAdjustment);
+            var closureMode = DetermineClosureMode(stations, isAnchor, anchorPoints, adjustmentMode);
             var corrections = new Dictionary<int, (double? correction, double? baseline, CorrectionDisplayMode mode)>();
 
             foreach (var station in stations)
@@ -69,6 +70,13 @@ namespace Nivtropy.Services.Calculation
 
             switch (closureMode)
             {
+                case TraverseClosureMode.Open:
+                    {
+                        var closure = stations.Where(s => s.DeltaH.HasValue)
+                            .Sum(s => s.DeltaH!.Value * methodOrientationSign);
+                        result.Closures.Add(closure);
+                        break;
+                    }
                 case TraverseClosureMode.Simple:
                     {
                         var closure = CalculateCorrectionsForSection(
@@ -123,7 +131,7 @@ namespace Nivtropy.Services.Calculation
             return knownPoints.OrderBy(p => p.Index).ToList();
         }
 
-        private static TraverseClosureMode DetermineClosureMode(IReadOnlyList<StationCorrectionInput> stations, Func<string?, bool> isAnchor, List<(int Index, string? Code)> anchorPoints, bool useLocalAdjustment)
+        private static TraverseClosureMode DetermineClosureMode(IReadOnlyList<StationCorrectionInput> stations, Func<string?, bool> isAnchor, List<(int Index, string? Code)> anchorPoints, AdjustmentMode adjustmentMode)
         {
             var startCode = stations.FirstOrDefault()?.BackCode ?? stations.FirstOrDefault()?.ForeCode;
             var endCode = stations.LastOrDefault()?.ForeCode ?? stations.LastOrDefault()?.BackCode;
@@ -132,8 +140,18 @@ namespace Nivtropy.Services.Calculation
             bool closesByLoop = !string.IsNullOrWhiteSpace(startCode) && !string.IsNullOrWhiteSpace(endCode) && string.Equals(startCode, endCode, StringComparison.OrdinalIgnoreCase);
             bool isClosed = closesByLoop || (startKnown && endKnown);
             var distinctAnchorCount = anchorPoints.Select(a => a.Code).Where(c => !string.IsNullOrWhiteSpace(c)).Distinct(StringComparer.OrdinalIgnoreCase).Count();
-            if (!isClosed) return distinctAnchorCount >= 2 ? TraverseClosureMode.Local : TraverseClosureMode.Open;
-            return (distinctAnchorCount > 1 || useLocalAdjustment) ? TraverseClosureMode.Local : TraverseClosureMode.Simple;
+
+            if (adjustmentMode == AdjustmentMode.None || adjustmentMode == AdjustmentMode.Network)
+            {
+                return TraverseClosureMode.Open;
+            }
+
+            if (!isClosed)
+            {
+                return distinctAnchorCount >= 2 ? TraverseClosureMode.Local : TraverseClosureMode.Open;
+            }
+
+            return distinctAnchorCount > 1 ? TraverseClosureMode.Local : TraverseClosureMode.Simple;
         }
 
         private static void CalculateCorrectionsWithSections(List<StationCorrectionInput> stations, List<(int Index, string? Code)> knownPoints, double methodSign, List<double> closures, Action<int, double>? applyCorrection)

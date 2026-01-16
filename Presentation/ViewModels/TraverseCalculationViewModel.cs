@@ -14,6 +14,7 @@ using ClosedXML.Excel;
 using Microsoft.Win32;
 using Nivtropy.Presentation.Models;
 using Nivtropy.Models;
+using Nivtropy.Application.Enums;
 using Nivtropy.Services;
 using Nivtropy.Services.Calculation;
 using Nivtropy.Infrastructure.Export;
@@ -64,6 +65,7 @@ namespace Nivtropy.Presentation.ViewModels
 
         private LevelingMethodOption? _selectedMethod;
         private LevelingClassOption? _selectedClass;
+        private AdjustmentMode _adjustmentMode = AdjustmentMode.Local;
         private double? _closure;
         private double? _allowableClosure;
         private string _closureVerdict = "Нет данных для расчёта.";
@@ -201,6 +203,21 @@ namespace Nivtropy.Presentation.ViewModels
                     OnPropertyChanged();
                     UpdateTolerance();
                     CheckArmDifferenceTolerances(); // Пересчёт при смене класса
+                }
+            }
+        }
+
+        public AdjustmentMode AdjustmentMode
+        {
+            get => _adjustmentMode;
+            set
+            {
+                if (SetField(ref _adjustmentMode, value))
+                {
+                    if (UseAsyncCalculations)
+                        _ = UpdateRowsAsync();
+                    else
+                        UpdateRows();
                 }
             }
         }
@@ -1230,8 +1247,6 @@ namespace Nivtropy.Presentation.ViewModels
 
             ResetCorrections(items);
 
-            var lineSummary = items.FirstOrDefault()?.LineSummary;
-
             // Подготавливаем входные данные для сервиса
             var stations = items.Select((row, idx) => new StationCorrectionInput
             {
@@ -1247,7 +1262,7 @@ namespace Nivtropy.Presentation.ViewModels
                 stations,
                 code => !string.IsNullOrWhiteSpace(code) && isAnchor(code!),
                 MethodOrientationSign,
-                lineSummary?.UseLocalAdjustment ?? false);
+                AdjustmentMode);
 
             // Применяем результаты к строкам
             foreach (var correction in result.Corrections)
@@ -1261,6 +1276,7 @@ namespace Nivtropy.Presentation.ViewModels
                 }
             }
 
+            var lineSummary = items.FirstOrDefault()?.LineSummary;
             if (lineSummary != null)
             {
                 lineSummary.KnownPointsCount = result.DistinctAnchorCount;
