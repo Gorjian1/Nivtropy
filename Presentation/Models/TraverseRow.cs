@@ -1,4 +1,5 @@
 using System;
+using Nivtropy.Application.Enums;
 using Nivtropy.Constants;
 
 namespace Nivtropy.Presentation.Models
@@ -176,23 +177,4 @@ namespace Nivtropy.Presentation.Models
         }
     }
 
-    public enum CorrectionDisplayMode
-    {
-        None,
-        Single,
-        Local
-    }
-
-    /// <summary>
-    /// Режим замыкания хода
-    /// </summary>
-    public enum TraverseClosureMode
-    {
-        /// <summary>Открытый ход - без замыкания</summary>
-        Open,
-        /// <summary>Простое замыкание - один репер в начале и конце</summary>
-        Simple,
-        /// <summary>Локальное уравнивание - несколько реперов внутри хода</summary>
-        Local
-    }
 }

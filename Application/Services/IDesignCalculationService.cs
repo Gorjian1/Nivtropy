@@ -1,5 +1,5 @@
 using System.Collections.Generic;
-using Nivtropy.Presentation.Models;
+using Nivtropy.Application.DTOs;
 
 namespace Nivtropy.Application.Services
 {
@@ -17,7 +17,7 @@ namespace Nivtropy.Application.Services
         /// <param name="targetClosure">Целевая невязка (обычно 0)</param>
         /// <returns>Список строк проектирования с рассчитанными высотами</returns>
         DesignCalculationResult BuildDesignRows(
-            IEnumerable<TraverseRow> traverseRows,
+            IEnumerable<StationDto> traverseRows,
             double startHeight,
             double targetClosure);
 
@@ -26,14 +26,14 @@ namespace Nivtropy.Application.Services
         /// </summary>
         /// <param name="traverseRows">Строки нивелирного хода</param>
         /// <returns>Статистика невязки</returns>
-        ClosureStatistics CalculateClosureStatistics(IEnumerable<TraverseRow> traverseRows);
+        ClosureStatistics CalculateClosureStatistics(IEnumerable<StationDto> traverseRows);
 
         /// <summary>
         /// Пересчитывает высоты после редактирования одной из строк
         /// </summary>
         /// <param name="rows">Список строк проектирования</param>
         /// <param name="changedIndex">Индекс измененной строки</param>
-        void RecalculateHeightsFrom(IList<DesignRow> rows, int changedIndex);
+        void RecalculateHeightsFrom(IList<DesignPointDto> rows, int changedIndex);
 
         /// <summary>
         /// Пересчитывает поправки и высоты при изменении дистанций
@@ -43,7 +43,7 @@ namespace Nivtropy.Application.Services
         /// <param name="targetClosure">Целевая невязка</param>
         /// <returns>Новая невязка после распределения</returns>
         double RecalculateCorrectionsAndHeights(
-            IList<DesignRow> rows,
+            IList<DesignPointDto> rows,
             double startHeight,
             double targetClosure);
     }
@@ -54,7 +54,7 @@ namespace Nivtropy.Application.Services
     public class DesignCalculationResult
     {
         /// <summary>Строки проектирования</summary>
-        public List<DesignRow> Rows { get; set; } = new();
+        public List<DesignPointDto> Rows { get; set; } = new();
 
         /// <summary>Фактическая невязка хода (сумма исходных превышений)</summary>
         public double ActualClosure { get; set; }

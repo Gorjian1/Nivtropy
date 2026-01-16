@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using Nivtropy.Presentation.Models;
+using Nivtropy.Application.DTOs;
 
 namespace Nivtropy.Application.Services
 {
@@ -61,7 +61,7 @@ namespace Nivtropy.Application.Services
         /// </summary>
         /// <param name="rows">Строки хода</param>
         /// <param name="orientationSign">Знак ориентации (+1 для BF, -1 для FB)</param>
-        double? CalculateClosure(IReadOnlyList<TraverseRow> rows, double orientationSign);
+        double? CalculateClosure(IReadOnlyList<StationDto> rows, double orientationSign);
 
         /// <summary>
         /// Рассчитывает допуск по заданной опции
@@ -75,7 +75,7 @@ namespace Nivtropy.Application.Services
         /// Выполняет полный расчёт невязки и допусков
         /// </summary>
         ClosureCalculationResult Calculate(
-            IReadOnlyList<TraverseRow> rows,
+            IReadOnlyList<StationDto> rows,
             double orientationSign,
             int stationsCount,
             double totalLengthKm,

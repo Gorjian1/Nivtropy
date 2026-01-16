@@ -10,6 +10,7 @@ using Nivtropy.Models;
 using Nivtropy.Infrastructure.Parsers;
 using Nivtropy.Application.Services;
 using Nivtropy.Application.DTOs;
+using Nivtropy.Presentation.Mappers;
 using Nivtropy.Presentation.ViewModels.Base;
 
 namespace Nivtropy.Presentation.ViewModels
@@ -286,10 +287,15 @@ namespace Nivtropy.Presentation.ViewModels
             if (records.Count == 0)
                 return;
 
-            var summaries = _annotationService.AnnotateRuns(records);
-            foreach (var summary in summaries)
+            var groups = _annotationService.AnnotateRuns(records);
+            foreach (var group in groups)
             {
+                var summary = group.Summary.ToModel();
                 Runs.Add(summary);
+                foreach (var record in group.Records)
+                {
+                    record.LineSummary = summary;
+                }
             }
         }
 

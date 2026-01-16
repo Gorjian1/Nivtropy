@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Nivtropy.Application.DTOs;
 using Nivtropy.Models;
 using Nivtropy.Presentation.Models;
 
@@ -12,7 +13,7 @@ namespace Nivtropy.Services
     /// </summary>
     public class TraverseBuilder : ITraverseBuilder
     {
-        private readonly Dictionary<int, List<TraverseRow>> _cache = new();
+        private readonly Dictionary<int, List<StationDto>> _cache = new();
         private readonly object _cacheLock = new();
 
         public void InvalidateCache()
@@ -23,7 +24,7 @@ namespace Nivtropy.Services
             }
         }
 
-        public List<TraverseRow> Build(IEnumerable<MeasurementRecord> records, LineSummary? run = null)
+        public List<StationDto> Build(IEnumerable<MeasurementRecord> records, RunSummaryDto? run = null)
         {
             var recordsList = records as IList<MeasurementRecord> ?? records.ToList();
             var hash = ComputeHash(recordsList, run);
@@ -44,15 +45,16 @@ namespace Nivtropy.Services
             return result;
         }
 
-        private int ComputeHash(IList<MeasurementRecord> records, LineSummary? run)
+        private int ComputeHash(IList<MeasurementRecord> records, RunSummaryDto? run)
         {
             unchecked
             {
                 int hash = 17;
                 if (run != null)
                 {
-                    hash = hash * 31 + (run.DisplayName?.GetHashCode() ?? 0);
-                    hash = hash * 31 + run.RecordCount;
+                    hash = hash * 31 + run.Index;
+                    hash = hash * 31 + (run.OriginalLineNumber?.GetHashCode() ?? 0);
+                    hash = hash * 31 + run.StationCount;
                     hash = hash * 31 + run.DeltaHSum.GetHashCode();
                 }
                 hash = hash * 31 + records.Count;
@@ -78,19 +80,27 @@ namespace Nivtropy.Services
             }
         }
 
-        private List<TraverseRow> BuildInternal(IList<MeasurementRecord> records, LineSummary? run)
+        private List<StationDto> BuildInternal(IList<MeasurementRecord> records, RunSummaryDto? run)
         {
-            var list = new List<TraverseRow>();
-            string line = run?.DisplayName ?? "?";
+            var list = new List<StationDto>();
+            string line = run?.OriginalLineNumber ?? "?";
             string mode = "BF";
-            TraverseRow? pending = null;
+            StationDto? pending = null;
             int idx = 1;
-            LineSummary? currentLineSummary = run;
+            RunSummaryDto? currentLineSummary = run;
             bool isFirstPointOfLine = false;
             string? firstPointCode = null;
+            var summaryCache = new Dictionary<LineSummary, RunSummaryDto>();
 
             foreach (var r in records)
             {
+                RunSummaryDto? cachedSummary = null;
+                if (r.LineSummary != null && !summaryCache.TryGetValue(r.LineSummary, out cachedSummary))
+                {
+                    cachedSummary = ConvertSummary(r.LineSummary);
+                    summaryCache[r.LineSummary] = cachedSummary;
+                }
+
                 if (r.LineSummary != null && !ReferenceEquals(r.LineSummary, run) && r.LineSummary.DisplayName != line)
                 {
                     if (pending != null)
@@ -99,14 +109,14 @@ namespace Nivtropy.Services
                         pending = null;
                     }
                     line = r.LineSummary.DisplayName;
-                    currentLineSummary = r.LineSummary;
+                    currentLineSummary = cachedSummary;
                     idx = 1;
                     isFirstPointOfLine = true;
                     firstPointCode = null;
                 }
 
-                if (currentLineSummary == null && r.LineSummary != null)
-                    currentLineSummary = r.LineSummary;
+                if (currentLineSummary == null && cachedSummary != null)
+                    currentLineSummary = cachedSummary;
 
                 if (r.LineMarker == "Start-Line" && !string.IsNullOrWhiteSpace(r.Mode))
                 {
@@ -123,12 +133,12 @@ namespace Nivtropy.Services
                     if (isFirstPointOfLine && firstPointCode == null)
                     {
                         firstPointCode = r.StationCode;
-                        var virtualStation = new TraverseRow
+                        var virtualStation = new StationDto
                         {
                             LineName = line,
                             Index = idx++,
                             BackCode = r.StationCode,
-                            LineSummary = currentLineSummary
+                            RunSummary = currentLineSummary
                         };
                         list.Add(virtualStation);
                         isFirstPointOfLine = false;
@@ -137,22 +147,22 @@ namespace Nivtropy.Services
                     if (pending == null)
                     {
                         if (isBF)
-                            pending = new TraverseRow { LineName = line, Index = idx++, BackCode = r.StationCode, Rb_m = r.Rb_m, HdBack_m = r.HD_m, LineSummary = currentLineSummary };
+                            pending = new StationDto { LineName = line, Index = idx++, BackCode = r.StationCode, BackReading = r.Rb_m, BackDistance = r.HD_m, RunSummary = currentLineSummary };
                         else
-                            pending = new TraverseRow { LineName = line, Index = idx++, ForeCode = r.StationCode, Rb_m = r.Rb_m, HdFore_m = r.HD_m, LineSummary = currentLineSummary };
+                            pending = new StationDto { LineName = line, Index = idx++, ForeCode = r.StationCode, BackReading = r.Rb_m, ForeDistance = r.HD_m, RunSummary = currentLineSummary };
                     }
                     else
                     {
                         if (isBF)
                         {
-                            pending.Rb_m ??= r.Rb_m;
-                            pending.HdBack_m ??= r.HD_m;
+                            pending.BackReading ??= r.Rb_m;
+                            pending.BackDistance ??= r.HD_m;
                             pending.BackCode ??= r.StationCode;
                         }
                         else
                         {
-                            pending.Rb_m ??= r.Rb_m;
-                            pending.HdFore_m ??= r.HD_m;
+                            pending.BackReading ??= r.Rb_m;
+                            pending.ForeDistance ??= r.HD_m;
                             pending.ForeCode ??= r.StationCode;
                         }
                         list.Add(pending);
@@ -166,22 +176,22 @@ namespace Nivtropy.Services
                     if (pending == null)
                     {
                         if (isBF)
-                            pending = new TraverseRow { LineName = line, Index = idx++, ForeCode = r.StationCode, Rf_m = r.Rf_m, HdFore_m = r.HD_m, LineSummary = currentLineSummary };
+                            pending = new StationDto { LineName = line, Index = idx++, ForeCode = r.StationCode, ForeReading = r.Rf_m, ForeDistance = r.HD_m, RunSummary = currentLineSummary };
                         else
-                            pending = new TraverseRow { LineName = line, Index = idx++, BackCode = r.StationCode, Rf_m = r.Rf_m, HdBack_m = r.HD_m, LineSummary = currentLineSummary };
+                            pending = new StationDto { LineName = line, Index = idx++, BackCode = r.StationCode, ForeReading = r.Rf_m, BackDistance = r.HD_m, RunSummary = currentLineSummary };
                     }
                     else
                     {
                         if (isBF)
                         {
-                            pending.Rf_m ??= r.Rf_m;
-                            pending.HdFore_m ??= r.HD_m;
+                            pending.ForeReading ??= r.Rf_m;
+                            pending.ForeDistance ??= r.HD_m;
                             pending.ForeCode ??= r.StationCode;
                         }
                         else
                         {
-                            pending.Rf_m ??= r.Rf_m;
-                            pending.HdBack_m ??= r.HD_m;
+                            pending.ForeReading ??= r.Rf_m;
+                            pending.BackDistance ??= r.HD_m;
                             pending.BackCode ??= r.StationCode;
                         }
                         list.Add(pending);
@@ -191,6 +201,28 @@ namespace Nivtropy.Services
             }
             if (pending != null) list.Add(pending);
             return list;
+        }
+
+        private static RunSummaryDto ConvertSummary(LineSummary summary)
+        {
+            return new RunSummaryDto
+            {
+                Index = summary.Index,
+                OriginalLineNumber = summary.OriginalLineNumber,
+                StartPointCode = summary.StartTarget ?? summary.StartStation,
+                EndPointCode = summary.EndTarget ?? summary.EndStation,
+                StationCount = summary.RecordCount,
+                DeltaHSum = summary.DeltaHSum,
+                TotalDistanceBack = summary.TotalDistanceBack,
+                TotalDistanceFore = summary.TotalDistanceFore,
+                ArmDifferenceAccumulation = summary.ArmDifferenceAccumulation,
+                SystemId = summary.SystemId,
+                IsActive = summary.IsActive,
+                KnownPointsCount = summary.KnownPointsCount,
+                UseLocalAdjustment = summary.UseLocalAdjustment,
+                Closures = summary.Closures.ToList(),
+                SharedPointCodes = summary.SharedPointCodes.ToList()
+            };
         }
     }
 }

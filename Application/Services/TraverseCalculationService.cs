@@ -1,26 +1,26 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Nivtropy.Application.DTOs;
 using Nivtropy.Application.Enums;
-using Nivtropy.Models;
-using Nivtropy.Presentation.Models;
-using Nivtropy.Services;
 using Nivtropy.Domain.Services;
+using Nivtropy.Models;
+using Nivtropy.Services;
 
 namespace Nivtropy.Application.Services;
 
 public interface ITraverseCalculationService
 {
-    List<TraverseRow> BuildTraverseRows(IReadOnlyList<MeasurementRecord> records, IReadOnlyList<LineSummary> runs);
+    List<StationDto> BuildTraverseRows(IReadOnlyList<MeasurementRecord> records, IReadOnlyList<RunSummaryDto> runs);
 
-    void RecalculateHeights(IList<TraverseRow> rows, Func<string, double?> getKnownHeight);
+    void RecalculateHeights(IList<StationDto> rows, Func<string, double?> getKnownHeight);
 
-    List<LineSummary> CalculateLineSummaries(IReadOnlyList<TraverseRow> rows);
+    List<RunSummaryDto> CalculateLineSummaries(IReadOnlyList<StationDto> rows);
 
-    void ApplyCorrections(IList<TraverseRow> rows, LineSummary run, double closureValue);
+    void ApplyCorrections(IList<StationDto> rows, RunSummaryDto run, double closureValue);
 
     void ApplyCorrections(
-        IList<TraverseRow> rows,
+        IList<StationDto> rows,
         Func<string, bool> isAnchor,
         double methodOrientationSign,
         AdjustmentMode adjustmentMode);
@@ -38,12 +38,12 @@ public class TraverseCalculationService : ITraverseCalculationService
         _correctionService = correctionService ?? throw new ArgumentNullException(nameof(correctionService));
     }
 
-    public List<TraverseRow> BuildTraverseRows(IReadOnlyList<MeasurementRecord> records, IReadOnlyList<LineSummary> runs)
+    public List<StationDto> BuildTraverseRows(IReadOnlyList<MeasurementRecord> records, IReadOnlyList<RunSummaryDto> runs)
     {
         return _traverseBuilder.Build(records);
     }
 
-    public void RecalculateHeights(IList<TraverseRow> rows, Func<string, double?> getKnownHeight)
+    public void RecalculateHeights(IList<StationDto> rows, Func<string, double?> getKnownHeight)
     {
         if (rows.Count == 0)
             return;
@@ -93,27 +93,27 @@ public class TraverseCalculationService : ITraverseCalculationService
         }
     }
 
-    public List<LineSummary> CalculateLineSummaries(IReadOnlyList<TraverseRow> rows)
+    public List<RunSummaryDto> CalculateLineSummaries(IReadOnlyList<StationDto> rows)
     {
         return rows
-            .Select(r => r.LineSummary)
+            .Select(r => r.RunSummary)
             .Where(summary => summary != null)
             .Distinct()
-            .Cast<LineSummary>()
+            .Cast<RunSummaryDto>()
             .ToList();
     }
 
-    public void ApplyCorrections(IList<TraverseRow> rows, LineSummary run, double closureValue)
+    public void ApplyCorrections(IList<StationDto> rows, RunSummaryDto run, double closureValue)
     {
         if (rows.Count == 0)
             return;
 
         ResetCorrections(rows);
-        run.SetClosures(new[] { closureValue });
+        run.Closures = new List<double> { closureValue };
     }
 
     public void ApplyCorrections(
-        IList<TraverseRow> rows,
+        IList<StationDto> rows,
         Func<string, bool> isAnchor,
         double methodOrientationSign,
         AdjustmentMode adjustmentMode)
@@ -123,18 +123,28 @@ public class TraverseCalculationService : ITraverseCalculationService
 
         ResetCorrections(rows);
 
-        var stations = rows.Select((row, idx) => new StationCorrectionInput
-        {
-            Index = idx,
-            BackCode = row.BackCode,
-            ForeCode = row.ForeCode,
-            DeltaH = row.DeltaH,
-            HdBack = row.HdBack_m,
-            HdFore = row.HdFore_m
-        }).ToList();
-
         var result = _correctionService.CalculateCorrections(
-            stations,
+            rows.Select((row, idx) => new StationDto
+            {
+                Index = idx,
+                LineName = row.LineName,
+                BackCode = row.BackCode,
+                ForeCode = row.ForeCode,
+                BackReading = row.BackReading,
+                ForeReading = row.ForeReading,
+                BackDistance = row.BackDistance,
+                ForeDistance = row.ForeDistance,
+                BackHeight = row.BackHeight,
+                ForeHeight = row.ForeHeight,
+                BackHeightRaw = row.BackHeightRaw,
+                ForeHeightRaw = row.ForeHeightRaw,
+                IsBackHeightKnown = row.IsBackHeightKnown,
+                IsForeHeightKnown = row.IsForeHeightKnown,
+                IsArmDifferenceExceeded = row.IsArmDifferenceExceeded,
+                Correction = row.Correction,
+                BaselineCorrection = row.BaselineCorrection,
+                CorrectionMode = row.CorrectionMode
+            }).ToList(),
             code => !string.IsNullOrWhiteSpace(code) && isAnchor(code!),
             methodOrientationSign,
             adjustmentMode);
@@ -150,15 +160,15 @@ public class TraverseCalculationService : ITraverseCalculationService
             }
         }
 
-        var lineSummary = rows.FirstOrDefault()?.LineSummary;
+        var lineSummary = rows.FirstOrDefault()?.RunSummary;
         if (lineSummary != null)
         {
             lineSummary.KnownPointsCount = result.DistinctAnchorCount;
-            lineSummary.SetClosures(result.Closures);
+            lineSummary.Closures = result.Closures.ToList();
         }
     }
 
-    private static void ResetCorrections(IList<TraverseRow> rows)
+    private static void ResetCorrections(IList<StationDto> rows)
     {
         foreach (var row in rows)
         {

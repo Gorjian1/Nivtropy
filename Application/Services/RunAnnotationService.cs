@@ -1,21 +1,21 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Nivtropy.Application.DTOs;
 using Nivtropy.Models;
-using Nivtropy.Presentation.Models;
 
 namespace Nivtropy.Application.Services;
 
 public interface IRunAnnotationService
 {
-    IReadOnlyList<LineSummary> AnnotateRuns(IList<MeasurementRecord> records);
+    IReadOnlyList<RunAnnotationGroupDto> AnnotateRuns(IList<MeasurementRecord> records);
 }
 
 public class RunAnnotationService : IRunAnnotationService
 {
-    public IReadOnlyList<LineSummary> AnnotateRuns(IList<MeasurementRecord> records)
+    public IReadOnlyList<RunAnnotationGroupDto> AnnotateRuns(IList<MeasurementRecord> records)
     {
-        var summaries = new List<LineSummary>();
+        var summaries = new List<RunAnnotationGroupDto>();
         if (records.Count == 0)
             return summaries;
 
@@ -49,7 +49,11 @@ public class RunAnnotationService : IRunAnnotationService
             int index = g + 1;
 
             var summary = BuildSummary(index, group);
-            summaries.Add(summary);
+            summaries.Add(new RunAnnotationGroupDto
+            {
+                Summary = summary,
+                Records = group.ToList()
+            });
 
             var start = group.FirstOrDefault(gr => gr.Rb_m.HasValue) ?? group.First();
             var end = group.LastOrDefault(gr => gr.Rf_m.HasValue) ?? group.Last();
@@ -57,7 +61,6 @@ public class RunAnnotationService : IRunAnnotationService
             for (int i = 0; i < group.Count; i++)
             {
                 var rec = group[i];
-                rec.LineSummary = summary;
                 rec.ShotIndexWithinLine = i + 1;
                 rec.IsLineStart = ReferenceEquals(rec, start);
                 rec.IsLineEnd = ReferenceEquals(rec, end);
@@ -96,7 +99,7 @@ public class RunAnnotationService : IRunAnnotationService
         return false;
     }
 
-    private static LineSummary BuildSummary(int index, IReadOnlyList<MeasurementRecord> group)
+    private static RunSummaryDto BuildSummary(int index, IReadOnlyList<MeasurementRecord> group)
     {
         var start = group.FirstOrDefault(r => r.Rb_m.HasValue) ?? group.First();
         var end = group.LastOrDefault(r => r.Rf_m.HasValue) ?? group.Last();
@@ -133,17 +136,17 @@ public class RunAnnotationService : IRunAnnotationService
             }
         }
 
-        return new LineSummary(
-            index,
-            start.Target,
-            start.StationCode,
-            end.Target,
-            end.StationCode,
-            group.Count,
-            deltaSum,
-            totalDistanceBack,
-            totalDistanceFore,
-            armDiffAccumulation,
-            originalLineNumber: originalLineNumber);
+        return new RunSummaryDto
+        {
+            Index = index,
+            OriginalLineNumber = originalLineNumber,
+            StartPointCode = start.Target ?? start.StationCode,
+            EndPointCode = end.Target ?? end.StationCode,
+            StationCount = group.Count,
+            DeltaHSum = deltaSum,
+            TotalDistanceBack = totalDistanceBack,
+            TotalDistanceFore = totalDistanceFore,
+            ArmDifferenceAccumulation = armDiffAccumulation
+        };
     }
 }

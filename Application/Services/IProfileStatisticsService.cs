@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using Nivtropy.Application.DTOs;
-using Nivtropy.Presentation.Models;
 namespace Nivtropy.Application.Services
 {
     /// <summary>
@@ -14,7 +13,7 @@ namespace Nivtropy.Application.Services
         /// <param name="rows">Строки хода</param>
         /// <param name="sensitivitySigma">Чувствительность обнаружения аномалий (в сигмах)</param>
         /// <returns>Статистика профиля с обнаруженными аномалиями</returns>
-        ProfileStatistics CalculateStatistics(List<TraverseRow> rows, double sensitivitySigma = 2.5);
+        ProfileStatistics CalculateStatistics(List<StationDto> rows, double sensitivitySigma = 2.5);
 
         /// <summary>
         /// Вычисляет расширенный диапазон высот для лучшей визуализации

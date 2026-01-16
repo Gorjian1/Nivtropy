@@ -10,6 +10,7 @@ using Nivtropy.Application.DTOs;
 using Nivtropy.Presentation.Models;
 using Nivtropy.Application.Services;
 using Nivtropy.Services.Visualization;
+using Nivtropy.Presentation.Mappers;
 using Nivtropy.Presentation.ViewModels.Base;
 
 namespace Nivtropy.Presentation.ViewModels
@@ -264,7 +265,8 @@ namespace Nivtropy.Presentation.ViewModels
             var rows = GetFilteredRows();
             if (rows.Count > 0)
             {
-                CurrentStatistics = _statisticsService.CalculateStatistics(rows, SensitivitySigma);
+                var dtos = rows.Select(r => r.ToDto()).ToList();
+                CurrentStatistics = _statisticsService.CalculateStatistics(dtos, SensitivitySigma);
             }
             else
             {

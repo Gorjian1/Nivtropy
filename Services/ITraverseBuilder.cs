@@ -1,6 +1,6 @@
 using System.Collections.Generic;
+using Nivtropy.Application.DTOs;
 using Nivtropy.Models;
-using Nivtropy.Presentation.Models;
 
 namespace Nivtropy.Services
 {
@@ -10,7 +10,7 @@ namespace Nivtropy.Services
     /// </summary>
     public interface ITraverseBuilder
     {
-        List<TraverseRow> Build(IEnumerable<MeasurementRecord> records, LineSummary? run = null);
+        List<StationDto> Build(IEnumerable<MeasurementRecord> records, RunSummaryDto? run = null);
         void InvalidateCache();
     }
 }

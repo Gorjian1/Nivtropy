@@ -1,7 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
-using Nivtropy.Presentation.Models;
-using Nivtropy.Presentation.ViewModels.Managers;
+using Nivtropy.Application.DTOs;
 
 namespace Nivtropy.Domain.Services
 {
@@ -15,16 +14,18 @@ namespace Nivtropy.Domain.Services
     public interface ISystemConnectivityService
     {
         ConnectivityResult AnalyzeConnectivity(
-            IReadOnlyList<LineSummary> runs,
-            IReadOnlyList<SharedPointLinkItem> sharedPoints,
+            IReadOnlyList<RunSummaryDto> runs,
+            IReadOnlyList<SharedPointDto> sharedPoints,
             IReadOnlyList<string> existingAutoSystemIds);
     }
 
     public class SystemConnectivityService : ISystemConnectivityService
     {
+        private const string DefaultSystemId = "system-default";
+
         public ConnectivityResult AnalyzeConnectivity(
-            IReadOnlyList<LineSummary> runs,
-            IReadOnlyList<SharedPointLinkItem> sharedPoints,
+            IReadOnlyList<RunSummaryDto> runs,
+            IReadOnlyList<SharedPointDto> sharedPoints,
             IReadOnlyList<string> existingAutoSystemIds)
         {
             var result = new ConnectivityResult();
@@ -36,7 +37,7 @@ namespace Nivtropy.Domain.Services
             if (components.Count <= 1)
             {
                 foreach (var run in runs)
-                    result.RunToSystemId[run.Index] = ITraverseSystemsManager.DEFAULT_SYSTEM_ID;
+                    result.RunToSystemId[run.Index] = DefaultSystemId;
                 result.SystemsToRemove.AddRange(existingAutoSystemIds);
                 return result;
             }
@@ -51,7 +52,7 @@ namespace Nivtropy.Domain.Services
 
                 if (i == 0)
                 {
-                    systemId = ITraverseSystemsManager.DEFAULT_SYSTEM_ID;
+                    systemId = DefaultSystemId;
                 }
                 else
                 {
@@ -73,8 +74,8 @@ namespace Nivtropy.Domain.Services
         }
 
         private static Dictionary<int, HashSet<int>> BuildAdjacencyGraph(
-            IReadOnlyList<LineSummary> runs,
-            IReadOnlyList<SharedPointLinkItem> sharedPoints)
+            IReadOnlyList<RunSummaryDto> runs,
+            IReadOnlyList<SharedPointDto> sharedPoints)
         {
             var adjacency = new Dictionary<int, HashSet<int>>();
             foreach (var run in runs)
@@ -82,7 +83,7 @@ namespace Nivtropy.Domain.Services
 
             foreach (var sp in sharedPoints.Where(p => p.IsEnabled))
             {
-                var runsWithPoint = runs.Where(r => sp.IsUsedInRun(r.Index)).Select(r => r.Index).ToList();
+                var runsWithPoint = runs.Where(r => sp.RunIndexes.Contains(r.Index)).Select(r => r.Index).ToList();
                 for (int i = 0; i < runsWithPoint.Count; i++)
                     for (int j = i + 1; j < runsWithPoint.Count; j++)
                     {
@@ -94,7 +95,7 @@ namespace Nivtropy.Domain.Services
         }
 
         private static List<List<int>> FindConnectedComponents(
-            IReadOnlyList<LineSummary> runs,
+            IReadOnlyList<RunSummaryDto> runs,
             Dictionary<int, HashSet<int>> adjacency)
         {
             var visited = new HashSet<int>();

@@ -1,21 +1,11 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Nivtropy.Application.DTOs;
 using Nivtropy.Application.Enums;
-using Nivtropy.Presentation.Models;
 
 namespace Nivtropy.Domain.Services
 {
-    public class StationCorrectionInput
-    {
-        public int Index { get; init; }
-        public string? BackCode { get; init; }
-        public string? ForeCode { get; init; }
-        public double? DeltaH { get; init; }
-        public double? HdBack { get; init; }
-        public double? HdFore { get; init; }
-    }
-
     public class StationCorrectionResult
     {
         public int Index { get; init; }
@@ -35,7 +25,7 @@ namespace Nivtropy.Domain.Services
     public interface ITraverseCorrectionService
     {
         CorrectionCalculationResult CalculateCorrections(
-            IReadOnlyList<StationCorrectionInput> stations,
+            IReadOnlyList<StationDto> stations,
             Func<string?, bool> isAnchor,
             double methodOrientationSign,
             AdjustmentMode adjustmentMode);
@@ -46,7 +36,7 @@ namespace Nivtropy.Domain.Services
         private const double CorrectionRoundingStep = 0.0001;
 
         public CorrectionCalculationResult CalculateCorrections(
-            IReadOnlyList<StationCorrectionInput> stations,
+            IReadOnlyList<StationDto> stations,
             Func<string?, bool> isAnchor,
             double methodOrientationSign,
             AdjustmentMode adjustmentMode)
@@ -112,7 +102,7 @@ namespace Nivtropy.Domain.Services
             return result with { ClosureMode = closureMode, DistinctAnchorCount = distinctAnchorCount };
         }
 
-        private static List<(int Index, string? Code)> CollectAnchorPoints(IReadOnlyList<StationCorrectionInput> stations, Func<string?, bool> isAnchor)
+        private static List<(int Index, string? Code)> CollectAnchorPoints(IReadOnlyList<StationDto> stations, Func<string?, bool> isAnchor)
         {
             var knownPoints = new List<(int Index, string? Code)>();
             for (int i = 0; i < stations.Count; i++)
@@ -131,7 +121,7 @@ namespace Nivtropy.Domain.Services
             return knownPoints.OrderBy(p => p.Index).ToList();
         }
 
-        private static TraverseClosureMode DetermineClosureMode(IReadOnlyList<StationCorrectionInput> stations, Func<string?, bool> isAnchor, List<(int Index, string? Code)> anchorPoints, AdjustmentMode adjustmentMode)
+        private static TraverseClosureMode DetermineClosureMode(IReadOnlyList<StationDto> stations, Func<string?, bool> isAnchor, List<(int Index, string? Code)> anchorPoints, AdjustmentMode adjustmentMode)
         {
             var startCode = stations.FirstOrDefault()?.BackCode ?? stations.FirstOrDefault()?.ForeCode;
             var endCode = stations.LastOrDefault()?.ForeCode ?? stations.LastOrDefault()?.BackCode;
@@ -154,7 +144,7 @@ namespace Nivtropy.Domain.Services
             return distinctAnchorCount > 1 ? TraverseClosureMode.Local : TraverseClosureMode.Simple;
         }
 
-        private static void CalculateCorrectionsWithSections(List<StationCorrectionInput> stations, List<(int Index, string? Code)> knownPoints, double methodSign, List<double> closures, Action<int, double>? applyCorrection)
+        private static void CalculateCorrectionsWithSections(List<StationDto> stations, List<(int Index, string? Code)> knownPoints, double methodSign, List<double> closures, Action<int, double>? applyCorrection)
         {
             if (stations.Count == 0) return;
             if (knownPoints.Count < 2)
@@ -174,14 +164,14 @@ namespace Nivtropy.Domain.Services
             }
         }
 
-        private static double? CalculateCorrectionsForSection(List<StationCorrectionInput> stations, double methodSign, Action<int, double>? applyCorrection)
+        private static double? CalculateCorrectionsForSection(List<StationDto> stations, double methodSign, Action<int, double>? applyCorrection)
         {
             if (stations.Count == 0) return null;
             var sectionClosure = stations.Where(s => s.DeltaH.HasValue).Sum(s => s.DeltaH!.Value * methodSign);
             var adjustableStations = stations.Where(s => s.DeltaH.HasValue).ToList();
             if (adjustableStations.Count == 0) return sectionClosure;
 
-            double totalDistance = stations.Sum(s => ((s.HdBack ?? 0) + (s.HdFore ?? 0)) / 2.0);
+            double totalDistance = stations.Sum(s => ((s.BackDistance ?? 0) + (s.ForeDistance ?? 0)) / 2.0);
             var allocations = new List<(int Index, double Raw, double Rounded)>();
 
             if (totalDistance <= 0)
@@ -195,7 +185,7 @@ namespace Nivtropy.Domain.Services
                 var correctionFactor = -sectionClosure / totalDistance;
                 foreach (var station in adjustableStations)
                 {
-                    var avgDistance = ((station.HdBack ?? 0) + (station.HdFore ?? 0)) / 2.0;
+                    var avgDistance = ((station.BackDistance ?? 0) + (station.ForeDistance ?? 0)) / 2.0;
                     allocations.Add((station.Index, correctionFactor * avgDistance, correctionFactor * avgDistance));
                 }
             }

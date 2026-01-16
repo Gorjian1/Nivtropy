@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using Nivtropy.Presentation.Models;
 
 namespace Nivtropy.Application.DTOs
 {
@@ -12,22 +11,22 @@ namespace Nivtropy.Application.DTOs
         /// <summary>
         /// Список обнаруженных аномалий
         /// </summary>
-        public List<OutlierPoint> Outliers { get; set; } = new();
+        public List<OutlierDto> Outliers { get; set; } = new();
 
         /// <summary>
         /// Резкие перепады высот
         /// </summary>
-        public List<OutlierPoint> HeightJumps => Outliers.FindAll(o => o.Type == OutlierType.HeightJump);
+        public List<OutlierDto> HeightJumps => Outliers.FindAll(o => o.Type == OutlierType.HeightJump);
 
         /// <summary>
         /// Аномальные длины станций
         /// </summary>
-        public List<OutlierPoint> StationLengthAnomalies => Outliers.FindAll(o => o.Type == OutlierType.StationLength);
+        public List<OutlierDto> StationLengthAnomalies => Outliers.FindAll(o => o.Type == OutlierType.StationLength);
 
         /// <summary>
         /// Превышения разности плеч
         /// </summary>
-        public List<OutlierPoint> ArmDifferenceIssues => Outliers.FindAll(o => o.Type == OutlierType.ArmDifference);
+        public List<OutlierDto> ArmDifferenceIssues => Outliers.FindAll(o => o.Type == OutlierType.ArmDifference);
 
         /// <summary>
         /// Общее количество аномалий

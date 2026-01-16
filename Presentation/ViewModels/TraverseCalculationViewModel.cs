@@ -12,6 +12,7 @@ using System.Windows;
 using System.Windows.Input;
 using ClosedXML.Excel;
 using Microsoft.Win32;
+using Nivtropy.Application.DTOs;
 using Nivtropy.Presentation.Models;
 using Nivtropy.Models;
 using Nivtropy.Application.Enums;
@@ -22,6 +23,7 @@ using Nivtropy.Utilities;
 using Nivtropy.Presentation.ViewModels.Base;
 using Nivtropy.Presentation.ViewModels.Helpers;
 using Nivtropy.Presentation.ViewModels.Managers;
+using Nivtropy.Presentation.Mappers;
 using Nivtropy.Constants;
 
 namespace Nivtropy.Presentation.ViewModels
@@ -615,8 +617,9 @@ namespace Nivtropy.Presentation.ViewModels
                     return;
                 }
 
-                var items = _calculationService.BuildTraverseRows(records.ToList(), Runs);
-                ProcessTraverseItems(items);
+                var runDtos = Runs.Select(r => r.ToDto()).ToList();
+                var items = _calculationService.BuildTraverseRows(records.ToList(), runDtos);
+                ProcessTraverseItems(MapStationsToRows(items));
             }
             finally
             {
@@ -679,10 +682,11 @@ namespace Nivtropy.Presentation.ViewModels
                 }
 
                 // Тяжёлые вычисления в фоновом потоке
+                var runDtos = Runs.Select(r => r.ToDto()).ToList();
                 var items = await Task.Run(() =>
                 {
                     token.ThrowIfCancellationRequested();
-                    return _calculationService.BuildTraverseRows(records, Runs);
+                    return _calculationService.BuildTraverseRows(records, runDtos);
                 }, token);
 
                 token.ThrowIfCancellationRequested();
@@ -714,9 +718,9 @@ namespace Nivtropy.Presentation.ViewModels
         /// <summary>
         /// Обновляет строки из уже построенных items (для использования из async метода)
         /// </summary>
-        private void UpdateRowsFromItems(List<TraverseRow> items)
+        private void UpdateRowsFromItems(List<StationDto> items)
         {
-            ProcessTraverseItems(items);
+            ProcessTraverseItems(MapStationsToRows(items));
         }
 
         /// <summary>
@@ -826,11 +830,15 @@ namespace Nivtropy.Presentation.ViewModels
                         }
                     }
 
+                    var summaryMap = new Dictionary<LineSummary, RunSummaryDto>();
+                    var dtos = MapRowsToDtos(groupItems, summaryMap);
                     _calculationService.ApplyCorrections(
-                        groupItems,
+                        dtos,
                         anchorChecker,
                         MethodOrientationSign,
                         AdjustmentMode);
+                    ApplyDtosToRows(groupItems, dtos);
+                    ApplyRunSummaries(summaryMap);
                     CalculateHeightsForRun(groupItems, availableAdjustedHeights, availableRawHeights, group.Key);
                     processedGroups.Add(group.Key);
                     progress = true;
@@ -919,9 +927,12 @@ namespace Nivtropy.Presentation.ViewModels
             foreach (var group in groupedRows)
             {
                 var runRows = group.OrderBy(r => r.Index).ToList();
+                var summaryMap = new Dictionary<LineSummary, RunSummaryDto>();
+                var dtos = MapRowsToDtos(runRows, summaryMap);
                 _calculationService.RecalculateHeights(
-                    runRows,
+                    dtos,
                     code => knownHeights.TryGetValue(code, out var height) ? height : null);
+                ApplyDtosToRows(runRows, dtos);
             }
 
             // Обновляем статистику
@@ -940,7 +951,7 @@ namespace Nivtropy.Presentation.ViewModels
             }
 
             // Используем сервис для расчёта невязки
-            Closure = _closureService.CalculateClosure(_rows.ToList(), MethodOrientationSign);
+            Closure = _closureService.CalculateClosure(MapRowsToDtos(_rows.ToList()), MethodOrientationSign);
         }
 
         private void UpdateTolerance()
@@ -981,6 +992,90 @@ namespace Nivtropy.Presentation.ViewModels
                 return false;
 
             return contains(code) && (_dataViewModel.HasKnownHeight(code) || _dataViewModel.IsSharedPointEnabled(code));
+        }
+
+        private List<TraverseRow> MapStationsToRows(IReadOnlyList<StationDto> items)
+        {
+            var summaries = new Dictionary<RunSummaryDto, LineSummary>();
+            var rows = new List<TraverseRow>(items.Count);
+
+            foreach (var dto in items)
+            {
+                LineSummary? summary = null;
+                if (dto.RunSummary != null)
+                {
+                    if (!summaries.TryGetValue(dto.RunSummary, out summary))
+                    {
+                        summary = dto.RunSummary.ToModel();
+                        summaries[dto.RunSummary] = summary;
+                    }
+                }
+
+                rows.Add(dto.ToModel(summary));
+            }
+
+            return rows;
+        }
+
+        private static List<StationDto> MapRowsToDtos(IList<TraverseRow> rows)
+        {
+            return MapRowsToDtos(rows, new Dictionary<LineSummary, RunSummaryDto>());
+        }
+
+        private static List<StationDto> MapRowsToDtos(IList<TraverseRow> rows, Dictionary<LineSummary, RunSummaryDto> summaryMap)
+        {
+            var result = new List<StationDto>(rows.Count);
+            foreach (var row in rows)
+            {
+                var dto = row.ToDto();
+                if (row.LineSummary != null)
+                {
+                    if (!summaryMap.TryGetValue(row.LineSummary, out var runDto))
+                    {
+                        runDto = row.LineSummary.ToDto();
+                        summaryMap[row.LineSummary] = runDto;
+                    }
+                    dto.RunSummary = runDto;
+                }
+                result.Add(dto);
+            }
+            return result;
+        }
+
+        private static void ApplyDtosToRows(IList<TraverseRow> rows, IList<StationDto> dtos)
+        {
+            var count = Math.Min(rows.Count, dtos.Count);
+            for (int i = 0; i < count; i++)
+            {
+                rows[i].ApplyFrom(dtos[i]);
+            }
+        }
+
+        private static void ApplyRunSummaries(Dictionary<LineSummary, RunSummaryDto> summaryMap)
+        {
+            foreach (var kvp in summaryMap)
+            {
+                kvp.Key.ApplyFrom(kvp.Value);
+            }
+        }
+
+        private List<SharedPointDto> BuildSharedPointDtos()
+        {
+            var runIndexesByPoint = _sharedPointsByRun
+                .SelectMany(kvp => kvp.Value.Select(code => (code, runIndex: kvp.Key)))
+                .GroupBy(x => x.code, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(
+                    g => g.Key,
+                    g => g.Select(x => x.runIndex).Distinct().ToList(),
+                    StringComparer.OrdinalIgnoreCase);
+
+            return _sharedPoints
+                .Select(point =>
+                {
+                    runIndexesByPoint.TryGetValue(point.Code, out var indexes);
+                    return point.ToDto(indexes ?? new List<int>());
+                })
+                .ToList();
         }
 
         private bool AllowPropagation(string code)
@@ -1108,8 +1203,8 @@ namespace Nivtropy.Presentation.ViewModels
                 .ToList();
 
             var result = _connectivityService.AnalyzeConnectivity(
-                Runs.ToList(),
-                _sharedPoints.ToList(),
+                Runs.Select(r => r.ToDto()).ToList(),
+                BuildSharedPointDtos(),
                 existingAutoSystemIds);
 
             // Применяем результат: назначаем ходам системы

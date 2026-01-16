@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Nivtropy.Presentation.Models;
+using Nivtropy.Application.DTOs;
 
 namespace Nivtropy.Application.Services
 {
@@ -14,7 +14,7 @@ namespace Nivtropy.Application.Services
         /// Строит строки проектирования из данных нивелирного хода
         /// </summary>
         public DesignCalculationResult BuildDesignRows(
-            IEnumerable<TraverseRow> traverseRows,
+            IEnumerable<StationDto> traverseRows,
             double startHeight,
             double targetClosure)
         {
@@ -36,7 +36,7 @@ namespace Nivtropy.Application.Services
             var totalDistance = 0.0;
             foreach (var row in items)
             {
-                var avgDist = ((row.HdBack_m ?? 0) + (row.HdFore_m ?? 0)) / 2.0;
+                var avgDist = ((row.BackDistance ?? 0) + (row.ForeDistance ?? 0)) / 2.0;
                 totalDistance += avgDist;
             }
             result.TotalDistance = totalDistance;
@@ -68,7 +68,7 @@ namespace Nivtropy.Application.Services
             foreach (var row in items)
             {
                 // Средняя длина для данного хода
-                var avgDistance = ((row.HdBack_m ?? 0) + (row.HdFore_m ?? 0)) / 2.0;
+                var avgDistance = ((row.BackDistance ?? 0) + (row.ForeDistance ?? 0)) / 2.0;
 
                 // Поправка пропорционально длине данного хода
                 double correction = row.DeltaH.HasValue
@@ -85,13 +85,13 @@ namespace Nivtropy.Application.Services
                     adjustedSum += adjustedDelta.Value;
                 }
 
-                var designRow = new DesignRow
+                var designRow = new DesignPointDto
                 {
                     Index = row.Index,
                     Station = string.IsNullOrWhiteSpace(row.BackCode) && string.IsNullOrWhiteSpace(row.ForeCode)
                         ? row.LineName
                         : $"{row.BackCode ?? "?"} → {row.ForeCode ?? "?"}",
-                    Distance_m = avgDistance > 0 ? avgDistance : null,
+                    Distance = avgDistance > 0 ? avgDistance : null,
                     OriginalDeltaH = row.DeltaH,
                     Correction = correction,
                     AdjustedDeltaH = adjustedDelta,
@@ -116,7 +116,7 @@ namespace Nivtropy.Application.Services
         /// <summary>
         /// Вычисляет статистику невязки для хода
         /// </summary>
-        public ClosureStatistics CalculateClosureStatistics(IEnumerable<TraverseRow> traverseRows)
+        public ClosureStatistics CalculateClosureStatistics(IEnumerable<StationDto> traverseRows)
         {
             var items = traverseRows.ToList();
             var stats = new ClosureStatistics();
@@ -135,7 +135,7 @@ namespace Nivtropy.Application.Services
             var totalDistance = 0.0;
             foreach (var row in items)
             {
-                var avgDist = ((row.HdBack_m ?? 0) + (row.HdFore_m ?? 0)) / 2.0;
+                var avgDist = ((row.BackDistance ?? 0) + (row.ForeDistance ?? 0)) / 2.0;
                 totalDistance += avgDist;
             }
             stats.TotalDistance = totalDistance;
@@ -163,7 +163,7 @@ namespace Nivtropy.Application.Services
         /// <summary>
         /// Пересчитывает высоты всех точек начиная с указанного индекса + 1
         /// </summary>
-        public void RecalculateHeightsFrom(IList<DesignRow> rows, int changedIndex)
+        public void RecalculateHeightsFrom(IList<DesignPointDto> rows, int changedIndex)
         {
             if (rows == null || changedIndex < 0 || changedIndex >= rows.Count)
                 return;
@@ -184,10 +184,10 @@ namespace Nivtropy.Application.Services
 
         /// <summary>
         /// Пересчитывает поправки для всех строк и высоты
-        /// Вызывается при изменении дистанции (Distance_m)
+        /// Вызывается при изменении дистанции (Distance)
         /// </summary>
         public double RecalculateCorrectionsAndHeights(
-            IList<DesignRow> rows,
+            IList<DesignPointDto> rows,
             double startHeight,
             double targetClosure)
         {
@@ -200,7 +200,7 @@ namespace Nivtropy.Application.Services
                 .Sum(r => r.OriginalDeltaH!.Value);
 
             // Рассчитываем общую длину хода с учетом отредактированных дистанций
-            var totalDistance = rows.Sum(r => r.Distance_m ?? 0);
+            var totalDistance = rows.Sum(r => r.Distance ?? 0);
 
             // Расчет невязки для распределения
             var closureToDistribute = targetClosure - originalClosure;
@@ -217,7 +217,7 @@ namespace Nivtropy.Application.Services
 
                 // Поправка пропорционально длине данного хода
                 double correction = row.OriginalDeltaH.HasValue
-                    ? correctionFactor * (row.Distance_m ?? 0)
+                    ? correctionFactor * (row.Distance ?? 0)
                     : 0;
 
                 double? adjustedDelta = row.OriginalDeltaH.HasValue

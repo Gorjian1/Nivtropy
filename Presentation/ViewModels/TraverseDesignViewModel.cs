@@ -4,9 +4,11 @@ using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Linq;
 using System.Runtime.CompilerServices;
-using Nivtropy.Presentation.Models;
-using Nivtropy.Models;
+using Nivtropy.Application.DTOs;
 using Nivtropy.Application.Services;
+using Nivtropy.Models;
+using Nivtropy.Presentation.Mappers;
+using Nivtropy.Presentation.Models;
 using Nivtropy.Presentation.ViewModels.Base;
 
 namespace Nivtropy.Presentation.ViewModels
@@ -185,7 +187,7 @@ namespace Nivtropy.Presentation.ViewModels
             // Используем TraverseCalculationService для построения строк хода
             var traverseRows = _calculationService.BuildTraverseRows(
                 _dataViewModel.Records.Where(r => ReferenceEquals(r.LineSummary, SelectedRun)).ToList(),
-                new[] { SelectedRun });
+                new[] { SelectedRun.ToDto() });
 
             if (traverseRows.Count == 0)
             {
@@ -210,7 +212,7 @@ namespace Nivtropy.Presentation.ViewModels
             ClosureStatus = result.ClosureStatus;
 
             // Добавляем строки и подписываемся на изменения
-            foreach (var designRow in result.Rows)
+            foreach (var designRow in result.Rows.Select(row => row.ToModel()))
             {
                 designRow.PropertyChanged += OnDesignRowPropertyChanged;
                 _rows.Add(designRow);
@@ -263,7 +265,9 @@ namespace Nivtropy.Presentation.ViewModels
             }
 
             // Используем сервис для пересчёта
-            _designService.RecalculateHeightsFrom(_rows, startIndex);
+            var dtos = _rows.Select(row => row.ToDto()).ToList();
+            _designService.RecalculateHeightsFrom(dtos, startIndex);
+            ApplyDtosToRows(dtos);
 
             // Подписываемся обратно
             foreach (var row in _rows)
@@ -288,8 +292,10 @@ namespace Nivtropy.Presentation.ViewModels
             }
 
             // Используем сервис для пересчёта поправок и высот
+            var dtos = _rows.Select(row => row.ToDto()).ToList();
             var adjustedSum = _designService.RecalculateCorrectionsAndHeights(
-                _rows, StartHeight, TargetClosure);
+                dtos, StartHeight, TargetClosure);
+            ApplyDtosToRows(dtos);
 
             DesignedClosure = adjustedSum;
 
@@ -305,6 +311,24 @@ namespace Nivtropy.Presentation.ViewModels
             foreach (var row in _rows)
             {
                 row.PropertyChanged += OnDesignRowPropertyChanged;
+            }
+        }
+
+        private void ApplyDtosToRows(IList<DesignPointDto> dtos)
+        {
+            var count = Math.Min(_rows.Count, dtos.Count);
+            for (int i = 0; i < count; i++)
+            {
+                var dto = dtos[i];
+                var row = _rows[i];
+                row.Distance_m = dto.Distance;
+                row.OriginalDeltaH = dto.OriginalDeltaH;
+                row.Correction = dto.Correction;
+                row.AdjustedDeltaH = dto.AdjustedDeltaH;
+                row.DesignedHeight = dto.DesignedHeight;
+                row.IsEdited = dto.IsEdited;
+                row.OriginalHeight = dto.OriginalHeight;
+                row.OriginalDistance = dto.OriginalDistance;
             }
         }
     }

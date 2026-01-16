@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Nivtropy.Application.DTOs;
-using Nivtropy.Presentation.Models;
 
 namespace Nivtropy.Application.Services
 {
@@ -12,7 +11,7 @@ namespace Nivtropy.Application.Services
     /// </summary>
     public class ProfileStatisticsService : IProfileStatisticsService
     {
-        public ProfileStatistics CalculateStatistics(List<TraverseRow> rows, double sensitivitySigma = 2.5)
+        public ProfileStatistics CalculateStatistics(List<StationDto> rows, double sensitivitySigma = 2.5)
         {
             var stats = new ProfileStatistics
             {
@@ -34,8 +33,8 @@ namespace Nivtropy.Application.Services
                 if (height.HasValue) heights.Add(height.Value);
 
                 if (row.DeltaH.HasValue) deltaHs.Add(row.DeltaH.Value);
-                if (row.StationLength_m.HasValue) stationLengths.Add(row.StationLength_m.Value);
-                if (row.ArmDifference_m.HasValue) armDifferences.Add(row.ArmDifference_m.Value);
+                if (row.StationLength.HasValue) stationLengths.Add(row.StationLength.Value);
+                if (row.ArmDifference.HasValue) armDifferences.Add(row.ArmDifference.Value);
             }
 
             // Статистика высот
@@ -117,7 +116,7 @@ namespace Nivtropy.Application.Services
         /// <summary>
         /// Обнаруживает аномалии (выбросы) в данных
         /// </summary>
-        private void DetectOutliers(List<TraverseRow> rows, ProfileStatistics stats, double sensitivitySigma)
+        private void DetectOutliers(List<StationDto> rows, ProfileStatistics stats, double sensitivitySigma)
         {
             // 1. Резкие перепады превышений (анализ последовательных разностей)
             for (int i = 1; i < rows.Count; i++)
@@ -133,10 +132,10 @@ namespace Nivtropy.Application.Services
                     if (threshold > 0.001 && diff > threshold)
                     {
                         var deviation = diff / stats.StdDevDeltaH;
-                        stats.Outliers.Add(new OutlierPoint
+                        stats.Outliers.Add(new OutlierDto
                         {
                             StationIndex = rows[i].Index,
-                            PointCode = rows[i].PointCode ?? "—",
+                            PointCode = GetPointCode(rows[i]) ?? "—",
                             Value = currDeltaH.Value,
                             ExpectedValue = prevDeltaH.Value,
                             DeviationInSigma = deviation,
@@ -153,7 +152,7 @@ namespace Nivtropy.Application.Services
             {
                 for (int i = 0; i < rows.Count; i++)
                 {
-                    var length = rows[i].StationLength_m;
+                    var length = rows[i].StationLength;
                     if (length.HasValue)
                     {
                         var diff = Math.Abs(length.Value - stats.MeanStationLength);
@@ -161,10 +160,10 @@ namespace Nivtropy.Application.Services
 
                         if (deviation > sensitivitySigma)
                         {
-                            stats.Outliers.Add(new OutlierPoint
+                            stats.Outliers.Add(new OutlierDto
                             {
                                 StationIndex = rows[i].Index,
-                                PointCode = rows[i].PointCode ?? "—",
+                                PointCode = GetPointCode(rows[i]) ?? "—",
                                 Value = length.Value,
                                 ExpectedValue = stats.MeanStationLength,
                                 DeviationInSigma = deviation,
@@ -182,13 +181,13 @@ namespace Nivtropy.Application.Services
             {
                 if (rows[i].IsArmDifferenceExceeded)
                 {
-                    var armDiff = rows[i].ArmDifference_m;
+                    var armDiff = rows[i].ArmDifference;
                     if (armDiff.HasValue)
                     {
-                        stats.Outliers.Add(new OutlierPoint
+                        stats.Outliers.Add(new OutlierDto
                         {
                             StationIndex = rows[i].Index,
-                            PointCode = rows[i].PointCode ?? "—",
+                            PointCode = GetPointCode(rows[i]) ?? "—",
                             Value = Math.Abs(armDiff.Value),
                             ExpectedValue = 0,
                             DeviationInSigma = 0,
@@ -199,6 +198,11 @@ namespace Nivtropy.Application.Services
                     }
                 }
             }
+        }
+
+        private static string? GetPointCode(StationDto row)
+        {
+            return string.IsNullOrWhiteSpace(row.ForeCode) ? row.BackCode : row.ForeCode;
         }
     }
 }

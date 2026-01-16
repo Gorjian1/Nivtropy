@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Nivtropy.Presentation.Models;
+using Nivtropy.Application.DTOs;
 
 namespace Nivtropy.Application.Services
 {
@@ -10,7 +10,7 @@ namespace Nivtropy.Application.Services
     /// </summary>
     public class ClosureCalculationService : IClosureCalculationService
     {
-        public double? CalculateClosure(IReadOnlyList<TraverseRow> rows, double orientationSign)
+        public double? CalculateClosure(IReadOnlyList<StationDto> rows, double orientationSign)
         {
             if (rows == null || rows.Count == 0)
                 return null;
@@ -40,7 +40,7 @@ namespace Nivtropy.Application.Services
         }
 
         public ClosureCalculationResult Calculate(
-            IReadOnlyList<TraverseRow> rows,
+            IReadOnlyList<StationDto> rows,
             double orientationSign,
             int stationsCount,
             double totalLengthKm,
