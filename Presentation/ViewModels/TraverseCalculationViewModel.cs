@@ -31,6 +31,7 @@ namespace Nivtropy.Presentation.ViewModels
         private readonly DataViewModel _dataViewModel;
         private readonly SettingsViewModel _settingsViewModel;
         private readonly ITraverseCalculationService _calculationService;
+        private readonly IClosureCalculationService _closureService;
         private readonly IExportService _exportService;
         private readonly ISystemConnectivityService _connectivityService;
         private readonly ObservableCollection<TraverseRow> _rows = new();
@@ -86,12 +87,14 @@ namespace Nivtropy.Presentation.ViewModels
             DataViewModel dataViewModel,
             SettingsViewModel settingsViewModel,
             ITraverseCalculationService calculationService,
+            IClosureCalculationService closureService,
             IExportService exportService,
             ISystemConnectivityService connectivityService)
         {
             _dataViewModel = dataViewModel;
             _settingsViewModel = settingsViewModel;
             _calculationService = calculationService;
+            _closureService = closureService;
             _exportService = exportService;
             _connectivityService = connectivityService;
             ((INotifyCollectionChanged)_dataViewModel.Records).CollectionChanged += OnRecordsCollectionChanged;
@@ -936,14 +939,8 @@ namespace Nivtropy.Presentation.ViewModels
                 return;
             }
 
-            // Невязка = сумма измеренных превышений
-            // Знак ориентации определяет направление хода (прямой +1, обратный -1)
-            var sign = MethodOrientationSign;
-            var orientedClosure = _rows
-                .Where(r => r.DeltaH.HasValue)
-                .Sum(r => r.DeltaH!.Value * sign);
-
-            Closure = orientedClosure;
+            // Используем сервис для расчёта невязки
+            Closure = _closureService.CalculateClosure(_rows.ToList(), MethodOrientationSign);
         }
 
         private void UpdateTolerance()
@@ -957,6 +954,7 @@ namespace Nivtropy.Presentation.ViewModels
                 return;
             }
 
+            // Используем сервис для расчёта допусков
             MethodTolerance = TryCalculateTolerance(SelectedMethod);
             ClassTolerance = TryCalculateTolerance(SelectedClass);
 
@@ -967,37 +965,14 @@ namespace Nivtropy.Presentation.ViewModels
 
             AllowableClosure = toleranceCandidates.Count > 0 ? toleranceCandidates.Min() : (double?)null;
 
-            var absClosure = Math.Abs(Closure.Value);
-
-            if (!AllowableClosure.HasValue)
-            {
-                ClosureVerdict = "Выберите метод или класс для оценки допуска.";
-                return;
-            }
-
-            var verdict = absClosure <= AllowableClosure.Value
-                ? "Общий вывод: в пределах допуска."
-                : "Общий вывод: превышение допуска!";
-
-            var details = new List<string>();
-
-            if (MethodTolerance.HasValue && SelectedMethod != null)
-            {
-                details.Add(absClosure <= MethodTolerance.Value
-                    ? $"Метод {SelectedMethod.Code}: в норме."
-                    : $"Метод {SelectedMethod.Code}: превышение." );
-            }
-
-            if (ClassTolerance.HasValue && SelectedClass != null)
-            {
-                details.Add(absClosure <= ClassTolerance.Value
-                    ? $"Класс {SelectedClass.Code}: в норме."
-                    : $"Класс {SelectedClass.Code}: превышение." );
-            }
-
-            ClosureVerdict = details.Count > 0
-                ? string.Join(" ", new[] { verdict }.Concat(details))
-                : verdict;
+            // Генерируем вердикт через сервис
+            ClosureVerdict = _closureService.GenerateVerdict(
+                Closure,
+                AllowableClosure,
+                MethodTolerance,
+                ClassTolerance,
+                SelectedMethod?.Code,
+                SelectedClass?.Code);
         }
 
         private bool IsAnchorAllowed(string? code, Func<string, bool> contains)
