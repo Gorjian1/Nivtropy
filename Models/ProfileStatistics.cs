@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Nivtropy.Presentation.Models;
 
 namespace Nivtropy.Models
 {
