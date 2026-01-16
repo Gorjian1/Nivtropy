@@ -135,7 +135,7 @@ namespace Nivtropy.Presentation.ViewModels
             {
                 foreach (var observation in run.Observations)
                 {
-                    Observations.Add(_mapper.ToObservationDto(observation));
+                    Observations.Add(_mapper.ToDto(observation));
                 }
             }
         }

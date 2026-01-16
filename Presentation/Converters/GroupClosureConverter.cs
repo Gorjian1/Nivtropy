@@ -3,7 +3,7 @@ using System.Globalization;
 using System.Linq;
 using System.Windows.Data;
 using Nivtropy.Constants;
-using Nivtropy.Models;
+using Nivtropy.Presentation.Models;
 
 namespace Nivtropy.Presentation.Converters
 {
