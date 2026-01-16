@@ -1,5 +1,5 @@
 using System.Windows.Controls;
-using Nivtropy.ViewModels;
+using Nivtropy.Presentation.ViewModels;
 
 namespace Nivtropy.Services.Visualization
 {

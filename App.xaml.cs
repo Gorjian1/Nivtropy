@@ -2,7 +2,7 @@
 using System.Windows;
 using Microsoft.Extensions.DependencyInjection;
 using Nivtropy.Services;
-using Nivtropy.ViewModels;
+using Nivtropy.Presentation.ViewModels;
 
 namespace Nivtropy
 {

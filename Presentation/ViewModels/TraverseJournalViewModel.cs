@@ -8,7 +8,7 @@ using System.Runtime.CompilerServices;
 using System.Windows.Media;
 using Nivtropy.Presentation.Models;
 using Nivtropy.Application.Services;
-using Nivtropy.Presentation.Services;
+using Nivtropy.Services.Visualization;
 using Nivtropy.Presentation.ViewModels.Base;
 
 namespace Nivtropy.Presentation.ViewModels

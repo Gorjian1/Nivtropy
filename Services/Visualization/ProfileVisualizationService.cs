@@ -7,6 +7,7 @@ using System.Windows.Media;
 using System.Windows.Shapes;
 using Nivtropy.Constants;
 using Nivtropy.Models;
+using Nivtropy.Presentation.Models;
 
 namespace Nivtropy.Services.Visualization
 {

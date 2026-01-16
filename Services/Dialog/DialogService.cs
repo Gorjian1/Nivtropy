@@ -1,5 +1,5 @@
 using System.Windows;
-using Nivtropy.Views;
+using Nivtropy.Presentation.Views;
 
 namespace Nivtropy.Services.Dialog
 {
