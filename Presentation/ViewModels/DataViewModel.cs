@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using Nivtropy.Presentation.Models;
+using Nivtropy.Models;
 using Nivtropy.Infrastructure.Parsers;
 using Nivtropy.Application.Services;
 using Nivtropy.Presentation.ViewModels.Base;

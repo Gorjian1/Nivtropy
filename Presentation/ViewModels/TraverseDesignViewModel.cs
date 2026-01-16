@@ -5,6 +5,7 @@ using System.ComponentModel;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using Nivtropy.Presentation.Models;
+using Nivtropy.Models;
 using Nivtropy.Services;
 using Nivtropy.Presentation.ViewModels.Base;
 

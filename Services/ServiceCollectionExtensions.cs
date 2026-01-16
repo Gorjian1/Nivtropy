@@ -13,6 +13,7 @@ using Nivtropy.Application.Mappers;
 using Nivtropy.Application.Commands.Handlers;
 using Nivtropy.Application.Queries;
 using Nivtropy.Infrastructure.Persistence;
+using Nivtropy.Services.Calculation;
 
 namespace Nivtropy.Services
 {
@@ -43,7 +44,7 @@ namespace Nivtropy.Services
 
             // Сервисы парсинга и построения данных
             services.AddSingleton<IDataParser, DatParser>();
-            // services.AddSingleton<ITraverseBuilder, TraverseBuilder>(); // REMOVED: Stage 8 - replaced by Application commands
+            services.AddSingleton<ITraverseBuilder, TraverseBuilder>();
 
             // Сервисы визуализации
             services.AddSingleton<IProfileVisualizationService, ProfileVisualizationService>();
@@ -59,10 +60,9 @@ namespace Nivtropy.Services
             // Сервисы работы с допусками (moved to Domain)
             services.AddSingleton<IToleranceCalculator, ToleranceCalculator>();
 
-            // REMOVED: Stage 8 - Legacy calculation services replaced by Domain services
-            // services.AddSingleton<ITraverseCalculationService, TraverseCalculationService>();
-            // services.AddSingleton<ISystemConnectivityService, SystemConnectivityService>();
-            // services.AddSingleton<ITraverseCorrectionService, TraverseCorrectionService>();
+            // Legacy calculation services (temporary - will migrate to Domain services)
+            services.AddSingleton<ISystemConnectivityService, SystemConnectivityService>();
+            services.AddSingleton<ITraverseCorrectionService, TraverseCorrectionService>();
 
             // Сервис валидации импорта
             services.AddSingleton<IImportValidationService, ImportValidationService>();
