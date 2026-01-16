@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Nivtropy.Application.DTOs;
 using Nivtropy.Application.Commands;
 using Nivtropy.Application.Commands.Handlers;
+using Nivtropy.Application.Enums;
 using Nivtropy.Application.Queries;
 using Nivtropy.Application.Mappers;
 using Nivtropy.Domain.Model;
@@ -94,7 +95,7 @@ namespace Nivtropy.Presentation.ViewModels
             if (_networkId == Guid.Empty) return;
 
             var result = await _calculateHandler.HandleAsync(
-                new CalculateHeightsCommand(_networkId));
+                new CalculateHeightsCommand(_networkId, AdjustmentMode.Local));
 
             Closures.Clear();
             foreach (var closure in result.Closures)

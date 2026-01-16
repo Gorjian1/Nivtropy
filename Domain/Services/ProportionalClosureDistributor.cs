@@ -18,13 +18,12 @@ public class ProportionalClosureDistributor : IClosureDistributor
             return;
 
         var closureMeters = run.Closure.Value.ValueMm / 1000.0;
-        var accumulatedLength = 0.0;
 
         foreach (var obs in run.Observations)
         {
-            accumulatedLength += obs.StationLength.Meters;
-            var correction = -closureMeters * (accumulatedLength / totalLength);
-            obs.ApplyCorrection(correction - obs.Correction); // Добавляем дельту
+            var weight = obs.StationLength.Meters / totalLength;
+            var target = -closureMeters * weight;
+            obs.ApplyCorrection(target - obs.Correction);
         }
     }
 
@@ -84,12 +83,11 @@ public class ProportionalClosureDistributor : IClosureDistributor
             if (sectionLength <= 0)
                 continue;
 
-            var accumulatedLength = 0.0;
             foreach (var obs in sectionObs)
             {
-                accumulatedLength += obs.StationLength.Meters;
-                var correction = -closure * (accumulatedLength / sectionLength);
-                obs.ApplyCorrection(correction);
+                var weight = obs.StationLength.Meters / sectionLength;
+                var target = -closure * weight;
+                obs.ApplyCorrection(target - obs.Correction);
             }
         }
     }

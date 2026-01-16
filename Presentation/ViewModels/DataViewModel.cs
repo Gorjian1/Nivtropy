@@ -17,6 +17,7 @@ namespace Nivtropy.Presentation.ViewModels
     public class DataViewModel : ViewModelBase
     {
         private readonly IDataParser _parser;
+        private readonly IRunAnnotationService _annotationService;
         private readonly IImportValidationService? _validationService;
 
         public ObservableCollection<MeasurementRecord> Records { get; } = new();
@@ -56,11 +57,18 @@ namespace Nivtropy.Presentation.ViewModels
         /// </summary>
         public ValidationResult? LastValidationResult { get; private set; }
 
-        public DataViewModel(IDataParser parser) : this(parser, null) { }
+        public DataViewModel(IDataParser parser, IRunAnnotationService annotationService)
+            : this(parser, annotationService, null)
+        {
+        }
 
-        public DataViewModel(IDataParser parser, IImportValidationService? validationService)
+        public DataViewModel(
+            IDataParser parser,
+            IRunAnnotationService annotationService,
+            IImportValidationService? validationService)
         {
             _parser = parser ?? throw new ArgumentNullException(nameof(parser));
+            _annotationService = annotationService ?? throw new ArgumentNullException(nameof(annotationService));
             _validationService = validationService;
             Records.CollectionChanged += (_, __) => IncrementRecordsVersion();
         }
@@ -278,143 +286,11 @@ namespace Nivtropy.Presentation.ViewModels
             if (records.Count == 0)
                 return;
 
-            var groups = new List<List<MeasurementRecord>>();
-            var current = new List<MeasurementRecord>();
-            MeasurementRecord? previous = null;
-
-            foreach (var record in records)
+            var summaries = _annotationService.AnnotateRuns(records);
+            foreach (var summary in summaries)
             {
-                if (previous != null && ShouldStartNewLine(previous, record))
-                {
-                    if (current.Count > 0)
-                    {
-                        groups.Add(current);
-                        current = new List<MeasurementRecord>();
-                    }
-                }
-
-                current.Add(record);
-                previous = record;
-            }
-
-            if (current.Count > 0)
-            {
-                groups.Add(current);
-            }
-
-            for (int g = 0; g < groups.Count; g++)
-            {
-                var group = groups[g];
-                int index = g + 1;
-
-                var summary = BuildSummary(index, group);
                 Runs.Add(summary);
-
-                var start = group.FirstOrDefault(gr => gr.Rb_m.HasValue) ?? group.First();
-                var end = group.LastOrDefault(gr => gr.Rf_m.HasValue) ?? group.Last();
-
-                for (int i = 0; i < group.Count; i++)
-                {
-                    var rec = group[i];
-                    rec.LineSummary = summary;
-                    rec.ShotIndexWithinLine = i + 1;
-                    rec.IsLineStart = ReferenceEquals(rec, start);
-                    rec.IsLineEnd = ReferenceEquals(rec, end);
-                }
             }
-        }
-
-        /// <summary>
-        /// Определяет, нужно ли начать новый ход на основе маркеров Start-Line
-        /// </summary>
-        private static bool ShouldStartNewLine(MeasurementRecord previous, MeasurementRecord current)
-        {
-            // Start-Line всегда начинает новый ход
-            if (current.LineMarker == "Start-Line")
-                return true;
-
-            // Cont-Line НЕ начинает новый ход - это продолжение текущего хода
-            if (current.LineMarker == "Cont-Line")
-                return false;
-
-            // End-Line сам по себе не начинает новый ход
-            // (следующая запись после End-Line может быть Start-Line или Cont-Line)
-            if (current.LineMarker == "End-Line")
-                return false;
-
-            // Для записей без маркеров используем эвристики (обратная совместимость)
-            // Это нужно для старых файлов без явных маркеров
-            if (current.LineMarker == null && previous.LineMarker == null)
-            {
-                // Большой разрыв в последовательности номеров
-                if (current.Seq.HasValue && previous.Seq.HasValue)
-                {
-                    if (current.Seq.Value - previous.Seq.Value > 50)
-                        return true;
-                }
-
-                // Если Mode содержит "line" - возможно начало хода
-                if (current.Mode != null && current.Mode.IndexOf("line", StringComparison.OrdinalIgnoreCase) >= 0)
-                {
-                    if (!string.Equals(previous.Mode, current.Mode, StringComparison.OrdinalIgnoreCase))
-                        return true;
-                }
-            }
-
-            return false;
-        }
-
-        private static LineSummary BuildSummary(int index, IReadOnlyList<MeasurementRecord> group)
-        {
-            var start = group.FirstOrDefault(r => r.Rb_m.HasValue) ?? group.First();
-            var end = group.LastOrDefault(r => r.Rf_m.HasValue) ?? group.Last();
-
-            // Ищем оригинальный номер хода из Start-Line записи
-            var startLineRecord = group.FirstOrDefault(r => r.LineMarker == "Start-Line");
-            var originalLineNumber = startLineRecord?.OriginalLineNumber;
-
-            double? deltaSum = null;
-            double? totalDistanceBack = null;
-            double? totalDistanceFore = null;
-            double? armDiffAccumulation = null;
-
-            foreach (var rec in group)
-            {
-                if (rec.DeltaH.HasValue)
-                {
-                    deltaSum = (deltaSum ?? 0d) + rec.DeltaH.Value;
-                }
-
-                if (rec.HdBack_m.HasValue)
-                {
-                    totalDistanceBack = (totalDistanceBack ?? 0d) + rec.HdBack_m.Value;
-                }
-
-                if (rec.HdFore_m.HasValue)
-                {
-                    totalDistanceFore = (totalDistanceFore ?? 0d) + rec.HdFore_m.Value;
-                }
-
-                // Накопление разности плеч (относительное значение с учетом знака)
-                if (rec.HdBack_m.HasValue && rec.HdFore_m.HasValue)
-                {
-                    var armDiff = rec.HdBack_m.Value - rec.HdFore_m.Value;
-                    armDiffAccumulation = (armDiffAccumulation ?? 0d) + armDiff;
-                }
-            }
-
-            return new LineSummary(
-                index,
-                start.Target,
-                start.StationCode,
-                end.Target,
-                end.StationCode,
-                group.Count,
-                deltaSum,
-                totalDistanceBack,
-                totalDistanceFore,
-                armDiffAccumulation,
-                originalLineNumber: originalLineNumber);
         }
 
         public void ExportCsv(string path)

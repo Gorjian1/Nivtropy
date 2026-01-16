@@ -14,7 +14,8 @@ using ClosedXML.Excel;
 using Microsoft.Win32;
 using Nivtropy.Presentation.Models;
 using Nivtropy.Models;
-using Nivtropy.Services;
+using Nivtropy.Application.Enums;
+using Nivtropy.Application.Services;
 using Nivtropy.Services.Calculation;
 using Nivtropy.Infrastructure.Export;
 using Nivtropy.Utilities;
@@ -29,10 +30,9 @@ namespace Nivtropy.Presentation.ViewModels
     {
         private readonly DataViewModel _dataViewModel;
         private readonly SettingsViewModel _settingsViewModel;
-        private readonly ITraverseBuilder _traverseBuilder;
+        private readonly ITraverseCalculationService _calculationService;
         private readonly IExportService _exportService;
         private readonly ISystemConnectivityService _connectivityService;
-        private readonly ITraverseCorrectionService _correctionService;
         private readonly ObservableCollection<TraverseRow> _rows = new();
         private readonly ObservableCollection<PointItem> _availablePoints = new();
         private readonly ObservableCollection<BenchmarkItem> _benchmarks = new();
@@ -64,6 +64,7 @@ namespace Nivtropy.Presentation.ViewModels
 
         private LevelingMethodOption? _selectedMethod;
         private LevelingClassOption? _selectedClass;
+        private AdjustmentMode _adjustmentMode = AdjustmentMode.Local;
         private double? _closure;
         private double? _allowableClosure;
         private string _closureVerdict = "Нет данных для расчёта.";
@@ -84,17 +85,15 @@ namespace Nivtropy.Presentation.ViewModels
         public TraverseCalculationViewModel(
             DataViewModel dataViewModel,
             SettingsViewModel settingsViewModel,
-            ITraverseBuilder traverseBuilder,
+            ITraverseCalculationService calculationService,
             IExportService exportService,
-            ISystemConnectivityService connectivityService,
-            ITraverseCorrectionService correctionService)
+            ISystemConnectivityService connectivityService)
         {
             _dataViewModel = dataViewModel;
             _settingsViewModel = settingsViewModel;
-            _traverseBuilder = traverseBuilder;
+            _calculationService = calculationService;
             _exportService = exportService;
             _connectivityService = connectivityService;
-            _correctionService = correctionService;
             ((INotifyCollectionChanged)_dataViewModel.Records).CollectionChanged += OnRecordsCollectionChanged;
             ((INotifyCollectionChanged)_dataViewModel.Runs).CollectionChanged += (_, __) => OnPropertyChanged(nameof(Runs));
             _dataViewModel.PropertyChanged += DataViewModelOnPropertyChanged;
@@ -201,6 +200,21 @@ namespace Nivtropy.Presentation.ViewModels
                     OnPropertyChanged();
                     UpdateTolerance();
                     CheckArmDifferenceTolerances(); // Пересчёт при смене класса
+                }
+            }
+        }
+
+        public AdjustmentMode AdjustmentMode
+        {
+            get => _adjustmentMode;
+            set
+            {
+                if (SetField(ref _adjustmentMode, value))
+                {
+                    if (UseAsyncCalculations)
+                        _ = UpdateRowsAsync();
+                    else
+                        UpdateRows();
                 }
             }
         }
@@ -598,7 +612,7 @@ namespace Nivtropy.Presentation.ViewModels
                     return;
                 }
 
-                var items = _traverseBuilder.Build(records);
+                var items = _calculationService.BuildTraverseRows(records.ToList(), Runs);
                 ProcessTraverseItems(items);
             }
             finally
@@ -665,7 +679,7 @@ namespace Nivtropy.Presentation.ViewModels
                 var items = await Task.Run(() =>
                 {
                     token.ThrowIfCancellationRequested();
-                    return _traverseBuilder.Build(records);
+                    return _calculationService.BuildTraverseRows(records, Runs);
                 }, token);
 
                 token.ThrowIfCancellationRequested();
@@ -809,7 +823,11 @@ namespace Nivtropy.Presentation.ViewModels
                         }
                     }
 
-                    CalculateCorrections(groupItems, anchorChecker);
+                    _calculationService.ApplyCorrections(
+                        groupItems,
+                        anchorChecker,
+                        MethodOrientationSign,
+                        AdjustmentMode);
                     CalculateHeightsForRun(groupItems, availableAdjustedHeights, availableRawHeights, group.Key);
                     processedGroups.Add(group.Key);
                     progress = true;
@@ -898,63 +916,14 @@ namespace Nivtropy.Presentation.ViewModels
             foreach (var group in groupedRows)
             {
                 var runRows = group.OrderBy(r => r.Index).ToList();
-                RecalculateHeightsForRunInternal(runRows, knownHeights);
+                _calculationService.RecalculateHeights(
+                    runRows,
+                    code => knownHeights.TryGetValue(code, out var height) ? height : null);
             }
 
             // Обновляем статистику
             RecalculateClosure();
             UpdateTolerance();
-        }
-
-        /// <summary>
-        /// Внутренний метод пересчёта высот для одного хода
-        /// </summary>
-        private void RecalculateHeightsForRunInternal(List<TraverseRow> runRows, Dictionary<string, double> knownHeights)
-        {
-            if (runRows.Count == 0)
-                return;
-
-            double? runningHeight = null;
-            double? runningHeightZ0 = null;
-
-            foreach (var row in runRows)
-            {
-                // Проверяем известную высоту задней точки
-                if (!string.IsNullOrEmpty(row.BackCode) &&
-                    knownHeights.TryGetValue(row.BackCode, out var backKnownHeight))
-                {
-                    runningHeight = backKnownHeight;
-                    runningHeightZ0 = backKnownHeight;
-                }
-
-                // Устанавливаем высоту задней точки
-                if (runningHeight.HasValue)
-                {
-                    row.BackHeight = runningHeight;
-                    row.BackHeightZ0 = runningHeightZ0;
-                }
-
-                // Рассчитываем высоту передней точки
-                if (runningHeight.HasValue && row.AdjustedDeltaH.HasValue)
-                {
-                    row.ForeHeight = runningHeight.Value + row.AdjustedDeltaH.Value;
-                    runningHeight = row.ForeHeight;
-                }
-
-                if (runningHeightZ0.HasValue && row.DeltaH.HasValue)
-                {
-                    row.ForeHeightZ0 = runningHeightZ0.Value + row.DeltaH.Value;
-                    runningHeightZ0 = row.ForeHeightZ0;
-                }
-
-                // Проверяем известную высоту передней точки
-                if (!string.IsNullOrEmpty(row.ForeCode) &&
-                    knownHeights.TryGetValue(row.ForeCode, out var foreKnownHeight))
-                {
-                    row.ForeHeight = foreKnownHeight;
-                    runningHeight = foreKnownHeight;
-                }
-            }
         }
 
         #endregion
@@ -1217,65 +1186,6 @@ namespace Nivtropy.Presentation.ViewModels
                 ToleranceMode.SqrtLength => option.Coefficient * Math.Sqrt(Math.Max(TotalLengthKilometers, 1e-6)),
                 _ => null
             };
-        }
-
-        /// <summary>
-        /// Рассчитывает поправки для распределения невязки пропорционально длинам станций
-        /// Использует ITraverseCorrectionService для расчётов
-        /// </summary>
-        private void CalculateCorrections(List<TraverseRow> items, Func<string, bool> isAnchor)
-        {
-            if (items.Count == 0)
-                return;
-
-            ResetCorrections(items);
-
-            var lineSummary = items.FirstOrDefault()?.LineSummary;
-
-            // Подготавливаем входные данные для сервиса
-            var stations = items.Select((row, idx) => new StationCorrectionInput
-            {
-                Index = idx,
-                BackCode = row.BackCode,
-                ForeCode = row.ForeCode,
-                DeltaH = row.DeltaH,
-                HdBack = row.HdBack_m,
-                HdFore = row.HdFore_m
-            }).ToList();
-
-            var result = _correctionService.CalculateCorrections(
-                stations,
-                code => !string.IsNullOrWhiteSpace(code) && isAnchor(code!),
-                MethodOrientationSign,
-                lineSummary?.UseLocalAdjustment ?? false);
-
-            // Применяем результаты к строкам
-            foreach (var correction in result.Corrections)
-            {
-                if (correction.Index >= 0 && correction.Index < items.Count)
-                {
-                    var row = items[correction.Index];
-                    row.Correction = correction.Correction;
-                    row.BaselineCorrection = correction.BaselineCorrection;
-                    row.CorrectionMode = correction.Mode;
-                }
-            }
-
-            if (lineSummary != null)
-            {
-                lineSummary.KnownPointsCount = result.DistinctAnchorCount;
-                lineSummary.SetClosures(result.Closures);
-            }
-        }
-
-        private static void ResetCorrections(List<TraverseRow> items)
-        {
-            foreach (var row in items)
-            {
-                row.Correction = null;
-                row.BaselineCorrection = null;
-                row.CorrectionMode = CorrectionDisplayMode.None;
-            }
         }
 
         /// <summary>
