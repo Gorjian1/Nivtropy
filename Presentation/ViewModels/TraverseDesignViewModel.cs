@@ -5,6 +5,7 @@ using System.ComponentModel;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using Nivtropy.Domain.DTOs;
+using Nivtropy.Application.DTOs;
 using Nivtropy.Application.Services;
 using Nivtropy.Models;
 using Nivtropy.Presentation.Mappers;
