@@ -1,8 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using Nivtropy.Models;
 using Nivtropy.Presentation.Models;
+using InputModels = Nivtropy.Models;
 
 namespace Nivtropy.Presentation.ViewModels.Managers
 {
@@ -29,7 +29,7 @@ namespace Nivtropy.Presentation.ViewModels.Managers
         /// <summary>
         /// Обновляет метаданные общих точек на основе записей измерений
         /// </summary>
-        void UpdateSharedPointsMetadata(IReadOnlyCollection<MeasurementRecord> records);
+        void UpdateSharedPointsMetadata(IReadOnlyCollection<InputModels.MeasurementRecord> records);
 
         /// <summary>
         /// Получает общие точки для указанного хода

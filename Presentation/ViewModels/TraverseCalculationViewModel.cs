@@ -13,7 +13,7 @@ using System.Windows.Input;
 using ClosedXML.Excel;
 using Microsoft.Win32;
 using Nivtropy.Presentation.Models;
-using Nivtropy.Models;
+using InputModels = Nivtropy.Models;
 using Nivtropy.Services;
 using Nivtropy.Services.Calculation;
 using Nivtropy.Infrastructure.Export;
@@ -1044,7 +1044,7 @@ namespace Nivtropy.Presentation.ViewModels
             return _dataViewModel.HasKnownHeight(code) || _dataViewModel.IsSharedPointEnabled(code);
         }
 
-        private void UpdateSharedPointsMetadata(IReadOnlyCollection<MeasurementRecord> records)
+        private void UpdateSharedPointsMetadata(IReadOnlyCollection<InputModels.MeasurementRecord> records)
         {
             var usage = new Dictionary<string, HashSet<int>>(StringComparer.OrdinalIgnoreCase);
 

@@ -6,8 +6,8 @@ using System.ComponentModel;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Windows.Media;
-using Nivtropy.Models;
 using Nivtropy.Presentation.Models;
+using InputModels = Nivtropy.Models;
 using Nivtropy.Application.Services;
 using Nivtropy.Services.Visualization;
 using Nivtropy.Presentation.ViewModels.Base;
@@ -27,7 +27,7 @@ namespace Nivtropy.Presentation.ViewModels
         private readonly ITraverseSystemVisualizationService _systemVisualizationService;
         private readonly ObservableCollection<JournalRow> _journalRows = new();
 
-        private ProfileStatistics? _currentStatistics;
+        private InputModels.ProfileStatistics? _currentStatistics;
         private Color _profileColor = Color.FromRgb(0x19, 0x76, 0xD2);
         private Color _profileZ0Color = Color.FromRgb(0x80, 0x80, 0x80);
         private bool _showZ = true;
@@ -75,7 +75,7 @@ namespace Nivtropy.Presentation.ViewModels
         /// <summary>
         /// Текущая статистика профиля
         /// </summary>
-        public ProfileStatistics? CurrentStatistics
+        public InputModels.ProfileStatistics? CurrentStatistics
         {
             get => _currentStatistics;
             private set

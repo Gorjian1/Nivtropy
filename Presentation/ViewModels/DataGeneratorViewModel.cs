@@ -11,8 +11,8 @@ using System.Text;
 using System.Windows.Input;
 using ClosedXML.Excel;
 using Microsoft.Win32;
-using Nivtropy.Models;
 using Nivtropy.Presentation.Models;
+using InputModels = Nivtropy.Models;
 using Nivtropy.Services.Dialog;
 using Nivtropy.Presentation.ViewModels.Base;
 
@@ -24,16 +24,16 @@ namespace Nivtropy.Presentation.ViewModels
     public class DataGeneratorViewModel : ViewModelBase
     {
         private readonly IDialogService _dialogService;
-        private readonly ObservableCollection<GeneratedMeasurement> _measurements = new();
+        private readonly ObservableCollection<InputModels.GeneratedMeasurement> _measurements = new();
         private readonly ObservableCollection<string> _availableLines = new();
-        private readonly HashSet<GeneratedMeasurement> _trackedMeasurements = new();
+        private readonly HashSet<InputModels.GeneratedMeasurement> _trackedMeasurements = new();
         private bool _formatNivelir = true;
         private double _stdDevMeasurement = 0.5; // СКО для измерений (мм)
         private double _stdDevGrossError = 2.0; // СКО для грубых ошибок (мм)
         private int _grossErrorFrequency = 10; // Частота грубых ошибок (каждая N-ная станция)
         private string _sourceFilePath = string.Empty;
         private string? _selectedLineName;
-        private GeneratedMeasurement? _selectedMeasurement;
+        private InputModels.GeneratedMeasurement? _selectedMeasurement;
         private double? _profileMinHeight;
         private double? _profileMaxHeight;
         private bool _profileRangeCustomized;
@@ -51,7 +51,7 @@ namespace Nivtropy.Presentation.ViewModels
             _measurements.CollectionChanged += Measurements_CollectionChanged;
         }
 
-        public ObservableCollection<GeneratedMeasurement> Measurements => _measurements;
+        public ObservableCollection<InputModels.GeneratedMeasurement> Measurements => _measurements;
 
         public ObservableCollection<string> AvailableLines => _availableLines;
 
@@ -74,7 +74,7 @@ namespace Nivtropy.Presentation.ViewModels
             }
         }
 
-        public GeneratedMeasurement? SelectedMeasurement
+        public InputModels.GeneratedMeasurement? SelectedMeasurement
         {
             get => _selectedMeasurement;
             set
@@ -624,7 +624,7 @@ namespace Nivtropy.Presentation.ViewModels
         {
             if (e.NewItems != null)
             {
-                foreach (GeneratedMeasurement measurement in e.NewItems)
+                foreach (InputModels.GeneratedMeasurement measurement in e.NewItems)
                 {
                     TrackMeasurement(measurement);
                 }
@@ -632,7 +632,7 @@ namespace Nivtropy.Presentation.ViewModels
 
             if (e.OldItems != null)
             {
-                foreach (GeneratedMeasurement measurement in e.OldItems)
+                foreach (InputModels.GeneratedMeasurement measurement in e.OldItems)
                 {
                     UntrackMeasurement(measurement);
                 }
@@ -650,15 +650,15 @@ namespace Nivtropy.Presentation.ViewModels
 
         private void Measurement_PropertyChanged(object? sender, PropertyChangedEventArgs e)
         {
-            if (e.PropertyName == nameof(GeneratedMeasurement.Height_m)
-                || e.PropertyName == nameof(GeneratedMeasurement.HD_Back_m)
-                || e.PropertyName == nameof(GeneratedMeasurement.HD_Fore_m))
+            if (e.PropertyName == nameof(InputModels.GeneratedMeasurement.Height_m)
+                || e.PropertyName == nameof(InputModels.GeneratedMeasurement.HD_Back_m)
+                || e.PropertyName == nameof(InputModels.GeneratedMeasurement.HD_Fore_m))
             {
                 UpdateProfileStats();
             }
         }
 
-        private void TrackMeasurement(GeneratedMeasurement measurement)
+        private void TrackMeasurement(InputModels.GeneratedMeasurement measurement)
         {
             if (_trackedMeasurements.Add(measurement))
             {
@@ -666,7 +666,7 @@ namespace Nivtropy.Presentation.ViewModels
             }
         }
 
-        private void UntrackMeasurement(GeneratedMeasurement measurement)
+        private void UntrackMeasurement(InputModels.GeneratedMeasurement measurement)
         {
             if (_trackedMeasurements.Remove(measurement))
             {
@@ -751,7 +751,7 @@ namespace Nivtropy.Presentation.ViewModels
         /// <summary>
         /// Создаёт GeneratedMeasurement с общей логикой генерации шума и расстояний
         /// </summary>
-        private GeneratedMeasurement CreateMeasurement(
+        private InputModels.GeneratedMeasurement CreateMeasurement(
             int index,
             string lineName,
             string pointCode,
@@ -778,7 +778,7 @@ namespace Nivtropy.Presentation.ViewModels
                 rf = rf.Value + noise / 1000.0;
             }
 
-            return new GeneratedMeasurement
+            return new InputModels.GeneratedMeasurement
             {
                 Index = index,
                 LineName = lineName,

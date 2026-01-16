@@ -3,8 +3,8 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Globalization;
 using System.Linq;
-using Nivtropy.Models;
 using Nivtropy.Presentation.Models;
+using InputModels = Nivtropy.Models;
 using Nivtropy.Utilities;
 using Nivtropy.Presentation.ViewModels.Base;
 
@@ -34,7 +34,7 @@ namespace Nivtropy.Presentation.ViewModels.Managers
         /// <summary>
         /// Обновляет метаданные общих точек на основе записей измерений
         /// </summary>
-        public void UpdateSharedPointsMetadata(IReadOnlyCollection<MeasurementRecord> records)
+        public void UpdateSharedPointsMetadata(IReadOnlyCollection<InputModels.MeasurementRecord> records)
         {
             var usage = new Dictionary<string, HashSet<int>>(StringComparer.OrdinalIgnoreCase);
 

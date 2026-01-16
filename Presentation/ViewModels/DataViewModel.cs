@@ -6,7 +6,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using Nivtropy.Presentation.Models;
-using Nivtropy.Models;
+using InputModels = Nivtropy.Models;
 using Nivtropy.Infrastructure.Parsers;
 using Nivtropy.Application.Services;
 using Nivtropy.Presentation.ViewModels.Base;
@@ -18,7 +18,7 @@ namespace Nivtropy.Presentation.ViewModels
         private readonly IDataParser _parser;
         private readonly IImportValidationService? _validationService;
 
-        public ObservableCollection<MeasurementRecord> Records { get; } = new();
+        public ObservableCollection<InputModels.MeasurementRecord> Records { get; } = new();
         public ObservableCollection<LineSummary> Runs { get; } = new();
 
         public int RecordsVersion { get; private set; }
@@ -53,7 +53,7 @@ namespace Nivtropy.Presentation.ViewModels
         /// <summary>
         /// Результат последней валидации импортированных данных
         /// </summary>
-        public ValidationResult? LastValidationResult { get; private set; }
+        public InputModels.ValidationResult? LastValidationResult { get; private set; }
 
         public DataViewModel(IDataParser parser) : this(parser, null) { }
 
@@ -271,15 +271,15 @@ namespace Nivtropy.Presentation.ViewModels
             return GetKnownHeight(code);
         }
 
-        private void AnnotateRuns(IList<MeasurementRecord> records)
+        private void AnnotateRuns(IList<InputModels.MeasurementRecord> records)
         {
             Runs.Clear();
             if (records.Count == 0)
                 return;
 
-            var groups = new List<List<MeasurementRecord>>();
-            var current = new List<MeasurementRecord>();
-            MeasurementRecord? previous = null;
+            var groups = new List<List<InputModels.MeasurementRecord>>();
+            var current = new List<InputModels.MeasurementRecord>();
+            InputModels.MeasurementRecord? previous = null;
 
             foreach (var record in records)
             {
@@ -288,7 +288,7 @@ namespace Nivtropy.Presentation.ViewModels
                     if (current.Count > 0)
                     {
                         groups.Add(current);
-                        current = new List<MeasurementRecord>();
+                        current = new List<InputModels.MeasurementRecord>();
                     }
                 }
 
@@ -326,7 +326,7 @@ namespace Nivtropy.Presentation.ViewModels
         /// <summary>
         /// Определяет, нужно ли начать новый ход на основе маркеров Start-Line
         /// </summary>
-        private static bool ShouldStartNewLine(MeasurementRecord previous, MeasurementRecord current)
+        private static bool ShouldStartNewLine(InputModels.MeasurementRecord previous, InputModels.MeasurementRecord current)
         {
             // Start-Line всегда начинает новый ход
             if (current.LineMarker == "Start-Line")
@@ -363,7 +363,7 @@ namespace Nivtropy.Presentation.ViewModels
             return false;
         }
 
-        private static LineSummary BuildSummary(int index, IReadOnlyList<MeasurementRecord> group)
+        private static LineSummary BuildSummary(int index, IReadOnlyList<InputModels.MeasurementRecord> group)
         {
             var start = group.FirstOrDefault(r => r.Rb_m.HasValue) ?? group.First();
             var end = group.LastOrDefault(r => r.Rf_m.HasValue) ?? group.Last();
