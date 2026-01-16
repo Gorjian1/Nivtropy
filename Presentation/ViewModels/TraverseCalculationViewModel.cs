@@ -12,6 +12,7 @@ using System.Windows;
 using System.Windows.Input;
 using ClosedXML.Excel;
 using Microsoft.Win32;
+using Nivtropy.Application.Enums;
 using Nivtropy.Presentation.Models;
 using Nivtropy.Models;
 using Nivtropy.Services;
@@ -64,6 +65,7 @@ namespace Nivtropy.Presentation.ViewModels
 
         private LevelingMethodOption? _selectedMethod;
         private LevelingClassOption? _selectedClass;
+        private AdjustmentMode _adjustmentMode = AdjustmentMode.Local;
         private double? _closure;
         private double? _allowableClosure;
         private string _closureVerdict = "Нет данных для расчёта.";
@@ -170,6 +172,21 @@ namespace Nivtropy.Presentation.ViewModels
 
         public LevelingMethodOption[] Methods => _methods;
         public LevelingClassOption[] Classes => _classes;
+
+        public AdjustmentMode AdjustmentMode
+        {
+            get => _adjustmentMode;
+            set
+            {
+                if (SetField(ref _adjustmentMode, value))
+                {
+                    if (UseAsyncCalculations)
+                        _ = UpdateRowsAsync();
+                    else
+                        UpdateRows();
+                }
+            }
+        }
 
         public LevelingMethodOption? SelectedMethod
         {
@@ -1247,7 +1264,7 @@ namespace Nivtropy.Presentation.ViewModels
                 stations,
                 code => !string.IsNullOrWhiteSpace(code) && isAnchor(code!),
                 MethodOrientationSign,
-                lineSummary?.UseLocalAdjustment ?? false);
+                AdjustmentMode);
 
             // Применяем результаты к строкам
             foreach (var correction in result.Corrections)

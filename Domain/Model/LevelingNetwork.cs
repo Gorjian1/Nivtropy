@@ -94,6 +94,13 @@ public class LevelingNetwork
             point.ResetCalculatedHeight();
     }
 
+    /// <summary>Сбросить все поправки наблюдений</summary>
+    public void ResetCorrections()
+    {
+        foreach (var run in _runs)
+            run.ResetCorrections();
+    }
+
     #endregion
 
     #region Управление ходами

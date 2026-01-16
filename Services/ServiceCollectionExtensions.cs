@@ -81,6 +81,7 @@ namespace Nivtropy.Services
             // Domain Services (чистая бизнес-логика)
             services.AddSingleton<IHeightPropagator, HeightPropagator>();
             services.AddSingleton<IClosureDistributor, ProportionalClosureDistributor>();
+            services.AddSingleton<INetworkAdjuster, LeastSquaresNetworkAdjuster>();
 
             // Application Layer: Mappers
             services.AddSingleton<INetworkMapper, NetworkMapper>();
