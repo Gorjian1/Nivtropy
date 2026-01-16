@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("Nivtropy")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+30067d9c51cf53cf190df743940e2a3e202f8b15")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+f859da4c869eab1cce362bdbb49e97b3a0131076")]
 [assembly: System.Reflection.AssemblyProductAttribute("Nivtropy")]
 [assembly: System.Reflection.AssemblyTitleAttribute("Nivtropy")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
