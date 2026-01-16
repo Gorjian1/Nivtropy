@@ -49,18 +49,18 @@
 
 | Слой | Файлов | Строк | Статус |
 |------|--------|-------|--------|
-| **Domain/Application/Infrastructure** | 34 | ~3,100 | ✅ Новая DDD архитектура |
-| **Models + Services + Presentation/Models** | 29 | ~3,500 | ⚠️ Legacy (переходный) |
-| **Presentation/ViewModels** | 18 | ~5,600 | 🔄 Смешанный |
+| **Domain/Application/Infrastructure** | 42 | ~3,800 | ✅ Новая DDD архитектура |
+| **Models + Services + Presentation/Models** | 25 | ~2,800 | ⚠️ Legacy (переходный) |
+| **Presentation/ViewModels** | 18 | ~4,800 | 🔄 Рефакторинг идёт |
 | **Presentation/Views + Converters** | - | ~1,850 | ✅ UI (останется) |
 
 ### Прогресс миграции
 
 ```
 ┌─────────────────────────────────────┐
-│  DDD готово:        ~25%           │
-│  Нужно мигрировать: ~50%           │
-│  Удалить потом:     ~25%           │
+│  DDD готово:        ~45%           │
+│  Нужно мигрировать: ~35%           │
+│  Удалить потом:     ~20%           │
 └─────────────────────────────────────┘
 ```
 
@@ -310,12 +310,22 @@ Presentation/Models/             # UI модели (без изменений)
 
 ---
 
-### Фаза 3: Рефакторинг TraverseCalculationViewModel
+### Фаза 3: 🔄 В ПРОЦЕССЕ - Рефакторинг TraverseCalculationViewModel
 
 **Файл:** `Presentation/ViewModels/TraverseCalculationViewModel.cs`
-**Размер:** 1824 строки - GOD FILE!
+**Размер:** ~~1824~~ → ~1400 строк (после рефакторинга)
 
-#### Шаг 3.1: Анализ текущей структуры
+#### ✅ Созданные сервисы:
+
+| Сервис | Файл | Статус |
+|--------|------|--------|
+| `ITraverseCalculationService` | `Application/Services/TraverseCalculationService.cs` | ✅ Создан, интегрирован в ViewModel |
+| `IClosureCalculationService` | `Application/Services/ClosureCalculationService.cs` | ✅ Создан, зарегистрирован в DI |
+| `IRunAnnotationService` | `Application/Services/RunAnnotationService.cs` | ✅ Создан, используется в DataViewModel |
+| `INetworkAdjuster` | `Domain/Services/LeastSquaresNetworkAdjuster.cs` | ✅ Создан |
+| `AdjustmentMode` | `Application/Enums/AdjustmentMode.cs` | ✅ Добавлен (Local/Global режимы) |
+
+#### Шаг 3.1: Анализ текущей структуры (ВЫПОЛНЕНО)
 
 Прочитай файл и выдели следующие группы методов:
 
@@ -338,136 +348,76 @@ Presentation/Models/             # UI модели (без изменений)
 - PropertyChanged уведомления
 ```
 
-#### Шаг 3.2: Создать Application Service
+#### Шаг 3.2: ✅ ВЫПОЛНЕНО - Создать Application Services
 
-Создай файл `Application/Services/TraverseCalculationService.cs`:
+**ITraverseCalculationService** - строки, высоты, поправки:
+- `BuildTraverseRows()` - построение строк хода
+- `RecalculateHeights()` - пересчёт высот
+- `CalculateLineSummaries()` - расчёт итогов секций
+- `ApplyCorrections()` - применение поправок с режимами (Local/Global)
 
+**IClosureCalculationService** - невязка и допуски:
+- `CalculateClosure()` - расчёт невязки хода
+- `CalculateTolerance()` - расчёт допуска (SqrtStations/SqrtLength)
+- `Calculate()` - полный расчёт с вердиктом
+- `GenerateVerdict()` - формирование текстового вывода
+
+#### Шаг 3.3: ✅ ВЫПОЛНЕНО - Методы перенесены
+
+ViewModel теперь использует:
 ```csharp
-namespace Nivtropy.Application.Services;
+private readonly ITraverseCalculationService _calculationService;
 
-public interface ITraverseCalculationService
-{
-    /// <summary>
-    /// Строит список TraverseRow из записей измерений
-    /// </summary>
-    List<TraverseRow> BuildTraverseRows(
-        IReadOnlyList<MeasurementRecord> records,
-        IReadOnlyList<LineSummary> runs);
+// Вместо _traverseBuilder.Build():
+var items = _calculationService.BuildTraverseRows(records, Runs);
 
-    /// <summary>
-    /// Пересчитывает высоты точек
-    /// </summary>
-    void RecalculateHeights(
-        IList<TraverseRow> rows,
-        Func<string, double?> getKnownHeight);
+// Вместо RecalculateHeightsForRunInternal():
+_calculationService.RecalculateHeights(runRows, code => knownHeights.TryGetValue(code, out var h) ? h : null);
 
-    /// <summary>
-    /// Вычисляет сводки по ходам
-    /// </summary>
-    List<LineSummary> CalculateLineSummaries(IReadOnlyList<TraverseRow> rows);
-
-    /// <summary>
-    /// Применяет поправки к превышениям
-    /// </summary>
-    void ApplyCorrections(
-        IList<TraverseRow> rows,
-        LineSummary run,
-        double closureValue);
-}
-
-public class TraverseCalculationService : ITraverseCalculationService
-{
-    // Реализация: перенести методы из TraverseCalculationViewModel
-}
+// Вместо CalculateCorrections():
+_calculationService.ApplyCorrections(groupItems, anchorChecker, MethodOrientationSign, AdjustmentMode);
 ```
 
-#### Шаг 3.3: Перенести методы
+#### Шаг 3.4: ✅ ВЫПОЛНЕНО - DI регистрация
 
-Для каждого метода из ГРУППЫ A:
-1. Скопировать метод в `TraverseCalculationService`
-2. Убрать зависимости от полей ViewModel (передавать как параметры)
-3. Заменить в ViewModel вызов на `_calculationService.Method(...)`
-
-**Пример переноса:**
-
-ДО (в ViewModel):
-```csharp
-private void RecalculateHeights()
-{
-    foreach (var row in _rows)
-    {
-        if (HasKnownHeight(row.BackCode))
-            row.BackHeight = GetKnownHeight(row.BackCode);
-        // ...
-    }
-}
-```
-
-ПОСЛЕ (в Service):
-```csharp
-public void RecalculateHeights(
-    IList<TraverseRow> rows,
-    Func<string, double?> getKnownHeight)
-{
-    foreach (var row in rows)
-    {
-        var height = getKnownHeight(row.BackCode);
-        if (height.HasValue)
-            row.BackHeight = height.Value;
-        // ...
-    }
-}
-```
-
-ПОСЛЕ (в ViewModel):
-```csharp
-private void RecalculateHeights()
-{
-    _calculationService.RecalculateHeights(_rows, code => GetKnownHeight(code));
-}
-```
-
-#### Шаг 3.4: Зарегистрировать сервис в DI
-
-В `Services/ServiceCollectionExtensions.cs`:
 ```csharp
 services.AddSingleton<ITraverseCalculationService, TraverseCalculationService>();
+services.AddSingleton<IClosureCalculationService, ClosureCalculationService>();
+services.AddSingleton<IRunAnnotationService, RunAnnotationService>();
 ```
 
-#### Шаг 3.5: Обновить конструктор ViewModel
+#### Шаг 3.5: ⏳ ОСТАЛОСЬ - Интегрировать IClosureCalculationService
 
+Заменить расчёт невязки/допусков в ViewModel на вызовы сервиса:
 ```csharp
-public TraverseCalculationViewModel(
-    DataViewModel dataViewModel,
-    ITraverseBuilder traverseBuilder,
-    ITraverseCalculationService calculationService,  // ДОБАВИТЬ
-    ITraverseExportService exportService,
-    // ...
-)
+// TODO: Заменить UpdateTolerance() на:
+var result = _closureService.Calculate(rows, orientationSign, stationsCount, lengthKm, method, levelingClass);
+Closure = result.Closure;
+AllowableClosure = result.AllowableClosure;
+ClosureVerdict = result.Verdict;
 ```
 
-#### Результат Фазы 3:
+#### Результат Фазы 3 (текущий):
 
-- ViewModel уменьшится с 1824 до ~800-1000 строк
-- Бизнес-логика расчётов будет в отдельном сервисе
-- Сервис можно будет тестировать отдельно от UI
+- ✅ ViewModel уменьшился с 1824 до ~1400 строк
+- ✅ ITraverseCalculationService интегрирован
+- ✅ ITraverseBuilder больше не используется напрямую
+- ⏳ IClosureCalculationService создан, но не интегрирован в ViewModel
 
 ---
 
-### Фаза 4: Миграция остальных ViewModels
+### Фаза 4: 🔄 ЧАСТИЧНО - Миграция остальных ViewModels
 
 Порядок миграции (от простого к сложному):
 
-#### 4.1 DataViewModel (436 строк) - НИЗКАЯ сложность
+#### 4.1 DataViewModel - ✅ ЧАСТИЧНО ВЫПОЛНЕНО
 
-**Что вынести:**
-- `AnnotateRuns()` → `Application/Services/IRunAnnotationService`
-- `BuildSummary()` → туда же
+**Создан сервис:** `IRunAnnotationService`
+- `AnnotateRuns()` - перенесён в сервис
+- ViewModel теперь ~290 строк (было 436)
 
-**Оставить в ViewModel:**
-- `ObservableCollection<MeasurementRecord> Records`
-- `ObservableCollection<LineSummary> Runs`
-- Команды загрузки файлов
+**Осталось:**
+- Перенести логику `BuildSummary()`
 
 #### 4.2 TraverseDesignViewModel (408 строк) - СРЕДНЯЯ сложность
 
@@ -590,5 +540,22 @@ find Domain Application Infrastructure -name "*.cs" | xargs wc -l
 ## Контакты и история
 
 - **Ветка:** `claude/review-ddd-legacy-removal-j5Icw`
-- **Сессия:** Исправление ошибок после неудачной миграции Sonnet
-- **Статус:** Компиляция работает, приложение запускается
+- **Сессия:** Исправление ошибок + продолжение миграции DDD
+- **Статус:** Фаза 3 в процессе (~80% выполнено)
+
+---
+
+## Оценка оставшейся работы
+
+| Задача | Сложность | Оценка |
+|--------|-----------|--------|
+| Интегрировать IClosureCalculationService в ViewModel | Низкая | ~1 час |
+| Завершить DataViewModel (BuildSummary) | Низкая | ~30 мин |
+| TraverseDesignViewModel → IDesignCalculationService | Средняя | ~2 часа |
+| TraverseJournalViewModel (минимальные изменения) | Низкая | ~30 мин |
+| DataGeneratorViewModel → INoiseGeneratorService | Средняя | ~2 часа |
+| Удаление legacy кода (Phase 5) | Низкая | ~1 час |
+
+**Общая оценка: ~55% выполнено, осталось ~45%**
+
+Основная работа сделана - архитектура сервисов на месте, ViewModels рефакторятся.
