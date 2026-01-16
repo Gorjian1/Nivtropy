@@ -66,7 +66,7 @@ public class TraverseCalculationService : ITraverseCalculationService
             if (runningHeight.HasValue)
             {
                 row.BackHeight = runningHeight;
-                row.BackHeightZ0 = runningHeightZ0;
+                row.BackHeightRaw = runningHeightZ0;
             }
 
             if (runningHeight.HasValue && row.AdjustedDeltaH.HasValue)
@@ -77,8 +77,8 @@ public class TraverseCalculationService : ITraverseCalculationService
 
             if (runningHeightZ0.HasValue && row.DeltaH.HasValue)
             {
-                row.ForeHeightZ0 = runningHeightZ0.Value + row.DeltaH.Value;
-                runningHeightZ0 = row.ForeHeightZ0;
+                row.ForeHeightRaw = runningHeightZ0.Value + row.DeltaH.Value;
+                runningHeightZ0 = row.ForeHeightRaw;
             }
 
             if (!string.IsNullOrEmpty(row.ForeCode))
