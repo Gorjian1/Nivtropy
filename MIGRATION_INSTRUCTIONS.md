@@ -58,9 +58,9 @@
 
 ```
 ┌─────────────────────────────────────┐
-│  DDD готово:        ~45%           │
-│  Нужно мигрировать: ~35%           │
-│  Удалить потом:     ~20%           │
+│  DDD готово:        ~60%           │
+│  Нужно мигрировать: ~25%           │
+│  Удалить потом:     ~15%           │
 └─────────────────────────────────────┘
 ```
 
@@ -310,10 +310,10 @@ Presentation/Models/             # UI модели (без изменений)
 
 ---
 
-### Фаза 3: 🔄 В ПРОЦЕССЕ - Рефакторинг TraverseCalculationViewModel
+### Фаза 3: ✅ ВЫПОЛНЕНО - Рефакторинг TraverseCalculationViewModel
 
 **Файл:** `Presentation/ViewModels/TraverseCalculationViewModel.cs`
-**Размер:** ~~1824~~ → ~1400 строк (после рефакторинга)
+**Размер:** ~~1824~~ → ~1700 строк (после рефакторинга)
 
 #### ✅ Созданные сервисы:
 
@@ -386,23 +386,28 @@ services.AddSingleton<IClosureCalculationService, ClosureCalculationService>();
 services.AddSingleton<IRunAnnotationService, RunAnnotationService>();
 ```
 
-#### Шаг 3.5: ⏳ ОСТАЛОСЬ - Интегрировать IClosureCalculationService
+#### Шаг 3.5: ✅ ВЫПОЛНЕНО - Интегрировать IClosureCalculationService
 
-Заменить расчёт невязки/допусков в ViewModel на вызовы сервиса:
+ViewModel теперь использует сервис:
 ```csharp
-// TODO: Заменить UpdateTolerance() на:
-var result = _closureService.Calculate(rows, orientationSign, stationsCount, lengthKm, method, levelingClass);
-Closure = result.Closure;
-AllowableClosure = result.AllowableClosure;
-ClosureVerdict = result.Verdict;
+private readonly IClosureCalculationService _closureService;
+
+// RecalculateClosure():
+Closure = _closureService.CalculateClosure(_rows.ToList(), MethodOrientationSign);
+
+// UpdateTolerance():
+ClosureVerdict = _closureService.GenerateVerdict(
+    Closure, AllowableClosure, MethodTolerance, ClassTolerance,
+    SelectedMethod?.Code, SelectedClass?.Code);
 ```
 
-#### Результат Фазы 3 (текущий):
+#### Результат Фазы 3:
 
-- ✅ ViewModel уменьшился с 1824 до ~1400 строк
+- ✅ ViewModel уменьшился с 1824 до ~1700 строк
 - ✅ ITraverseCalculationService интегрирован
+- ✅ IClosureCalculationService интегрирован
 - ✅ ITraverseBuilder больше не используется напрямую
-- ⏳ IClosureCalculationService создан, но не интегрирован в ViewModel
+- ✅ Бизнес-логика вынесена в Application Services
 
 ---
 
@@ -541,7 +546,7 @@ find Domain Application Infrastructure -name "*.cs" | xargs wc -l
 
 - **Ветка:** `claude/review-ddd-legacy-removal-j5Icw`
 - **Сессия:** Исправление ошибок + продолжение миграции DDD
-- **Статус:** Фаза 3 в процессе (~80% выполнено)
+- **Статус:** Фаза 3 завершена, Фаза 4 частично
 
 ---
 
@@ -549,13 +554,13 @@ find Domain Application Infrastructure -name "*.cs" | xargs wc -l
 
 | Задача | Сложность | Оценка |
 |--------|-----------|--------|
-| Интегрировать IClosureCalculationService в ViewModel | Низкая | ~1 час |
+| ~~Интегрировать IClosureCalculationService в ViewModel~~ | ~~Низкая~~ | ✅ Готово |
 | Завершить DataViewModel (BuildSummary) | Низкая | ~30 мин |
 | TraverseDesignViewModel → IDesignCalculationService | Средняя | ~2 часа |
 | TraverseJournalViewModel (минимальные изменения) | Низкая | ~30 мин |
 | DataGeneratorViewModel → INoiseGeneratorService | Средняя | ~2 часа |
 | Удаление legacy кода (Phase 5) | Низкая | ~1 час |
 
-**Общая оценка: ~55% выполнено, осталось ~45%**
+**Общая оценка: ~60% выполнено, осталось ~40%**
 
-Основная работа сделана - архитектура сервисов на месте, ViewModels рефакторятся.
+Фаза 3 завершена - TraverseCalculationViewModel использует DDD сервисы.
