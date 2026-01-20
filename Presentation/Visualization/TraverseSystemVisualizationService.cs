@@ -36,7 +36,7 @@ namespace Nivtropy.Presentation.Visualization
             Color.FromRgb(211, 47, 47)    // Красный
         };
 
-        public void DrawSystemVisualization(Canvas canvas, TraverseJournalViewModel viewModel)
+        public void DrawSystemVisualization(Canvas canvas, NetworkJournalViewModel viewModel)
         {
             canvas.Children.Clear();
 
@@ -63,7 +63,7 @@ namespace Nivtropy.Presentation.Visualization
             }
         }
 
-        private void Draw(Canvas canvas, TraverseCalculationViewModel calc, List<LineSummary> runs, double w, double h)
+        private void Draw(Canvas canvas, NetworkViewModel calc, List<LineSummary> runs, double w, double h)
         {
             var graph = BuildGraph(calc, runs);
             if (graph.Nodes.Count == 0)
@@ -75,7 +75,7 @@ namespace Nivtropy.Presentation.Visualization
             DrawNodes(canvas, graph, positions);
         }
 
-        private Graph BuildGraph(TraverseCalculationViewModel calc, List<LineSummary> runs)
+        private Graph BuildGraph(NetworkViewModel calc, List<LineSummary> runs)
         {
             var nodes = new Dictionary<string, GraphNode>(StringComparer.OrdinalIgnoreCase);
             var edges = new List<GraphEdge>();
@@ -132,7 +132,7 @@ namespace Nivtropy.Presentation.Visualization
         private static GraphNode GetOrCreateNode(
             Dictionary<string, GraphNode> nodes,
             string code,
-            TraverseCalculationViewModel calc,
+            NetworkViewModel calc,
             HashSet<string> shared)
         {
             if (nodes.TryGetValue(code, out var existing))

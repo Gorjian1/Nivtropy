@@ -12,7 +12,7 @@ namespace Nivtropy.Presentation.Views
     /// </summary>
     public partial class TraverseJournalView : UserControl
     {
-        private TraverseJournalViewModel? ViewModel => DataContext as TraverseJournalViewModel;
+        private NetworkJournalViewModel? ViewModel => DataContext as NetworkJournalViewModel;
 
         public TraverseJournalView()
         {
@@ -25,14 +25,14 @@ namespace Nivtropy.Presentation.Views
             // Подписка на изменения DataContext
             DataContextChanged += (s, e) =>
             {
-                if (e.OldValue is TraverseJournalViewModel oldVm)
+                if (e.OldValue is NetworkJournalViewModel oldVm)
                 {
                     // Отписываемся от старого ViewModel
                     oldVm.PropertyChanged -= ViewModel_PropertyChanged;
                     UnsubscribeFromCalculation(oldVm.Calculation);
                 }
 
-                if (e.NewValue is TraverseJournalViewModel newVm)
+                if (e.NewValue is NetworkJournalViewModel newVm)
                 {
                     // Подписываемся на новый ViewModel
                     newVm.PropertyChanged += ViewModel_PropertyChanged;
@@ -57,53 +57,51 @@ namespace Nivtropy.Presentation.Views
             Focusable = true;
         }
 
-        private void SubscribeToCalculation(TraverseCalculationViewModel? calculation)
+        private void SubscribeToCalculation(NetworkViewModel? calculation)
         {
             if (calculation == null) return;
 
             calculation.PropertyChanged += Calculation_PropertyChanged;
             ((INotifyCollectionChanged)calculation.Systems).CollectionChanged += Systems_CollectionChanged;
             ((INotifyCollectionChanged)calculation.SharedPoints).CollectionChanged += SharedPoints_CollectionChanged;
+            ((INotifyCollectionChanged)calculation.Rows).CollectionChanged += Rows_CollectionChanged;
         }
 
-        private void UnsubscribeFromCalculation(TraverseCalculationViewModel? calculation)
+        private void UnsubscribeFromCalculation(NetworkViewModel? calculation)
         {
             if (calculation == null) return;
 
             calculation.PropertyChanged -= Calculation_PropertyChanged;
             ((INotifyCollectionChanged)calculation.Systems).CollectionChanged -= Systems_CollectionChanged;
             ((INotifyCollectionChanged)calculation.SharedPoints).CollectionChanged -= SharedPoints_CollectionChanged;
+            ((INotifyCollectionChanged)calculation.Rows).CollectionChanged -= Rows_CollectionChanged;
         }
 
         private void Calculation_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
         {
-            if (e.PropertyName == nameof(TraverseCalculationViewModel.SelectedSystem))
+            if (e.PropertyName == nameof(NetworkViewModel.SelectedSystem))
             {
                 RedrawSystemVisualization();
             }
-            // Перерисовываем после завершения расчёта
-            else if (e.PropertyName == nameof(TraverseCalculationViewModel.IsCalculating))
+            else if (e.PropertyName == nameof(NetworkViewModel.AdjustmentMode))
             {
-                if (ViewModel?.Calculation?.IsCalculating == false)
-                {
-                    RedrawSystemVisualization();
-                }
+                RedrawSystemVisualization();
             }
         }
 
         private void Systems_CollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
         {
             // Пропускаем перерисовку во время расчёта (Rows ещё не заполнены)
-            if (ViewModel?.Calculation?.IsCalculating == true)
-                return;
             RedrawSystemVisualization();
         }
 
         private void SharedPoints_CollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
         {
-            // Пропускаем перерисовку во время расчёта (Rows ещё не заполнены)
-            if (ViewModel?.Calculation?.IsCalculating == true)
-                return;
+            RedrawSystemVisualization();
+        }
+
+        private void Rows_CollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+        {
             RedrawSystemVisualization();
         }
 
@@ -115,19 +113,19 @@ namespace Nivtropy.Presentation.Views
             // Перерисовываем профиль при изменении данных или настроек отображения
             switch (e.PropertyName)
             {
-                case nameof(TraverseJournalViewModel.ShowZ):
-                case nameof(TraverseJournalViewModel.ShowZ0):
-                case nameof(TraverseJournalViewModel.ShowAnomalies):
-                case nameof(TraverseJournalViewModel.ProfileColor):
-                case nameof(TraverseJournalViewModel.ProfileZ0Color):
-                case nameof(TraverseJournalViewModel.ManualMinHeight):
-                case nameof(TraverseJournalViewModel.ManualMaxHeight):
-                case nameof(TraverseJournalViewModel.SensitivitySigma):
-                case nameof(TraverseJournalViewModel.CurrentStatistics):
+                case nameof(NetworkJournalViewModel.ShowZ):
+                case nameof(NetworkJournalViewModel.ShowZ0):
+                case nameof(NetworkJournalViewModel.ShowAnomalies):
+                case nameof(NetworkJournalViewModel.ProfileColor):
+                case nameof(NetworkJournalViewModel.ProfileZ0Color):
+                case nameof(NetworkJournalViewModel.ManualMinHeight):
+                case nameof(NetworkJournalViewModel.ManualMaxHeight):
+                case nameof(NetworkJournalViewModel.SensitivitySigma):
+                case nameof(NetworkJournalViewModel.CurrentStatistics):
                     RedrawProfile();
                     break;
 
-                case nameof(TraverseJournalViewModel.Calculation):
+                case nameof(NetworkJournalViewModel.Calculation):
                     RedrawProfile();
                     RedrawSystemVisualization();
                     break;
@@ -272,6 +270,7 @@ namespace Nivtropy.Presentation.Views
         private void RunActivationChanged(object sender, RoutedEventArgs e)
         {
             // Логика изменения активации хода - перерисовываем систему
+            ViewModel?.Calculation.RefreshNetwork();
             RedrawSystemVisualization();
         }
 

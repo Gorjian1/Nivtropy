@@ -11,9 +11,9 @@ namespace Nivtropy.Presentation.Views
     /// </summary>
     public partial class SystemsManagementWindow : Window
     {
-        private readonly TraverseCalculationViewModel _calculation;
+        private readonly NetworkViewModel _calculation;
 
-        public SystemsManagementWindow(TraverseCalculationViewModel calculation)
+        public SystemsManagementWindow(NetworkViewModel calculation)
         {
             InitializeComponent();
             _calculation = calculation;

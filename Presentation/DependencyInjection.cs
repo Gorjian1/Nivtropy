@@ -41,7 +41,6 @@ namespace Nivtropy.Presentation
 
             // Сервисы парсинга и построения данных
             services.AddSingleton<IDataParser, DatParser>();
-            // ITraverseBuilder больше не регистрируется - он стал implementation detail TraverseCalculationService
 
             // Сервисы визуализации
             services.AddSingleton<IProfileVisualizationService, ProfileVisualizationService>();
@@ -51,13 +50,11 @@ namespace Nivtropy.Presentation
             // Сервисы статистики и анализа
             services.AddSingleton<IProfileStatisticsService, ProfileStatisticsService>();
             services.AddSingleton<IRunAnnotationService, RunAnnotationService>();
-            services.AddSingleton<ITraverseCalculationService, TraverseCalculationService>();
-            services.AddSingleton<ITraverseProcessingService, TraverseProcessingService>();
             services.AddSingleton<IDesignCalculationService, DesignCalculationService>();
             services.AddSingleton<INoiseGeneratorService, NoiseGeneratorService>();
 
             // Сервисы экспорта
-            services.AddSingleton<ITraverseExportService, TraverseExportService>();
+            services.AddSingleton<INetworkCsvExportService, NetworkCsvExportService>();
             services.AddSingleton<INivelorExportService, NivelorExportService>();
 
             // Сервисы работы с допусками (moved to Domain)
@@ -65,10 +62,6 @@ namespace Nivtropy.Presentation
 
             // Сервис расчёта невязки и допусков (Application layer)
             services.AddSingleton<IClosureCalculationService, ClosureCalculationService>();
-
-            // Domain Services (calculation services)
-            services.AddSingleton<ISystemConnectivityService, SystemConnectivityService>();
-            services.AddSingleton<ITraverseCorrectionService, TraverseCorrectionService>();
 
             // Сервис валидации импорта
             services.AddSingleton<IImportValidationService, ImportValidationService>();
@@ -93,6 +86,7 @@ namespace Nivtropy.Presentation
             services.AddSingleton<INetworkMapper, NetworkMapper>();
 
             // Application Layer: Handlers (CQRS)
+            services.AddSingleton<BuildNetworkHandler>();
             services.AddSingleton<CalculateHeightsHandler>();
             services.AddSingleton<GetNetworkSummaryHandler>();
 
@@ -107,14 +101,10 @@ namespace Nivtropy.Presentation
             // ViewModels регистрируются как Singleton для обеспечения единого состояния
             services.AddSingleton<DataViewModel>();
             services.AddSingleton<SettingsViewModel>();
-            services.AddSingleton<TraverseCalculationViewModel>();
-            services.AddSingleton<TraverseJournalViewModel>();
-            services.AddSingleton<TraverseDesignViewModel>();
+            services.AddSingleton<NetworkViewModel>();
+            services.AddSingleton<NetworkJournalViewModel>();
             services.AddSingleton<DataGeneratorViewModel>();
             services.AddSingleton<MainViewModel>();
-
-            // Новая архитектура (proof-of-concept)
-            services.AddSingleton<NetworkViewModel>();
 
             return services;
         }
