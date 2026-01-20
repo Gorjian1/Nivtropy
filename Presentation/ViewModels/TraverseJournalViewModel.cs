@@ -6,7 +6,6 @@ using System.ComponentModel;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Windows.Media;
-using Nivtropy.Domain.DTOs;
 using Nivtropy.Application.DTOs;
 using Nivtropy.Presentation.Models;
 using Nivtropy.Application.Services;

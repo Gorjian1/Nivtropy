@@ -1,8 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Nivtropy.Domain.DTOs;
-using Nivtropy.Domain.Enums;
+using Nivtropy.Application.DTOs;
+using Nivtropy.Application.Enums;
 
 namespace Nivtropy.Domain.Services
 {

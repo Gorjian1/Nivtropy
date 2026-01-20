@@ -1,5 +1,5 @@
 using System.Collections.Generic;
-using Nivtropy.Models;
+using Nivtropy.Application.DTOs;
 
 namespace Nivtropy.Infrastructure.Parsers
 {
@@ -22,6 +22,6 @@ namespace Nivtropy.Infrastructure.Parsers
         /// <param name="filePath">Путь к файлу (для резолва конфигов)</param>
         /// <param name="synonymsConfigPath">Путь к конфигу синонимов</param>
         /// <returns>Перечисление записей измерений</returns>
-        IEnumerable<MeasurementRecord> Parse(string[] lines, string? filePath = null, string? synonymsConfigPath = null);
+        IEnumerable<MeasurementDto> Parse(string[] lines, string? filePath = null, string? synonymsConfigPath = null);
     }
 }

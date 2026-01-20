@@ -1,6 +1,5 @@
 namespace Nivtropy.Application.Mappers;
 
-using Nivtropy.Domain.DTOs;
 using Nivtropy.Application.DTOs;
 using Nivtropy.Domain.Model;
 

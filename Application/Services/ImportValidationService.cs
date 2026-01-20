@@ -1,7 +1,5 @@
 using System;
 using System.Collections.Generic;
-using Nivtropy.Models;
-using Nivtropy.Domain.DTOs;
 using Nivtropy.Application.DTOs;
 
 namespace Nivtropy.Application.Services
@@ -20,7 +18,7 @@ namespace Nivtropy.Application.Services
         private const double MaxElevation = 10000.0;  // Разумный предел высоты
         private const double MinElevation = -1000.0;
 
-        public ValidationResult Validate(IReadOnlyList<MeasurementRecord> records)
+        public ValidationResult Validate(IReadOnlyList<MeasurementDto> records)
         {
             var result = new ValidationResult();
 
@@ -31,7 +29,6 @@ namespace Nivtropy.Application.Services
             }
 
             int lineNumber = 1;
-            string? currentLine = null;
             int stationsInLine = 0;
             double? prevForeReading = null;
 
@@ -43,18 +40,6 @@ namespace Nivtropy.Application.Services
                 result.Warnings.AddRange(recordResult.Warnings);
 
                 // Проверяем контекст хода
-                if (record.LineSummary?.Header != currentLine)
-                {
-                    // Новый ход
-                    if (currentLine != null && stationsInLine < 2)
-                    {
-                        result.AddWarning($"Ход '{currentLine}' содержит менее 2 станций", lineNumber);
-                    }
-                    currentLine = record.LineSummary?.Header;
-                    stationsInLine = 0;
-                    prevForeReading = null;
-                }
-
                 // Проверяем последовательность измерений
                 if (record.Rb_m.HasValue && record.Rf_m.HasValue)
                 {
@@ -74,11 +59,6 @@ namespace Nivtropy.Application.Services
             }
 
             // Финальная проверка последнего хода
-            if (currentLine != null && stationsInLine < 2)
-            {
-                result.AddWarning($"Ход '{currentLine}' содержит менее 2 станций");
-            }
-
             // Общая статистика
             if (result.Warnings.Count > 10)
             {
@@ -88,7 +68,7 @@ namespace Nivtropy.Application.Services
             return result;
         }
 
-        public ValidationResult ValidateRecord(MeasurementRecord record, int lineNumber)
+        public ValidationResult ValidateRecord(MeasurementDto record, int lineNumber)
         {
             var result = new ValidationResult();
 

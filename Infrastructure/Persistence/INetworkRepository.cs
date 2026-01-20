@@ -1,15 +1,7 @@
-namespace Nivtropy.Infrastructure.Persistence;
-
+using Nivtropy.Application.Persistence;
 using Nivtropy.Domain.Model;
 
-/// <summary>
-/// Интерфейс репозитория для LevelingNetwork (Domain Layer).
-/// </summary>
-public interface INetworkRepository
-{
-    Task<LevelingNetwork?> GetByIdAsync(Guid id);
-    Task SaveAsync(LevelingNetwork network);
-}
+namespace Nivtropy.Infrastructure.Persistence;
 
 /// <summary>
 /// In-memory реализация репозитория для прототипирования.

@@ -1,8 +1,8 @@
 namespace Nivtropy.Application.Commands.Handlers;
 
-using Nivtropy.Domain.Enums;
+using Nivtropy.Application.Enums;
+using Nivtropy.Application.Persistence;
 using Nivtropy.Domain.Services;
-using Nivtropy.Infrastructure.Persistence;
 
 /// <summary>
 /// Handler для команды вычисления высот.

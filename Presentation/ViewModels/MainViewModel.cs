@@ -8,7 +8,6 @@ using Nivtropy.Presentation.Views;
 using Nivtropy.Services;
 using Nivtropy.Services.Dialog;
 using Nivtropy.Services.Visualization;
-using Nivtropy.Infrastructure.Export;
 using Nivtropy.Application.Services;
 using Nivtropy.Presentation.ViewModels.Base;
 

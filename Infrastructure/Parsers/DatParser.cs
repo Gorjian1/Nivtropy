@@ -4,7 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using Nivtropy.Models;
+using Nivtropy.Application.DTOs;
 using Nivtropy.Services.Logging;
 
 namespace Nivtropy.Infrastructure.Parsers
@@ -46,7 +46,7 @@ namespace Nivtropy.Infrastructure.Parsers
         /// <summary>
         /// Асинхронно загружает и парсит файл данных нивелирования
         /// </summary>
-        public async Task<List<MeasurementRecord>> LoadFromFileAsync(string filePath)
+        public async Task<List<MeasurementDto>> LoadFromFileAsync(string filePath)
         {
             return await Task.Run(() => Parse(filePath, null).ToList());
         }
@@ -54,7 +54,7 @@ namespace Nivtropy.Infrastructure.Parsers
         /// <summary>
         /// Парсит данные из строк текста
         /// </summary>
-        public List<MeasurementRecord> ParseLines(IEnumerable<string> lines, string? format = null)
+        public List<MeasurementDto> ParseLines(IEnumerable<string> lines, string? format = null)
         {
             var linesArray = lines.ToArray();
             var parser = SelectParser(linesArray, format);
@@ -66,7 +66,7 @@ namespace Nivtropy.Infrastructure.Parsers
         /// <summary>
         /// Парсит файл данных нивелирования
         /// </summary>
-        public IEnumerable<MeasurementRecord> Parse(string path, string? synonymsConfigPath = null)
+        public IEnumerable<MeasurementDto> Parse(string path, string? synonymsConfigPath = null)
         {
             var text = ReadTextSmart(path);
             var lines = text.Split(new[] { "\r\n", "\n" }, StringSplitOptions.None);

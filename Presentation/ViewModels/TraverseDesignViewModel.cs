@@ -4,10 +4,8 @@ using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Linq;
 using System.Runtime.CompilerServices;
-using Nivtropy.Domain.DTOs;
 using Nivtropy.Application.DTOs;
 using Nivtropy.Application.Services;
-using Nivtropy.Models;
 using Nivtropy.Presentation.Mappers;
 using Nivtropy.Presentation.Models;
 using Nivtropy.Presentation.ViewModels.Base;
@@ -186,8 +184,12 @@ namespace Nivtropy.Presentation.ViewModels
             }
 
             // Используем TraverseCalculationService для построения строк хода
+            var measurementDtos = _dataViewModel.Records
+                .Where(r => ReferenceEquals(r.LineSummary, SelectedRun))
+                .Select(r => r.ToDto())
+                .ToList();
             var traverseRows = _calculationService.BuildTraverseRows(
-                _dataViewModel.Records.Where(r => ReferenceEquals(r.LineSummary, SelectedRun)).ToList(),
+                measurementDtos,
                 new[] { SelectedRun.ToDto() });
 
             if (traverseRows.Count == 0)

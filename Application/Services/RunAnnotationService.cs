@@ -1,28 +1,26 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Nivtropy.Domain.DTOs;
 using Nivtropy.Application.DTOs;
-using Nivtropy.Models;
 
 namespace Nivtropy.Application.Services;
 
 public interface IRunAnnotationService
 {
-    IReadOnlyList<RunAnnotationGroupDto> AnnotateRuns(IList<MeasurementRecord> records);
+    IReadOnlyList<RunAnnotationGroupDto> AnnotateRuns(IList<MeasurementDto> records);
 }
 
 public class RunAnnotationService : IRunAnnotationService
 {
-    public IReadOnlyList<RunAnnotationGroupDto> AnnotateRuns(IList<MeasurementRecord> records)
+    public IReadOnlyList<RunAnnotationGroupDto> AnnotateRuns(IList<MeasurementDto> records)
     {
         var summaries = new List<RunAnnotationGroupDto>();
         if (records.Count == 0)
             return summaries;
 
-        var groups = new List<List<MeasurementRecord>>();
-        var current = new List<MeasurementRecord>();
-        MeasurementRecord? previous = null;
+        var groups = new List<List<MeasurementDto>>();
+        var current = new List<MeasurementDto>();
+        MeasurementDto? previous = null;
 
         foreach (var record in records)
         {
@@ -31,7 +29,7 @@ public class RunAnnotationService : IRunAnnotationService
                 if (current.Count > 0)
                 {
                     groups.Add(current);
-                    current = new List<MeasurementRecord>();
+                    current = new List<MeasurementDto>();
                 }
             }
 
@@ -56,22 +54,12 @@ public class RunAnnotationService : IRunAnnotationService
                 Records = group.ToList()
             });
 
-            var start = group.FirstOrDefault(gr => gr.Rb_m.HasValue) ?? group.First();
-            var end = group.LastOrDefault(gr => gr.Rf_m.HasValue) ?? group.Last();
-
-            for (int i = 0; i < group.Count; i++)
-            {
-                var rec = group[i];
-                rec.ShotIndexWithinLine = i + 1;
-                rec.IsLineStart = ReferenceEquals(rec, start);
-                rec.IsLineEnd = ReferenceEquals(rec, end);
-            }
         }
 
         return summaries;
     }
 
-    private static bool ShouldStartNewLine(MeasurementRecord previous, MeasurementRecord current)
+    private static bool ShouldStartNewLine(MeasurementDto previous, MeasurementDto current)
     {
         if (current.LineMarker == "Start-Line")
             return true;
@@ -100,7 +88,7 @@ public class RunAnnotationService : IRunAnnotationService
         return false;
     }
 
-    private static RunSummaryDto BuildSummary(int index, IReadOnlyList<MeasurementRecord> group)
+    private static RunSummaryDto BuildSummary(int index, IReadOnlyList<MeasurementDto> group)
     {
         var start = group.FirstOrDefault(r => r.Rb_m.HasValue) ?? group.First();
         var end = group.LastOrDefault(r => r.Rf_m.HasValue) ?? group.Last();

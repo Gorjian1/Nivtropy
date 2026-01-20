@@ -1,4 +1,4 @@
-namespace Nivtropy.Domain.Enums;
+namespace Nivtropy.Application.Enums;
 
 /// <summary>
 /// Режим отображения поправок на станции

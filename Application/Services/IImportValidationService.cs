@@ -1,6 +1,4 @@
 using System.Collections.Generic;
-using Nivtropy.Models;
-using Nivtropy.Domain.DTOs;
 using Nivtropy.Application.DTOs;
 
 namespace Nivtropy.Application.Services
@@ -13,11 +11,11 @@ namespace Nivtropy.Application.Services
         /// <summary>
         /// Валидирует список записей измерений
         /// </summary>
-        ValidationResult Validate(IReadOnlyList<MeasurementRecord> records);
+        ValidationResult Validate(IReadOnlyList<MeasurementDto> records);
 
         /// <summary>
         /// Валидирует одну запись измерения
         /// </summary>
-        ValidationResult ValidateRecord(MeasurementRecord record, int lineNumber);
+        ValidationResult ValidateRecord(MeasurementDto record, int lineNumber);
     }
 }

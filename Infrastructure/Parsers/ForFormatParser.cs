@@ -5,7 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Text.Json;
 using System.Text.RegularExpressions;
-using Nivtropy.Models;
+using Nivtropy.Application.DTOs;
 using Nivtropy.Services.Logging;
 
 namespace Nivtropy.Infrastructure.Parsers
@@ -60,7 +60,7 @@ namespace Nivtropy.Infrastructure.Parsers
         }
 
         /// <inheritdoc/>
-        public IEnumerable<MeasurementRecord> Parse(string[] lines, string? filePath = null, string? synonymsConfigPath = null)
+        public IEnumerable<MeasurementDto> Parse(string[] lines, string? filePath = null, string? synonymsConfigPath = null)
         {
             var synonyms = LoadSynonyms(filePath, synonymsConfigPath);
             var measurementPatterns = BuildMeasurementPatterns(synonyms);
@@ -172,9 +172,9 @@ namespace Nivtropy.Infrastructure.Parsers
             return patterns;
         }
 
-        private static MeasurementRecord ParseLine(string line, IReadOnlyDictionary<string, Regex> measurementPatterns, ref int autoStation)
+        private static MeasurementDto ParseLine(string line, IReadOnlyDictionary<string, Regex> measurementPatterns, ref int autoStation)
         {
-            var record = new MeasurementRecord();
+            var record = new MeasurementDto();
 
             var adrMatch = AdrRegex.Match(line);
             if (adrMatch.Success && int.TryParse(adrMatch.Groups[1].Value, out var seq))
@@ -256,7 +256,7 @@ namespace Nivtropy.Infrastructure.Parsers
             return segment;
         }
 
-        private static string[] PopulateModeAndTarget(MeasurementRecord record, string segment)
+        private static string[] PopulateModeAndTarget(MeasurementDto record, string segment)
         {
             var tokens = TokenSplitRegex.Split(segment ?? string.Empty)
                 .Where(t => !string.IsNullOrWhiteSpace(t))
@@ -307,7 +307,7 @@ namespace Nivtropy.Infrastructure.Parsers
             return raw.Replace(',', '.').Trim();
         }
 
-        private static void DetectLineMarker(MeasurementRecord record, string line)
+        private static void DetectLineMarker(MeasurementDto record, string line)
         {
             if (string.IsNullOrWhiteSpace(line))
                 return;
@@ -335,7 +335,7 @@ namespace Nivtropy.Infrastructure.Parsers
             }
         }
 
-        private static void DetectInvalidMeasurement(MeasurementRecord record, string line)
+        private static void DetectInvalidMeasurement(MeasurementDto record, string line)
         {
             if (string.IsNullOrWhiteSpace(line))
                 return;
@@ -346,7 +346,7 @@ namespace Nivtropy.Infrastructure.Parsers
             }
         }
 
-        private static void PopulateMeasurements(MeasurementRecord record, string line, IReadOnlyDictionary<string, Regex> patterns)
+        private static void PopulateMeasurements(MeasurementDto record, string line, IReadOnlyDictionary<string, Regex> patterns)
         {
             if (patterns.TryGetValue("Rb", out var rbRegex))
                 record.Rb_m ??= TryMatchMeasurement(rbRegex, line);

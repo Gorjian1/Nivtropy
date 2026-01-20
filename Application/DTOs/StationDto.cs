@@ -1,6 +1,6 @@
-using Nivtropy.Domain.Enums;
+using Nivtropy.Application.Enums;
 
-namespace Nivtropy.Domain.DTOs;
+namespace Nivtropy.Application.DTOs;
 
 /// <summary>
 /// DTO станции нивелирования для расчётов.

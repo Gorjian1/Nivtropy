@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Text.RegularExpressions;
-using Nivtropy.Models;
+using Nivtropy.Application.DTOs;
 using Nivtropy.Services.Logging;
 
 namespace Nivtropy.Infrastructure.Parsers
@@ -44,7 +44,7 @@ namespace Nivtropy.Infrastructure.Parsers
         }
 
         /// <inheritdoc/>
-        public IEnumerable<MeasurementRecord> Parse(string[] lines, string? filePath = null, string? synonymsConfigPath = null)
+        public IEnumerable<MeasurementDto> Parse(string[] lines, string? filePath = null, string? synonymsConfigPath = null)
         {
             foreach (var rawLine in lines)
             {
@@ -77,9 +77,9 @@ namespace Nivtropy.Infrastructure.Parsers
         /// <summary>
         /// Парсит одну строку в формате Trimble Dini
         /// </summary>
-        private static MeasurementRecord? ParseLine(string line)
+        private static MeasurementDto? ParseLine(string line)
         {
-            var record = new MeasurementRecord();
+            var record = new MeasurementDto();
 
             // Проверка на специальные маркеры
             if (StartLineRegex.IsMatch(line))

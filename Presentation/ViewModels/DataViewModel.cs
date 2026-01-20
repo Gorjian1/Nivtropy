@@ -6,10 +6,8 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using Nivtropy.Presentation.Models;
-using Nivtropy.Models;
 using Nivtropy.Infrastructure.Parsers;
 using Nivtropy.Application.Services;
-using Nivtropy.Domain.DTOs;
 using Nivtropy.Application.DTOs;
 using Nivtropy.Presentation.Mappers;
 using Nivtropy.Presentation.ViewModels.Base;
@@ -111,9 +109,9 @@ namespace Nivtropy.Presentation.ViewModels
                 }
 
                 // Фильтрация теперь выполняется в парсере
-                AnnotateRuns(parsed);
+                var annotated = AnnotateRuns(parsed);
 
-                foreach (var rec in parsed)
+                foreach (var rec in annotated)
                 {
                     Records.Add(rec);
                 }
@@ -282,22 +280,34 @@ namespace Nivtropy.Presentation.ViewModels
             return GetKnownHeight(code);
         }
 
-        private void AnnotateRuns(IList<MeasurementRecord> records)
+        private List<MeasurementRecord> AnnotateRuns(IList<MeasurementDto> records)
         {
             Runs.Clear();
             if (records.Count == 0)
-                return;
+                return new List<MeasurementRecord>();
 
             var groups = _annotationService.AnnotateRuns(records);
+            var result = new List<MeasurementRecord>(records.Count);
             foreach (var group in groups)
             {
                 var summary = group.Summary.ToModel();
                 Runs.Add(summary);
-                foreach (var record in group.Records)
+                var start = group.Records.FirstOrDefault(gr => gr.Rb_m.HasValue) ?? group.Records.First();
+                var end = group.Records.LastOrDefault(gr => gr.Rf_m.HasValue) ?? group.Records.Last();
+
+                for (int i = 0; i < group.Records.Count; i++)
                 {
+                    var dto = group.Records[i];
+                    var record = dto.ToModel();
                     record.LineSummary = summary;
+                    record.ShotIndexWithinLine = i + 1;
+                    record.IsLineStart = ReferenceEquals(dto, start);
+                    record.IsLineEnd = ReferenceEquals(dto, end);
+                    result.Add(record);
                 }
             }
+
+            return result;
         }
 
         public void ExportCsv(string path)
