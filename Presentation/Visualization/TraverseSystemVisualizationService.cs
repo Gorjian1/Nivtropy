@@ -257,15 +257,15 @@ namespace Nivtropy.Presentation.Visualization
 
                 if (node.IsKnown)
                 {
-                    DrawTriangle(canvas, pos, KnownNodeSize, Colors.Black, $"{node.Label}\nИзвестная высота");
+                    DrawTriangle(canvas, pos, KnownNodeSize, System.Windows.Media.Colors.Black, $"{node.Label}\nИзвестная высота");
                 }
                 else if (node.IsShared)
                 {
-                    DrawDoubleCircle(canvas, pos, SharedNodeSize, Colors.OrangeRed, $"{node.Label}\nОбщая точка");
+                    DrawDoubleCircle(canvas, pos, SharedNodeSize, System.Windows.Media.Colors.OrangeRed, $"{node.Label}\nОбщая точка");
                 }
                 else
                 {
-                    DrawCircle(canvas, pos, NodeRadius * 2, Colors.DodgerBlue, $"{node.Label}");
+                    DrawCircle(canvas, pos, NodeRadius * 2, System.Windows.Media.Colors.DodgerBlue, $"{node.Label}");
                 }
 
                 if (node.IsKnown || node.IsShared || node.Degree > 2)
@@ -315,7 +315,7 @@ namespace Nivtropy.Presentation.Visualization
 
         private void DrawDoubleCircle(Canvas canvas, Point center, double size, Color fill, string tip)
         {
-            DrawCircle(canvas, center, size + 4, Colors.White, tip);
+            DrawCircle(canvas, center, size + 4, System.Windows.Media.Colors.White, tip);
             DrawCircle(canvas, center, size, fill, tip);
         }
 
