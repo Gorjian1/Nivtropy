@@ -13,7 +13,6 @@
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
         <converters:MethodDeltaConverter x:Key="MethodDeltaConverter" />
-        <converters:EnumToBoolConverter x:Key="EnumToBoolConverter" />
         <converters:GroupClosureConverter x:Key="GroupClosureConverter" />
         <converters:ArmDifferenceExceededToBrushConverter x:Key="ArmDifferenceExceededToBrushConverter" />
         <converters:GridLineColorConverter x:Key="GridLineColorConverter" />
@@ -560,31 +559,14 @@
                                        FontWeight="SemiBold"
                                        Margin="0,0,0,6" />
 
-                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-
-                                <RadioButton Content="нет"
-                                             GroupName="AdjMode"
-                                             Margin="0,0,10,0"
-                                             IsChecked="{Binding Calculation.AdjustmentMode,
-                                                                 Converter={StaticResource EnumToBoolConverter},
-                                                                 ConverterParameter={x:Static enums:AdjustmentMode.None},
-                                                                 Mode=TwoWay}" />
-
-                                <RadioButton Content="локальное"
-                                             GroupName="AdjMode"
-                                             Margin="0,0,10,0"
-                                             IsChecked="{Binding Calculation.AdjustmentMode,
-                                                                 Converter={StaticResource EnumToBoolConverter},
-                                                                 ConverterParameter={x:Static enums:AdjustmentMode.Local},
-                                                                 Mode=TwoWay}" />
-
-                                <RadioButton Content="сеть (МНК)"
-                                             GroupName="AdjMode"
-                                             IsChecked="{Binding Calculation.AdjustmentMode,
-                                                                 Converter={StaticResource EnumToBoolConverter},
-                                                                 ConverterParameter={x:Static enums:AdjustmentMode.Network},
-                                                                 Mode=TwoWay}" />
-                            </StackPanel>
+                            <ComboBox SelectedValue="{Binding Calculation.AdjustmentMode, Mode=TwoWay}"
+                                      SelectedValuePath="Tag"
+                                      FontSize="11"
+                                      Height="24">
+                                <ComboBoxItem Content="нет" Tag="{x:Static enums:AdjustmentMode.None}" />
+                                <ComboBoxItem Content="локальное" Tag="{x:Static enums:AdjustmentMode.Local}" />
+                                <ComboBoxItem Content="сеть (МНК)" Tag="{x:Static enums:AdjustmentMode.Network}" />
+                            </ComboBox>
                         </StackPanel>
                     </Border>
 
