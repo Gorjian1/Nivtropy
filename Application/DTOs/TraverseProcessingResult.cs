@@ -9,11 +9,11 @@ namespace Nivtropy.Application.DTOs;
 /// </summary>
 public class TraverseProcessingResult
 {
-    public List<StationDto> Stations { get; init; } = new();
-    public List<RunSummaryDto> Runs { get; init; } = new();
-    public TraverseStatisticsDto Statistics { get; init; } = new();
-    public Dictionary<int, List<string>> SharedPointsByRun { get; init; } = new();
-    public Dictionary<string, List<int>> SharedPointRunIndexes { get; init; } = new();
-    public ConnectivityResult Connectivity { get; init; } = new();
-    public ClosureCalculationResult ClosureResult { get; init; } = new();
+    public List<StationDto> Stations { get; set; } = new();
+    public List<RunSummaryDto> Runs { get; set; } = new();
+    public TraverseStatisticsDto Statistics { get; set; } = new();
+    public Dictionary<int, List<string>> SharedPointsByRun { get; set; } = new();
+    public Dictionary<string, List<int>> SharedPointRunIndexes { get; set; } = new();
+    public ConnectivityResult Connectivity { get; set; } = new();
+    public ClosureCalculationResult ClosureResult { get; set; } = new();
 }
