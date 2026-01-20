@@ -14,6 +14,7 @@ using Nivtropy.Application.Mappers;
 using Nivtropy.Application.Commands.Handlers;
 using Nivtropy.Application.Queries;
 using Nivtropy.Application.Persistence;
+using Nivtropy.Infrastructure.Persistence;
 
 namespace Nivtropy.Services
 {

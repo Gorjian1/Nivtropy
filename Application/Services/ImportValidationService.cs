@@ -30,9 +30,11 @@ namespace Nivtropy.Application.Services
             }
 
             int lineNumber = 1;
-            string? currentLine = null;
+            int lineIndex = 1;
+            string? currentLine = BuildLineLabel(lineIndex, null);
             int stationsInLine = 0;
             double? prevForeReading = null;
+            MeasurementRecord? previous = null;
 
             foreach (var record in records)
             {
@@ -42,16 +44,21 @@ namespace Nivtropy.Application.Services
                 result.Warnings.AddRange(recordResult.Warnings);
 
                 // Проверяем контекст хода
-                if (record.LineSummary?.Header != currentLine)
+                if (previous != null && ShouldStartNewLine(previous, record))
                 {
                     // Новый ход
                     if (currentLine != null && stationsInLine < 2)
                     {
                         result.AddWarning($"Ход '{currentLine}' содержит менее 2 станций", lineNumber);
                     }
-                    currentLine = record.LineSummary?.Header;
+                    lineIndex++;
+                    currentLine = BuildLineLabel(lineIndex, record.OriginalLineNumber);
                     stationsInLine = 0;
                     prevForeReading = null;
+                }
+                else if (record.LineMarker == "Start-Line")
+                {
+                    currentLine = BuildLineLabel(lineIndex, record.OriginalLineNumber);
                 }
 
                 // Проверяем последовательность измерений
@@ -69,6 +76,7 @@ namespace Nivtropy.Application.Services
                     prevForeReading = record.Rf_m;
                 }
 
+                previous = record;
                 lineNumber++;
             }
 
@@ -85,6 +93,43 @@ namespace Nivtropy.Application.Services
             }
 
             return result;
+        }
+
+        private static string BuildLineLabel(int index, string? originalLineNumber)
+        {
+            if (!string.IsNullOrWhiteSpace(originalLineNumber))
+                return $"Ход {originalLineNumber}";
+
+            return $"Ход {index:D2}";
+        }
+
+        private static bool ShouldStartNewLine(MeasurementRecord previous, MeasurementRecord current)
+        {
+            if (current.LineMarker == "Start-Line")
+                return true;
+
+            if (current.LineMarker == "Cont-Line")
+                return false;
+
+            if (current.LineMarker == "End-Line")
+                return false;
+
+            if (current.LineMarker == null && previous.LineMarker == null)
+            {
+                if (current.Seq.HasValue && previous.Seq.HasValue)
+                {
+                    if (current.Seq.Value - previous.Seq.Value > 50)
+                        return true;
+                }
+
+                if (current.Mode != null && current.Mode.IndexOf("line", StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    if (!string.Equals(previous.Mode, current.Mode, StringComparison.OrdinalIgnoreCase))
+                        return true;
+                }
+            }
+
+            return false;
         }
 
         public ValidationResult ValidateRecord(MeasurementRecord record, int lineNumber)

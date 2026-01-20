@@ -185,7 +185,7 @@ namespace Nivtropy.Presentation.ViewModels
 
             // Используем TraverseCalculationService для построения строк хода
             var traverseRows = _calculationService.BuildTraverseRows(
-                _dataViewModel.Records.Where(r => ReferenceEquals(r.LineSummary, SelectedRun)).ToList(),
+                _dataViewModel.GetRawRecordsForRun(SelectedRun),
                 new[] { SelectedRun.ToDto() });
 
             if (traverseRows.Count == 0)

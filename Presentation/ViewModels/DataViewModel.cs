@@ -185,6 +185,19 @@ namespace Nivtropy.Presentation.ViewModels
         /// </summary>
         public IReadOnlyDictionary<string, bool> SharedPointStates => _sharedPointStates;
 
+        public IReadOnlyList<DomainMeasurementRecord> GetRawRecordsForRun(LineSummary run)
+        {
+            if (run == null)
+                return Array.Empty<DomainMeasurementRecord>();
+
+            var groups = _annotationService.AnnotateRuns(_rawRecords);
+            var group = groups.FirstOrDefault(g => g.Summary.Index == run.Index);
+            if (group == null)
+                return Array.Empty<DomainMeasurementRecord>();
+
+            return group.Records.Select(r => r.Measurement).ToList();
+        }
+
         public bool IsSharedPointEnabled(string? pointCode)
         {
             if (string.IsNullOrWhiteSpace(pointCode))
