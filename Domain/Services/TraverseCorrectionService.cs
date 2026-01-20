@@ -26,7 +26,7 @@ namespace Nivtropy.Domain.Services
     {
         CorrectionCalculationResult CalculateCorrections(
             IReadOnlyList<StationDto> stations,
-            Func<string?, bool> isAnchor,
+            Func<string?, double?> getKnownHeightMeters,
             double methodOrientationSign,
             AdjustmentMode adjustmentMode);
     }
@@ -37,7 +37,7 @@ namespace Nivtropy.Domain.Services
 
         public CorrectionCalculationResult CalculateCorrections(
             IReadOnlyList<StationDto> stations,
-            Func<string?, bool> isAnchor,
+            Func<string?, double?> getKnownHeightMeters,
             double methodOrientationSign,
             AdjustmentMode adjustmentMode)
         {
@@ -45,14 +45,14 @@ namespace Nivtropy.Domain.Services
             if (stations.Count == 0)
                 return result;
 
-            var anchorPoints = CollectAnchorPoints(stations, isAnchor);
+            var anchorPoints = CollectAnchorPoints(stations, getKnownHeightMeters);
             var distinctAnchorCount = anchorPoints
                 .Select(a => a.Code)
                 .Where(c => !string.IsNullOrWhiteSpace(c))
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .Count();
 
-            var closureMode = DetermineClosureMode(stations, isAnchor, anchorPoints, adjustmentMode);
+            var closureMode = DetermineClosureMode(stations, getKnownHeightMeters, anchorPoints, adjustmentMode);
             var corrections = new Dictionary<int, (double? correction, double? baseline, CorrectionDisplayMode mode)>();
 
             foreach (var station in stations)
@@ -70,7 +70,9 @@ namespace Nivtropy.Domain.Services
                 case TraverseClosureMode.Simple:
                     {
                         var closure = CalculateCorrectionsForSection(
-                            stations.ToList(), methodOrientationSign,
+                            stations.ToList(),
+                            methodOrientationSign,
+                            requiredSum: 0,
                             (idx, value) => corrections[idx] = (value, value, CorrectionDisplayMode.Single));
                         if (closure.HasValue) result.Closures.Add(closure.Value);
                         break;
@@ -78,10 +80,12 @@ namespace Nivtropy.Domain.Services
                 case TraverseClosureMode.Local:
                     {
                         CalculateCorrectionsForSection(
-                            stations.ToList(), methodOrientationSign,
+                            stations.ToList(),
+                            methodOrientationSign,
+                            requiredSum: 0,
                             (idx, value) => { var c = corrections[idx]; corrections[idx] = (c.correction, value, c.mode); });
                         CalculateCorrectionsWithSections(
-                            stations.ToList(), anchorPoints, methodOrientationSign, result.Closures,
+                            stations.ToList(), anchorPoints, getKnownHeightMeters, methodOrientationSign, result.Closures,
                             (idx, value) => { var c = corrections[idx]; corrections[idx] = (value, c.baseline, CorrectionDisplayMode.Local); });
                         break;
                     }
@@ -102,16 +106,18 @@ namespace Nivtropy.Domain.Services
             return result with { ClosureMode = closureMode, DistinctAnchorCount = distinctAnchorCount };
         }
 
-        private static List<(int Index, string? Code)> CollectAnchorPoints(IReadOnlyList<StationDto> stations, Func<string?, bool> isAnchor)
+        private static List<(int Index, string? Code)> CollectAnchorPoints(
+            IReadOnlyList<StationDto> stations,
+            Func<string?, double?> getKnownHeightMeters)
         {
             var knownPoints = new List<(int Index, string? Code)>();
             for (int i = 0; i < stations.Count; i++)
             {
                 var station = stations[i];
-                if (!string.IsNullOrWhiteSpace(station.BackCode) && isAnchor(station.BackCode))
+                if (!string.IsNullOrWhiteSpace(station.BackCode) && getKnownHeightMeters(station.BackCode).HasValue)
                     if (knownPoints.All(p => p.Index != i))
                         knownPoints.Add((i, station.BackCode));
-                if (!string.IsNullOrWhiteSpace(station.ForeCode) && isAnchor(station.ForeCode))
+                if (!string.IsNullOrWhiteSpace(station.ForeCode) && getKnownHeightMeters(station.ForeCode).HasValue)
                 {
                     var anchorIndex = Math.Min(i + 1, stations.Count);
                     if (knownPoints.All(p => p.Index != anchorIndex))
@@ -121,12 +127,16 @@ namespace Nivtropy.Domain.Services
             return knownPoints.OrderBy(p => p.Index).ToList();
         }
 
-        private static TraverseClosureMode DetermineClosureMode(IReadOnlyList<StationDto> stations, Func<string?, bool> isAnchor, List<(int Index, string? Code)> anchorPoints, AdjustmentMode adjustmentMode)
+        private static TraverseClosureMode DetermineClosureMode(
+            IReadOnlyList<StationDto> stations,
+            Func<string?, double?> getKnownHeightMeters,
+            List<(int Index, string? Code)> anchorPoints,
+            AdjustmentMode adjustmentMode)
         {
             var startCode = stations.FirstOrDefault()?.BackCode ?? stations.FirstOrDefault()?.ForeCode;
             var endCode = stations.LastOrDefault()?.ForeCode ?? stations.LastOrDefault()?.BackCode;
-            bool startKnown = !string.IsNullOrWhiteSpace(startCode) && isAnchor(startCode);
-            bool endKnown = !string.IsNullOrWhiteSpace(endCode) && isAnchor(endCode);
+            bool startKnown = !string.IsNullOrWhiteSpace(startCode) && getKnownHeightMeters(startCode).HasValue;
+            bool endKnown = !string.IsNullOrWhiteSpace(endCode) && getKnownHeightMeters(endCode).HasValue;
             bool closesByLoop = !string.IsNullOrWhiteSpace(startCode) && !string.IsNullOrWhiteSpace(endCode) && string.Equals(startCode, endCode, StringComparison.OrdinalIgnoreCase);
             bool isClosed = closesByLoop || (startKnown && endKnown);
             var distinctAnchorCount = anchorPoints.Select(a => a.Code).Where(c => !string.IsNullOrWhiteSpace(c)).Distinct(StringComparer.OrdinalIgnoreCase).Count();
@@ -144,12 +154,18 @@ namespace Nivtropy.Domain.Services
             return distinctAnchorCount > 1 ? TraverseClosureMode.Local : TraverseClosureMode.Simple;
         }
 
-        private static void CalculateCorrectionsWithSections(List<StationDto> stations, List<(int Index, string? Code)> knownPoints, double methodSign, List<double> closures, Action<int, double>? applyCorrection)
+        private static void CalculateCorrectionsWithSections(
+            List<StationDto> stations,
+            List<(int Index, string? Code)> knownPoints,
+            Func<string?, double?> getKnownHeightMeters,
+            double methodSign,
+            List<double> closures,
+            Action<int, double>? applyCorrection)
         {
             if (stations.Count == 0) return;
             if (knownPoints.Count < 2)
             {
-                var closure = CalculateCorrectionsForSection(stations, methodSign, applyCorrection);
+                var closure = CalculateCorrectionsForSection(stations, methodSign, requiredSum: 0, applyCorrection);
                 if (closure.HasValue) closures.Add(closure.Value);
                 return;
             }
@@ -158,42 +174,100 @@ namespace Nivtropy.Domain.Services
                 var sectionStations = stations.Skip(knownPoints[i].Index).Take(knownPoints[i + 1].Index - knownPoints[i].Index).ToList();
                 if (sectionStations.Count > 0)
                 {
-                    var closure = CalculateCorrectionsForSection(sectionStations, methodSign, applyCorrection);
+                    var startHeight = getKnownHeightMeters(knownPoints[i].Code);
+                    var endHeight = getKnownHeightMeters(knownPoints[i + 1].Code);
+                    if (!startHeight.HasValue || !endHeight.HasValue)
+                        continue;
+
+                    var requiredSum = endHeight.Value - startHeight.Value;
+                    var closure = CalculateCorrectionsForSection(sectionStations, methodSign, requiredSum, applyCorrection);
                     if (closure.HasValue) closures.Add(closure.Value);
                 }
             }
         }
 
-        private static double? CalculateCorrectionsForSection(List<StationDto> stations, double methodSign, Action<int, double>? applyCorrection)
+        private static double? CalculateCorrectionsForSection(
+            List<StationDto> stations,
+            double methodSign,
+            double requiredSum,
+            Action<int, double>? applyCorrection)
         {
             if (stations.Count == 0) return null;
-            var sectionClosure = stations.Where(s => s.DeltaH.HasValue).Sum(s => s.DeltaH!.Value * methodSign);
+            var measuredStations = stations.Where(s => s.DeltaH.HasValue).ToList();
+            if (measuredStations.Count == 0)
+                return null;
+
+            var measuredSum = measuredStations.Sum(s => s.DeltaH!.Value);
+            var sectionClosure = methodSign * (measuredSum - requiredSum);
             var adjustableStations = stations.Where(s => s.DeltaH.HasValue).ToList();
             if (adjustableStations.Count == 0) return sectionClosure;
 
             double totalDistance = stations.Sum(s => ((s.BackDistance ?? 0) + (s.ForeDistance ?? 0)) / 2.0);
-            var allocations = new List<(int Index, double Raw, double Rounded)>();
+            var allocations = new List<(int Index, double Raw, double Length)>();
+            var requiredCorrectionSum = requiredSum - measuredSum;
 
             if (totalDistance <= 0)
             {
-                var correctionPerStation = -sectionClosure / adjustableStations.Count;
+                var correctionPerStation = requiredCorrectionSum / adjustableStations.Count;
                 foreach (var station in adjustableStations)
-                    allocations.Add((station.Index, correctionPerStation, correctionPerStation));
+                    allocations.Add((station.Index, correctionPerStation, 1));
             }
             else
             {
-                var correctionFactor = -sectionClosure / totalDistance;
+                var correctionFactor = requiredCorrectionSum / totalDistance;
                 foreach (var station in adjustableStations)
                 {
                     var avgDistance = ((station.BackDistance ?? 0) + (station.ForeDistance ?? 0)) / 2.0;
-                    allocations.Add((station.Index, correctionFactor * avgDistance, correctionFactor * avgDistance));
+                    allocations.Add((station.Index, correctionFactor * avgDistance, avgDistance));
                 }
             }
 
             if (applyCorrection != null)
-                foreach (var (index, _, rounded) in allocations)
-                    applyCorrection(index, Math.Round(rounded, 4));
+            {
+                var rounded = RoundCorrections(allocations, requiredCorrectionSum);
+                foreach (var (index, value) in rounded)
+                    applyCorrection(index, value);
+            }
+
             return sectionClosure;
+        }
+
+        private static List<(int Index, double Value)> RoundCorrections(
+            List<(int Index, double Raw, double Length)> allocations,
+            double requiredSum)
+        {
+            var rounded = allocations
+                .Select(a => (a.Index, Value: Math.Round(a.Raw, 4), a.Length))
+                .ToList();
+
+            var roundedSum = rounded.Sum(a => a.Value);
+            var residual = requiredSum - roundedSum;
+            var ticks = (int)Math.Round(residual / CorrectionRoundingStep);
+
+            if (ticks == 0)
+                return rounded.Select(a => (a.Index, a.Value)).ToList();
+
+            var order = rounded
+                .OrderByDescending(a => a.Length)
+                .Select(a => a.Index)
+                .ToArray();
+
+            int k = 0;
+            while (ticks != 0 && order.Length > 0)
+            {
+                var index = order[k % order.Length];
+                var entryIndex = rounded.FindIndex(a => a.Index == index);
+                if (entryIndex >= 0)
+                {
+                    var entry = rounded[entryIndex];
+                    entry.Value += ticks > 0 ? CorrectionRoundingStep : -CorrectionRoundingStep;
+                    rounded[entryIndex] = entry;
+                    ticks += ticks > 0 ? -1 : 1;
+                }
+                k++;
+            }
+
+            return rounded.Select(a => (a.Index, a.Value)).ToList();
         }
     }
 }

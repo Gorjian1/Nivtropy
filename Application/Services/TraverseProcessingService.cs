@@ -136,13 +136,21 @@ public class TraverseProcessingService : ITraverseProcessingService
                 }
             }
 
-            bool AnchorChecker(string code) => IsAnchorAllowed(code, availableAdjustedHeights.ContainsKey, request);
+            double? GetKnownHeight(string code)
+            {
+                if (!IsAnchorAllowed(code, availableAdjustedHeights.ContainsKey, request))
+                    return null;
+                return availableAdjustedHeights.TryGetValue(code, out var height) ? height : (double?)null;
+            }
+
+            bool AnchorChecker(string code) => GetKnownHeight(code).HasValue;
 
             ProcessSystemTraverseGroups(
                 systemGroup.ToList(),
                 availableAdjustedHeights,
                 availableRawHeights,
                 request,
+                GetKnownHeight,
                 AnchorChecker,
                 sharedPointsByRun);
         }
@@ -157,6 +165,7 @@ public class TraverseProcessingService : ITraverseProcessingService
         Dictionary<string, double> availableAdjustedHeights,
         Dictionary<string, double> availableRawHeights,
         TraverseProcessingRequest request,
+        Func<string, double?> getKnownHeight,
         Func<string, bool> anchorChecker,
         Dictionary<int, List<string>> sharedPointsByRun)
     {
@@ -192,7 +201,7 @@ public class TraverseProcessingService : ITraverseProcessingService
 
                 _calculationService.ApplyCorrections(
                     groupItems,
-                    anchorChecker,
+                    getKnownHeight,
                     request.MethodOrientationSign,
                     request.AdjustmentMode);
 

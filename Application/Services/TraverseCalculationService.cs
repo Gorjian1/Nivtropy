@@ -20,7 +20,7 @@ public interface ITraverseCalculationService
 
     void ApplyCorrections(
         IList<StationDto> rows,
-        Func<string, bool> isAnchor,
+        Func<string, double?> getKnownHeightMeters,
         double methodOrientationSign,
         AdjustmentMode adjustmentMode);
 }
@@ -127,7 +127,7 @@ public class TraverseCalculationService : ITraverseCalculationService
 
     public void ApplyCorrections(
         IList<StationDto> rows,
-        Func<string, bool> isAnchor,
+        Func<string, double?> getKnownHeightMeters,
         double methodOrientationSign,
         AdjustmentMode adjustmentMode)
     {
@@ -158,7 +158,7 @@ public class TraverseCalculationService : ITraverseCalculationService
                 BaselineCorrection = row.BaselineCorrection,
                 CorrectionMode = row.CorrectionMode
             }).ToList(),
-            code => !string.IsNullOrWhiteSpace(code) && isAnchor(code!),
+            code => string.IsNullOrWhiteSpace(code) ? null : getKnownHeightMeters(code!),
             methodOrientationSign,
             adjustmentMode);
 
