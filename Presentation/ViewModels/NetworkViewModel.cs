@@ -15,6 +15,7 @@ using Nivtropy.Application.Enums;
 using Nivtropy.Application.Export;
 using Nivtropy.Application.Queries;
 using Nivtropy.Application.Persistence;
+using Nivtropy.Application.Services;
 using Nivtropy.Constants;
 using Nivtropy.Domain.Model;
 using Nivtropy.Domain.ValueObjects;
@@ -23,6 +24,7 @@ using Nivtropy.Presentation.Services;
 using Nivtropy.Presentation.ViewModels.Base;
 using Nivtropy.Presentation.ViewModels.Managers;
 using Nivtropy.Utilities;
+using TraverseSystem = Nivtropy.Presentation.Models.TraverseSystem;
 
 namespace Nivtropy.Presentation.ViewModels
 {
