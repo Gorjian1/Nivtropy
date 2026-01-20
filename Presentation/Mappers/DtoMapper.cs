@@ -1,8 +1,9 @@
 using System.Collections.Generic;
 using System.Linq;
 using Nivtropy.Application.DTOs;
-using Nivtropy.Domain.Model;
 using Nivtropy.Presentation.Models;
+using DomainMeasurementRecord = Nivtropy.Domain.Model.MeasurementRecord;
+using PresentationMeasurementRecord = Nivtropy.Presentation.Models.MeasurementRecord;
 
 namespace Nivtropy.Presentation.Mappers;
 
@@ -163,10 +164,10 @@ public static class DtoMapper
         };
     }
 
-    public static MeasurementRecord ToModel(this MeasurementAnnotationDto dto, LineSummary summary)
+    public static PresentationMeasurementRecord ToModel(this MeasurementAnnotationDto dto, LineSummary summary)
     {
-        var record = dto.Measurement;
-        return new MeasurementRecord
+        DomainMeasurementRecord record = dto.Measurement;
+        return new PresentationMeasurementRecord
         {
             Seq = record.Seq,
             Mode = record.Mode,
