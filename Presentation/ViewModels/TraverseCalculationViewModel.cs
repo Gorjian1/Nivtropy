@@ -202,8 +202,7 @@ namespace Nivtropy.Presentation.ViewModels
                 {
                     _selectedClass = value;
                     OnPropertyChanged();
-                    UpdateTolerance();
-                    CheckArmDifferenceTolerances(); // Пересчёт при смене класса
+                    UpdateRows();
                 }
             }
         }
@@ -723,6 +722,8 @@ namespace Nivtropy.Presentation.ViewModels
                 IsCalculating = false;
             }
         }
+
+        #endregion
 
         private TraverseProcessingRequest BuildProcessingRequest(
             IReadOnlyList<StationDto> stations,
