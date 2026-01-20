@@ -2,15 +2,14 @@ using System;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading.Tasks;
-using Nivtropy.Domain.DTOs;
 using Nivtropy.Application.DTOs;
 using Nivtropy.Application.Commands;
 using Nivtropy.Application.Commands.Handlers;
-using Nivtropy.Domain.Enums;
+using Nivtropy.Application.Enums;
 using Nivtropy.Application.Queries;
 using Nivtropy.Application.Mappers;
 using Nivtropy.Domain.Model;
-using Nivtropy.Infrastructure.Persistence;
+using Nivtropy.Application.Persistence;
 using Nivtropy.Presentation.ViewModels.Base;
 
 namespace Nivtropy.Presentation.ViewModels

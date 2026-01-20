@@ -1,7 +1,7 @@
 namespace Nivtropy.Application.Commands;
 
 using System;
-using Nivtropy.Domain.Enums;
+using Nivtropy.Application.Enums;
 
 /// <summary>
 /// Команда для вычисления высот в сети.

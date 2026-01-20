@@ -1,6 +1,4 @@
 using System.Collections.Generic;
-using Nivtropy.Domain.DTOs;
-using Nivtropy.Models;
 
 namespace Nivtropy.Application.DTOs;
 
@@ -10,5 +8,5 @@ namespace Nivtropy.Application.DTOs;
 public class RunAnnotationGroupDto
 {
     public RunSummaryDto Summary { get; init; } = new();
-    public List<MeasurementRecord> Records { get; init; } = new();
+    public List<MeasurementAnnotationDto> Records { get; init; } = new();
 }

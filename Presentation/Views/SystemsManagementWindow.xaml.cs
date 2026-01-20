@@ -1,7 +1,6 @@
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
-using Nivtropy.Models;
 using Nivtropy.Presentation.Models;
 using Nivtropy.Presentation.ViewModels;
 

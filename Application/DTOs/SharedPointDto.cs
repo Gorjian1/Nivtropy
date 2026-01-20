@@ -1,4 +1,4 @@
-namespace Nivtropy.Domain.DTOs;
+namespace Nivtropy.Application.DTOs;
 
 /// <summary>
 /// DTO общей точки для расчётов связности.

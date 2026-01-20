@@ -1,9 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Nivtropy.Domain.DTOs;
 using Nivtropy.Application.DTOs;
-using Nivtropy.Models;
+using Nivtropy.Domain.Model;
 
 namespace Nivtropy.Application.Services;
 
@@ -50,25 +49,39 @@ public class RunAnnotationService : IRunAnnotationService
             int index = g + 1;
 
             var summary = BuildSummary(index, group);
+            var annotations = BuildAnnotations(group);
             summaries.Add(new RunAnnotationGroupDto
             {
                 Summary = summary,
-                Records = group.ToList()
+                Records = annotations
             });
-
-            var start = group.FirstOrDefault(gr => gr.Rb_m.HasValue) ?? group.First();
-            var end = group.LastOrDefault(gr => gr.Rf_m.HasValue) ?? group.Last();
-
-            for (int i = 0; i < group.Count; i++)
-            {
-                var rec = group[i];
-                rec.ShotIndexWithinLine = i + 1;
-                rec.IsLineStart = ReferenceEquals(rec, start);
-                rec.IsLineEnd = ReferenceEquals(rec, end);
-            }
         }
 
         return summaries;
+    }
+
+    private static List<MeasurementAnnotationDto> BuildAnnotations(IReadOnlyList<MeasurementRecord> group)
+    {
+        var result = new List<MeasurementAnnotationDto>(group.Count);
+        if (group.Count == 0)
+            return result;
+
+        var start = group.FirstOrDefault(gr => gr.Rb_m.HasValue) ?? group.First();
+        var end = group.LastOrDefault(gr => gr.Rf_m.HasValue) ?? group.Last();
+
+        for (int i = 0; i < group.Count; i++)
+        {
+            var rec = group[i];
+            result.Add(new MeasurementAnnotationDto
+            {
+                Measurement = rec,
+                ShotIndexWithinLine = i + 1,
+                IsLineStart = ReferenceEquals(rec, start),
+                IsLineEnd = ReferenceEquals(rec, end)
+            });
+        }
+
+        return result;
     }
 
     private static bool ShouldStartNewLine(MeasurementRecord previous, MeasurementRecord current)

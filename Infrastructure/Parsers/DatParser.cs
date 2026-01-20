@@ -4,7 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using Nivtropy.Models;
+using Nivtropy.Domain.Model;
 using Nivtropy.Services.Logging;
 
 namespace Nivtropy.Infrastructure.Parsers

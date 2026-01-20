@@ -12,19 +12,19 @@ using System.Windows;
 using System.Windows.Input;
 using ClosedXML.Excel;
 using Microsoft.Win32;
-using Nivtropy.Domain.DTOs;
+using Nivtropy.Application.DTOs;
+using Nivtropy.Application.Export;
 using Nivtropy.Presentation.Models;
-using Nivtropy.Models;
-using Nivtropy.Domain.Enums;
+using Nivtropy.Application.Enums;
 using Nivtropy.Application.Services;
 using Nivtropy.Domain.Services;
-using Nivtropy.Infrastructure.Export;
 using Nivtropy.Utilities;
 using Nivtropy.Presentation.ViewModels.Base;
 using Nivtropy.Presentation.ViewModels.Helpers;
 using Nivtropy.Presentation.ViewModels.Managers;
 using Nivtropy.Presentation.Mappers;
 using Nivtropy.Constants;
+using Nivtropy.Services.Dialog;
 
 namespace Nivtropy.Presentation.ViewModels
 {
@@ -34,7 +34,8 @@ namespace Nivtropy.Presentation.ViewModels
         private readonly SettingsViewModel _settingsViewModel;
         private readonly ITraverseCalculationService _calculationService;
         private readonly IClosureCalculationService _closureService;
-        private readonly IExportService _exportService;
+        private readonly ITraverseExportService _exportService;
+        private readonly IDialogService _dialogService;
         private readonly ISystemConnectivityService _connectivityService;
         private readonly ObservableCollection<TraverseRow> _rows = new();
         private readonly ObservableCollection<PointItem> _availablePoints = new();
@@ -90,7 +91,8 @@ namespace Nivtropy.Presentation.ViewModels
             SettingsViewModel settingsViewModel,
             ITraverseCalculationService calculationService,
             IClosureCalculationService closureService,
-            IExportService exportService,
+            ITraverseExportService exportService,
+            IDialogService dialogService,
             ISystemConnectivityService connectivityService)
         {
             _dataViewModel = dataViewModel;
@@ -98,6 +100,7 @@ namespace Nivtropy.Presentation.ViewModels
             _calculationService = calculationService;
             _closureService = closureService;
             _exportService = exportService;
+            _dialogService = dialogService ?? throw new ArgumentNullException(nameof(dialogService));
             _connectivityService = connectivityService;
             ((INotifyCollectionChanged)_dataViewModel.Records).CollectionChanged += OnRecordsCollectionChanged;
             ((INotifyCollectionChanged)_dataViewModel.Runs).CollectionChanged += (_, __) => OnPropertyChanged(nameof(Runs));
@@ -507,11 +510,31 @@ namespace Nivtropy.Presentation.ViewModels
 
         /// <summary>
         /// Экспортирует данные в CSV с 4-частной структурой для каждого хода
-        /// Делегирует логику экспорта в IExportService
+        /// Делегирует логику экспорта в ITraverseExportService
         /// </summary>
         private void ExportToCsv()
         {
-            _exportService.ExportToCsv(_rows);
+            var saveFileDialog = new SaveFileDialog
+            {
+                Filter = "CSV файлы (*.csv)|*.csv",
+                DefaultExt = "csv",
+                FileName = $"Нивелирование_{DateTime.Now:yyyy-MM-dd_HH-mm-ss}.csv"
+            };
+
+            if (saveFileDialog.ShowDialog() != true)
+                return;
+
+            try
+            {
+                var dtos = MapRowsToDtos(_rows.ToList());
+                var csv = _exportService.BuildCsv(dtos);
+                System.IO.File.WriteAllText(saveFileDialog.FileName, csv, System.Text.Encoding.UTF8);
+                _dialogService.ShowInfo($"Данные успешно экспортированы в:\n{saveFileDialog.FileName}", "Экспорт завершён");
+            }
+            catch (Exception ex)
+            {
+                _dialogService.ShowError($"Ошибка при экспорте:\n{ex.Message}", "Ошибка экспорта");
+            }
         }
 
         /// <summary>
@@ -609,7 +632,7 @@ namespace Nivtropy.Presentation.ViewModels
             IsCalculating = true;
             try
             {
-                var records = _dataViewModel.Records;
+                var records = _dataViewModel.RawRecords;
 
                 if (records.Count == 0)
                 {
@@ -661,7 +684,7 @@ namespace Nivtropy.Presentation.ViewModels
 
             try
             {
-                var records = _dataViewModel.Records.ToList();
+                var records = _dataViewModel.RawRecords.ToList();
 
                 if (records.Count == 0)
                 {

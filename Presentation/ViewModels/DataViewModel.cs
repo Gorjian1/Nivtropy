@@ -6,13 +6,12 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using Nivtropy.Presentation.Models;
-using Nivtropy.Models;
 using Nivtropy.Infrastructure.Parsers;
 using Nivtropy.Application.Services;
-using Nivtropy.Domain.DTOs;
 using Nivtropy.Application.DTOs;
 using Nivtropy.Presentation.Mappers;
 using Nivtropy.Presentation.ViewModels.Base;
+using DomainMeasurementRecord = Nivtropy.Domain.Model.MeasurementRecord;
 
 namespace Nivtropy.Presentation.ViewModels
 {
@@ -24,12 +23,14 @@ namespace Nivtropy.Presentation.ViewModels
 
         public ObservableCollection<MeasurementRecord> Records { get; } = new();
         public ObservableCollection<LineSummary> Runs { get; } = new();
+        public IReadOnlyList<DomainMeasurementRecord> RawRecords => _rawRecords;
 
         public int RecordsVersion { get; private set; }
         public int KnownHeightsVersion { get; private set; }
 
         private readonly Dictionary<string, double> _knownHeights = new(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, bool> _sharedPointStates = new(StringComparer.OrdinalIgnoreCase);
+        private List<DomainMeasurementRecord> _rawRecords = new();
 
         public event EventHandler? BeginBatchUpdate;
         public event EventHandler? EndBatchUpdate;
@@ -102,6 +103,7 @@ namespace Nivtropy.Presentation.ViewModels
                 IncrementKnownHeightsVersion();
 
                 var parsed = _parser.Parse(path).ToList();
+                _rawRecords = parsed;
 
                 // Валидируем данные если сервис доступен
                 if (_validationService != null)
@@ -111,9 +113,9 @@ namespace Nivtropy.Presentation.ViewModels
                 }
 
                 // Фильтрация теперь выполняется в парсере
-                AnnotateRuns(parsed);
+                var annotatedRecords = AnnotateRuns(parsed);
 
-                foreach (var rec in parsed)
+                foreach (var rec in annotatedRecords)
                 {
                     Records.Add(rec);
                 }
@@ -282,22 +284,25 @@ namespace Nivtropy.Presentation.ViewModels
             return GetKnownHeight(code);
         }
 
-        private void AnnotateRuns(IList<MeasurementRecord> records)
+        private IReadOnlyList<MeasurementRecord> AnnotateRuns(IList<DomainMeasurementRecord> records)
         {
             Runs.Clear();
             if (records.Count == 0)
-                return;
+                return Array.Empty<MeasurementRecord>();
 
             var groups = _annotationService.AnnotateRuns(records);
+            var annotatedRecords = new List<MeasurementRecord>();
             foreach (var group in groups)
             {
                 var summary = group.Summary.ToModel();
                 Runs.Add(summary);
                 foreach (var record in group.Records)
                 {
-                    record.LineSummary = summary;
+                    annotatedRecords.Add(record.ToModel(summary));
                 }
             }
+
+            return annotatedRecords;
         }
 
         public void ExportCsv(string path)

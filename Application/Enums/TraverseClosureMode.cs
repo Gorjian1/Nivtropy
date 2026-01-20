@@ -1,4 +1,4 @@
-namespace Nivtropy.Domain.Enums;
+namespace Nivtropy.Application.Enums;
 
 /// <summary>
 /// Режим замыкания хода

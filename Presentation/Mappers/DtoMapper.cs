@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
-using Nivtropy.Domain.DTOs;
 using Nivtropy.Application.DTOs;
+using Nivtropy.Domain.Model;
 using Nivtropy.Presentation.Models;
 
 namespace Nivtropy.Presentation.Mappers;
@@ -160,6 +160,30 @@ public static class DtoMapper
             IsEdited = dto.IsEdited,
             OriginalHeight = dto.OriginalHeight,
             OriginalDistance = dto.OriginalDistance
+        };
+    }
+
+    public static MeasurementRecord ToModel(this MeasurementAnnotationDto dto, LineSummary summary)
+    {
+        var record = dto.Measurement;
+        return new MeasurementRecord
+        {
+            Seq = record.Seq,
+            Mode = record.Mode,
+            Target = record.Target,
+            StationCode = record.StationCode,
+            LineMarker = record.LineMarker,
+            OriginalLineNumber = record.OriginalLineNumber,
+            IsInvalidMeasurement = record.IsInvalidMeasurement,
+            Rb_m = record.Rb_m,
+            Rf_m = record.Rf_m,
+            HdBack_m = record.HdBack_m,
+            HdFore_m = record.HdFore_m,
+            Z_m = record.Z_m,
+            LineSummary = summary,
+            ShotIndexWithinLine = dto.ShotIndexWithinLine,
+            IsLineStart = dto.IsLineStart,
+            IsLineEnd = dto.IsLineEnd
         };
     }
 }

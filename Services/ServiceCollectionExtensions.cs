@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Nivtropy.Infrastructure.Parsers;
+using Nivtropy.Application.Export;
 using Nivtropy.Infrastructure.Export;
 using Nivtropy.Services.Logging;
 using Nivtropy.Application.Services;
@@ -12,7 +13,7 @@ using Nivtropy.Presentation.ViewModels.Managers;
 using Nivtropy.Application.Mappers;
 using Nivtropy.Application.Commands.Handlers;
 using Nivtropy.Application.Queries;
-using Nivtropy.Infrastructure.Persistence;
+using Nivtropy.Application.Persistence;
 
 namespace Nivtropy.Services
 {
@@ -58,7 +59,7 @@ namespace Nivtropy.Services
             services.AddSingleton<INoiseGeneratorService, NoiseGeneratorService>();
 
             // Сервисы экспорта
-            services.AddSingleton<IExportService, TraverseExportService>();
+            services.AddSingleton<ITraverseExportService, TraverseExportService>();
             services.AddSingleton<INivelorExportService, NivelorExportService>();
 
             // Сервисы работы с допусками (moved to Domain)

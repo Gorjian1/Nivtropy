@@ -1,4 +1,4 @@
-namespace Nivtropy.Domain.DTOs;
+namespace Nivtropy.Application.DTOs;
 
 /// <summary>
 /// DTO сводки по нивелирному ходу для расчётов.

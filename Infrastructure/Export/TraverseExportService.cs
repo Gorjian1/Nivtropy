@@ -2,10 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using Microsoft.Win32;
-using Nivtropy.Models;
-using Nivtropy.Presentation.Models; // TODO: Remove after migrating to Domain models
-using Nivtropy.Services.Dialog;
+using Nivtropy.Application.DTOs;
+using Nivtropy.Application.Export;
+using Nivtropy.Constants;
 
 namespace Nivtropy.Infrastructure.Export
 {
@@ -13,50 +12,9 @@ namespace Nivtropy.Infrastructure.Export
     /// Сервис для экспорта данных нивелирования в различные форматы
     /// Извлечён из TraverseCalculationViewModel для соблюдения SRP
     /// </summary>
-    public class TraverseExportService : IExportService
+    public class TraverseExportService : ITraverseExportService
     {
-        private readonly IDialogService _dialogService;
-
-        public TraverseExportService(IDialogService dialogService)
-        {
-            _dialogService = dialogService ?? throw new ArgumentNullException(nameof(dialogService));
-        }
-
-        public bool ExportToCsv(IEnumerable<TraverseRow> rows, string? filePath = null)
-        {
-            if (filePath == null)
-            {
-                var saveFileDialog = new SaveFileDialog
-                {
-                    Filter = "CSV файлы (*.csv)|*.csv",
-                    DefaultExt = "csv",
-                    FileName = $"Нивелирование_{DateTime.Now:yyyy-MM-dd_HH-mm-ss}.csv"
-                };
-
-                if (saveFileDialog.ShowDialog() != true)
-                    return false;
-
-                filePath = saveFileDialog.FileName;
-            }
-
-            try
-            {
-                var csv = BuildCsvContent(rows.ToList());
-                System.IO.File.WriteAllText(filePath, csv, Encoding.UTF8);
-
-                _dialogService.ShowInfo($"Данные успешно экспортированы в:\n{filePath}", "Экспорт завершён");
-
-                return true;
-            }
-            catch (Exception ex)
-            {
-                _dialogService.ShowError($"Ошибка при экспорте:\n{ex.Message}", "Ошибка экспорта");
-
-                return false;
-            }
-        }
-
-        private string BuildCsvContent(List<TraverseRow> rows)
+        public string BuildCsv(IReadOnlyList<StationDto> rows)
         {
             var csv = new StringBuilder();
 
@@ -67,7 +25,7 @@ namespace Nivtropy.Infrastructure.Export
             {
                 var lineName = group.Key;
                 var rowsList = group.ToList();
-                var lineSummary = rowsList.FirstOrDefault()?.LineSummary;
+                var lineSummary = rowsList.FirstOrDefault()?.RunSummary;
 
                 // 1. Start-line - начало хода
                 csv.AppendLine($"===== НАЧАЛО ХОДА: {lineName} =====");
@@ -77,10 +35,10 @@ namespace Nivtropy.Infrastructure.Export
                 {
                     var lengthBack = lineSummary.TotalDistanceBack ?? 0;
                     var lengthFore = lineSummary.TotalDistanceFore ?? 0;
-                    var totalLength = lineSummary.TotalAverageLength ?? 0;
+                    var totalLength = lineSummary.TotalLength ?? 0;
                     var armAccumulation = lineSummary.ArmDifferenceAccumulation ?? 0;
-                    var stationCount = lineSummary.RecordCount;
-                    var closureText = lineSummary.ClosuresDisplay;
+                    var stationCount = lineSummary.StationCount;
+                    var closureText = FormatClosures(lineSummary.Closures);
 
                     csv.AppendLine($"Станций: {stationCount}; Длина назад: {lengthBack:F2} м; Длина вперёд: {lengthFore:F2} м; Общая длина: {totalLength:F2} м; Накопление плеч: {armAccumulation:F3} м; Невязка: {closureText} м");
                 }
@@ -90,23 +48,23 @@ namespace Nivtropy.Infrastructure.Export
 
                 foreach (var dataRow in rowsList)
                 {
-                    var heightZ0 = dataRow.IsVirtualStation ? dataRow.BackHeightZ0 : dataRow.ForeHeightZ0;
+                    var heightZ0 = dataRow.IsVirtualStation ? dataRow.BackHeightRaw : dataRow.ForeHeightRaw;
                     var height = dataRow.IsVirtualStation ? dataRow.BackHeight : dataRow.ForeHeight;
 
                     csv.AppendLine(string.Join(";",
                         dataRow.Index,
                         dataRow.LineName,
-                        dataRow.PointCode,
-                        dataRow.Station,
-                        dataRow.StationLength_m?.ToString("F2") ?? "",
-                        dataRow.Rb_m?.ToString("F4") ?? "",
-                        dataRow.Rf_m?.ToString("F4") ?? "",
+                        GetPointCode(dataRow),
+                        GetStationLabel(dataRow),
+                        GetStationLength(dataRow)?.ToString("F2") ?? "",
+                        dataRow.BackReading?.ToString("F4") ?? "",
+                        dataRow.ForeReading?.ToString("F4") ?? "",
                         dataRow.DeltaH?.ToString("F4") ?? "",
                         dataRow.Correction.HasValue ? (dataRow.Correction.Value * 1000).ToString("F2") : "",
                         dataRow.AdjustedDeltaH?.ToString("F4") ?? "",
                         heightZ0?.ToString("F4") ?? "",
                         height?.ToString("F4") ?? "",
-                        dataRow.PointCode
+                        GetPointCode(dataRow)
                     ));
                 }
 
@@ -116,6 +74,36 @@ namespace Nivtropy.Infrastructure.Export
             }
 
             return csv.ToString();
+        }
+
+        private static string FormatClosures(IReadOnlyList<double> closures)
+        {
+            if (closures.Count == 0)
+                return DisplayFormats.EmptyValue;
+
+            return string.Join(", ", closures.Select(c => c.ToString(DisplayFormats.DeltaH)));
+        }
+
+        private static string GetPointCode(StationDto station)
+        {
+            return string.IsNullOrWhiteSpace(station.ForeCode)
+                ? station.BackCode ?? "—"
+                : station.ForeCode;
+        }
+
+        private static string GetStationLabel(StationDto station)
+        {
+            if (string.IsNullOrWhiteSpace(station.BackCode) && string.IsNullOrWhiteSpace(station.ForeCode))
+                return station.LineName;
+
+            return $"{station.BackCode ?? "?"} → {station.ForeCode ?? "?"}";
+        }
+
+        private static double? GetStationLength(StationDto station)
+        {
+            return (station.BackDistance.HasValue && station.ForeDistance.HasValue)
+                ? station.BackDistance.Value + station.ForeDistance.Value
+                : null;
         }
     }
 }
