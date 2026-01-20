@@ -15,7 +15,7 @@ namespace Nivtropy.Application.Services
         {
             var stats = new ProfileStatistics
             {
-                StationCount = rows.Count
+                StationCount = rows.Count(r => r.DeltaH.HasValue)
             };
 
             if (rows.Count < 2)
@@ -27,9 +27,15 @@ namespace Nivtropy.Application.Services
             var stationLengths = new List<double>();
             var armDifferences = new List<double>();
 
+            var first = rows.FirstOrDefault();
+            if (first?.BackHeight.HasValue == true)
+            {
+                heights.Add(first.BackHeight.Value);
+            }
+
             foreach (var row in rows)
             {
-                var height = row.IsVirtualStation ? row.BackHeight : row.ForeHeight;
+                var height = row.ForeHeight;
                 if (height.HasValue) heights.Add(height.Value);
 
                 if (row.DeltaH.HasValue) deltaHs.Add(row.DeltaH.Value);

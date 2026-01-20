@@ -636,7 +636,7 @@ public class TraverseProcessingService : ITraverseProcessingService
 
     private static TraverseStatisticsDto BuildStatistics(IReadOnlyCollection<StationDto> rows)
     {
-        var stationsCount = rows.Count;
+        var stationsCount = rows.Count(r => r.DeltaH.HasValue);
         var totalBackDistance = rows.Sum(r => r.BackDistance ?? 0);
         var totalForeDistance = rows.Sum(r => r.ForeDistance ?? 0);
         var totalAverageDistance = stationsCount > 0

@@ -46,10 +46,30 @@ namespace Nivtropy.Infrastructure.Export
                 // 3. Header row + data table
                 csv.AppendLine("Номер;Ход;Точка;Станция;Длина станции (м);Отсчет назад (м);Отсчет вперед (м);Превышение (м);Поправка (мм);Превышение испр. (м);Высота непров. (м);Высота (м);Точка");
 
+                var startRow = rowsList.FirstOrDefault();
+                if (startRow != null && !string.IsNullOrWhiteSpace(startRow.BackCode))
+                {
+                    csv.AppendLine(string.Join(";",
+                        0,
+                        startRow.LineName,
+                        startRow.BackCode ?? "",
+                        "StartPoint",
+                        "",
+                        "",
+                        "",
+                        "",
+                        "",
+                        "",
+                        startRow.BackHeightRaw?.ToString("F4") ?? "",
+                        startRow.BackHeight?.ToString("F4") ?? "",
+                        startRow.BackCode ?? ""
+                    ));
+                }
+
                 foreach (var dataRow in rowsList)
                 {
-                    var heightZ0 = dataRow.IsVirtualStation ? dataRow.BackHeightRaw : dataRow.ForeHeightRaw;
-                    var height = dataRow.IsVirtualStation ? dataRow.BackHeight : dataRow.ForeHeight;
+                    var heightZ0 = dataRow.ForeHeightRaw ?? dataRow.BackHeightRaw;
+                    var height = dataRow.ForeHeight ?? dataRow.BackHeight;
 
                     csv.AppendLine(string.Join(";",
                         dataRow.Index,

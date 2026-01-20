@@ -71,19 +71,29 @@ namespace Nivtropy.Presentation.Visualization
             var pointDistances = new List<double>(rows.Count);
             double cumulativeDistance = 0;
 
+            var first = rows.FirstOrDefault();
+            if (first != null)
+            {
+                if (first.BackHeight.HasValue && options.ShowZ)
+                {
+                    pointsZ.Add((first.BackHeight.Value, 0, first.BackCode ?? "", 0));
+                }
+
+                if (first.BackHeightZ0.HasValue && options.ShowZ0)
+                {
+                    pointsZ0.Add((first.BackHeightZ0.Value, 0, first.BackCode ?? "", 0));
+                }
+            }
+
             for (int i = 0; i < rows.Count; i++)
             {
                 var row = rows[i];
                 var stationLength = row.StationLength_m ?? 0;
-                var heightZ = row.IsVirtualStation ? row.BackHeight : row.ForeHeight;
-                var heightZ0 = row.IsVirtualStation ? row.BackHeightZ0 : row.ForeHeightZ0;
-                var pointCode = row.PointCode ?? "";
+                var heightZ = row.ForeHeight;
+                var heightZ0 = row.ForeHeightZ0;
+                var pointCode = row.ForeCode ?? row.PointCode ?? "";
 
-                if (!row.IsVirtualStation)
-                {
-                    cumulativeDistance += stationLength;
-                }
-
+                cumulativeDistance += stationLength;
                 pointDistances.Add(cumulativeDistance);
 
                 if (heightZ.HasValue && options.ShowZ)
@@ -241,7 +251,7 @@ namespace Nivtropy.Presentation.Visualization
             for (int i = 0; i < rows.Count - 1; i++)
             {
                 var row = rows[i];
-                if (row.IsVirtualStation || row.StationLength_m == null)
+                if (row.StationLength_m == null)
                     continue;
 
                 var armDiff = Math.Abs(row.ArmDifference_m ?? 0);
@@ -465,7 +475,7 @@ namespace Nivtropy.Presentation.Visualization
             {
                 if (outlierStations.Contains(rows[i].Index))
                 {
-                    var height = rows[i].IsVirtualStation ? rows[i].BackHeight : rows[i].ForeHeight;
+                    var height = rows[i].ForeHeight ?? rows[i].BackHeight;
                     if (height.HasValue && i < pointDistances.Count)
                     {
                         var x = Margin + (pointDistances[i] / totalDistance) * plotWidth;

@@ -277,9 +277,6 @@ public class TraverseCalculationService : ITraverseCalculationService
             string mode = "BF";
             StationDto? pending = null;
             int idx = 1;
-            bool isFirstPointOfLine = false;
-            string? firstPointCode = null;
-
             foreach (var r in group)
             {
                 if (r.LineMarker == "Start-Line" && !string.IsNullOrWhiteSpace(r.Mode))
@@ -287,27 +284,12 @@ public class TraverseCalculationService : ITraverseCalculationService
                     var modeUpper = r.Mode.Trim().ToUpperInvariant();
                     if (modeUpper == "BF" || modeUpper == "FB")
                         mode = modeUpper;
-                    isFirstPointOfLine = true;
                 }
 
                 bool isBF = mode == "BF";
 
                 if (r.Rb_m.HasValue)
                 {
-                    if (isFirstPointOfLine && firstPointCode == null)
-                    {
-                        firstPointCode = r.StationCode;
-                        var virtualStation = new StationDto
-                        {
-                            LineName = line,
-                            Index = idx++,
-                            BackCode = r.StationCode,
-                            RunSummary = runSummary
-                        };
-                        list.Add(virtualStation);
-                        isFirstPointOfLine = false;
-                    }
-
                     if (pending == null)
                     {
                         if (isBF)
