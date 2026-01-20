@@ -18,6 +18,7 @@ public class RunSummaryDto
     public bool IsActive { get; set; } = true;
     public int KnownPointsCount { get; set; }
     public bool UseLocalAdjustment { get; set; }
+    public bool IsArmDifferenceAccumulationExceeded { get; set; }
 
     public double? TotalLength => TotalDistanceBack.HasValue && TotalDistanceFore.HasValue
         ? TotalDistanceBack.Value + TotalDistanceFore.Value

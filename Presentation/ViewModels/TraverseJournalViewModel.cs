@@ -9,7 +9,7 @@ using System.Windows.Media;
 using Nivtropy.Application.DTOs;
 using Nivtropy.Presentation.Models;
 using Nivtropy.Application.Services;
-using Nivtropy.Services.Visualization;
+using Nivtropy.Presentation.Visualization;
 using Nivtropy.Presentation.Mappers;
 using Nivtropy.Presentation.ViewModels.Base;
 

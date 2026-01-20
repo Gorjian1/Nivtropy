@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Windows;
 using Microsoft.Extensions.DependencyInjection;
-using Nivtropy.Services;
+using Nivtropy.Presentation;
 using Nivtropy.Presentation.ViewModels;
 
 namespace Nivtropy

@@ -1,4 +1,4 @@
-namespace Nivtropy.Services.Dialog
+namespace Nivtropy.Presentation.Services
 {
     /// <summary>
     /// Интерфейс сервиса диалогов

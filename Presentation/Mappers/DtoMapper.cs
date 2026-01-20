@@ -84,6 +84,7 @@ public static class DtoMapper
         IsActive = line.IsActive,
         KnownPointsCount = line.KnownPointsCount,
         UseLocalAdjustment = line.UseLocalAdjustment,
+        IsArmDifferenceAccumulationExceeded = line.IsArmDifferenceAccumulationExceeded,
         Closures = line.Closures.ToList(),
         SharedPointCodes = line.SharedPointCodes.ToList()
     };
@@ -107,6 +108,7 @@ public static class DtoMapper
             originalLineNumber: dto.OriginalLineNumber);
 
         summary.UseLocalAdjustment = dto.UseLocalAdjustment;
+        summary.IsArmDifferenceAccumulationExceeded = dto.IsArmDifferenceAccumulationExceeded;
         summary.SetClosures(dto.Closures);
         summary.SetSharedPoints(dto.SharedPointCodes);
 
@@ -122,6 +124,7 @@ public static class DtoMapper
         summary.IsActive = dto.IsActive;
         summary.KnownPointsCount = dto.KnownPointsCount;
         summary.UseLocalAdjustment = dto.UseLocalAdjustment;
+        summary.IsArmDifferenceAccumulationExceeded = dto.IsArmDifferenceAccumulationExceeded;
         summary.SetClosures(dto.Closures);
         summary.SetSharedPoints(dto.SharedPointCodes);
     }
@@ -163,6 +166,25 @@ public static class DtoMapper
             OriginalDistance = dto.OriginalDistance
         };
     }
+
+    public static GeneratedMeasurementDto ToDto(this GeneratedMeasurement measurement) => new()
+    {
+        Index = measurement.Index,
+        LineName = measurement.LineName,
+        PointCode = measurement.PointCode,
+        StationCode = measurement.StationCode,
+        BackPointCode = measurement.BackPointCode,
+        ForePointCode = measurement.ForePointCode,
+        Rb_m = measurement.Rb_m,
+        Rf_m = measurement.Rf_m,
+        HD_Back_m = measurement.HD_Back_m,
+        HD_Fore_m = measurement.HD_Fore_m,
+        Height_m = measurement.Height_m,
+        IsBackSight = measurement.IsBackSight,
+        OriginalHeight = measurement.OriginalHeight,
+        OriginalHD_Back = measurement.OriginalHD_Back,
+        OriginalHD_Fore = measurement.OriginalHD_Fore
+    };
 
     public static PresentationMeasurementRecord ToModel(this MeasurementAnnotationDto dto, LineSummary summary)
     {

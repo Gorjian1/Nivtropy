@@ -8,7 +8,7 @@ using System.Windows.Shapes;
 using Nivtropy.Presentation.Models;
 using Nivtropy.Presentation.ViewModels;
 
-namespace Nivtropy.Services.Visualization
+namespace Nivtropy.Presentation.Visualization
 {
     /// <summary>
     /// Сервис визуализации нивелирной сети как графа.

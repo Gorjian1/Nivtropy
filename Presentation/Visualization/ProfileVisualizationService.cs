@@ -9,7 +9,7 @@ using Nivtropy.Constants;
 using Nivtropy.Application.DTOs;
 using Nivtropy.Presentation.Models;
 
-namespace Nivtropy.Services.Visualization
+namespace Nivtropy.Presentation.Visualization
 {
     /// <summary>
     /// Сервис для визуализации профилей нивелирного хода

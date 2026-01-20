@@ -5,7 +5,7 @@ using System.Windows.Media;
 using Nivtropy.Application.DTOs;
 using Nivtropy.Presentation.Models;
 
-namespace Nivtropy.Services.Visualization
+namespace Nivtropy.Presentation.Visualization
 {
     /// <summary>
     /// Интерфейс сервиса для визуализации профилей нивелирного хода

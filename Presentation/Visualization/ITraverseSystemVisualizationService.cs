@@ -1,7 +1,7 @@
 using System.Windows.Controls;
 using Nivtropy.Presentation.ViewModels;
 
-namespace Nivtropy.Services.Visualization
+namespace Nivtropy.Presentation.Visualization
 {
     /// <summary>
     /// Интерфейс сервиса для визуализации графа связей между ходами нивелирной сети

@@ -11,12 +11,12 @@ using System.Text;
 using System.Windows.Input;
 using ClosedXML.Excel;
 using Microsoft.Win32;
-using Nivtropy.Models;
+using Nivtropy.Application.Export;
 using Nivtropy.Presentation.Models;
 using Nivtropy.Application.Services;
-using Nivtropy.Infrastructure.Export;
-using Nivtropy.Services.Dialog;
+using Nivtropy.Presentation.Services;
 using Nivtropy.Presentation.ViewModels.Base;
+using Nivtropy.Presentation.Mappers;
 
 namespace Nivtropy.Presentation.ViewModels
 {
@@ -509,7 +509,7 @@ namespace Nivtropy.Presentation.ViewModels
                 return;
 
             // Используем сервис для экспорта
-            _exportService.Export(_measurements, saveFileDialog.FileName);
+            _exportService.Export(_measurements.Select(m => m.ToDto()), saveFileDialog.FileName);
 
             _dialogService.ShowInfo($"Данные успешно экспортированы в:\n{saveFileDialog.FileName}", "Экспорт завершён");
         }
