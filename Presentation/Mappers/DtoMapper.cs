@@ -84,6 +84,7 @@ public static class DtoMapper
         IsActive = line.IsActive,
         KnownPointsCount = line.KnownPointsCount,
         UseLocalAdjustment = line.UseLocalAdjustment,
+        IsArmDifferenceAccumulationExceeded = line.IsArmDifferenceAccumulationExceeded,
         Closures = line.Closures.ToList(),
         SharedPointCodes = line.SharedPointCodes.ToList()
     };
@@ -107,6 +108,7 @@ public static class DtoMapper
             originalLineNumber: dto.OriginalLineNumber);
 
         summary.UseLocalAdjustment = dto.UseLocalAdjustment;
+        summary.IsArmDifferenceAccumulationExceeded = dto.IsArmDifferenceAccumulationExceeded;
         summary.SetClosures(dto.Closures);
         summary.SetSharedPoints(dto.SharedPointCodes);
 
@@ -122,6 +124,7 @@ public static class DtoMapper
         summary.IsActive = dto.IsActive;
         summary.KnownPointsCount = dto.KnownPointsCount;
         summary.UseLocalAdjustment = dto.UseLocalAdjustment;
+        summary.IsArmDifferenceAccumulationExceeded = dto.IsArmDifferenceAccumulationExceeded;
         summary.SetClosures(dto.Closures);
         summary.SetSharedPoints(dto.SharedPointCodes);
     }

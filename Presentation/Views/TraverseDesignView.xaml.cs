@@ -9,8 +9,8 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Shapes;
 using Microsoft.Extensions.DependencyInjection;
-using Nivtropy.Models;
-using Nivtropy.Services.Visualization;
+using Nivtropy.Presentation.Models;
+using Nivtropy.Presentation.Services.Visualization;
 using Nivtropy.Presentation.ViewModels;
 
 namespace Nivtropy.Presentation.Views

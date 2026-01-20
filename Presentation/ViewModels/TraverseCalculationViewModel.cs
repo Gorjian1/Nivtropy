@@ -20,11 +20,10 @@ using Nivtropy.Application.Services;
 using Nivtropy.Domain.Services;
 using Nivtropy.Utilities;
 using Nivtropy.Presentation.ViewModels.Base;
-using Nivtropy.Presentation.ViewModels.Helpers;
 using Nivtropy.Presentation.ViewModels.Managers;
 using Nivtropy.Presentation.Mappers;
 using Nivtropy.Constants;
-using Nivtropy.Services.Dialog;
+using Nivtropy.Presentation.Services.Dialog;
 
 namespace Nivtropy.Presentation.ViewModels
 {
@@ -33,7 +32,7 @@ namespace Nivtropy.Presentation.ViewModels
         private readonly DataViewModel _dataViewModel;
         private readonly SettingsViewModel _settingsViewModel;
         private readonly ITraverseCalculationService _calculationService;
-        private readonly IClosureCalculationService _closureService;
+        private readonly ITraverseCalculationWorkflowService _workflowService;
         private readonly ITraverseExportService _exportService;
         private readonly IDialogService _dialogService;
         private readonly ISystemConnectivityService _connectivityService;
@@ -90,7 +89,7 @@ namespace Nivtropy.Presentation.ViewModels
             DataViewModel dataViewModel,
             SettingsViewModel settingsViewModel,
             ITraverseCalculationService calculationService,
-            IClosureCalculationService closureService,
+            ITraverseCalculationWorkflowService workflowService,
             ITraverseExportService exportService,
             IDialogService dialogService,
             ISystemConnectivityService connectivityService)
@@ -98,7 +97,7 @@ namespace Nivtropy.Presentation.ViewModels
             _dataViewModel = dataViewModel;
             _settingsViewModel = settingsViewModel;
             _calculationService = calculationService;
-            _closureService = closureService;
+            _workflowService = workflowService ?? throw new ArgumentNullException(nameof(workflowService));
             _exportService = exportService;
             _dialogService = dialogService ?? throw new ArgumentNullException(nameof(dialogService));
             _connectivityService = connectivityService;
@@ -206,8 +205,10 @@ namespace Nivtropy.Presentation.ViewModels
                 {
                     _selectedClass = value;
                     OnPropertyChanged();
-                    UpdateTolerance();
-                    CheckArmDifferenceTolerances(); // Пересчёт при смене класса
+                    if (UseAsyncCalculations)
+                        _ = UpdateRowsAsync();
+                    else
+                        UpdateRows();
                 }
             }
         }
@@ -411,12 +412,6 @@ namespace Nivtropy.Presentation.ViewModels
         }
 
         /// <summary>
-        /// Использовать инкрементальное обновление при изменении высот.
-        /// Если false - всегда пересчитывается всё (безопасный режим).
-        /// </summary>
-        public bool UseIncrementalUpdates { get; set; } = true;
-
-        /// <summary>
         /// Использовать асинхронные вычисления при загрузке данных.
         /// </summary>
         public bool UseAsyncCalculations { get; set; } = true;
@@ -439,20 +434,6 @@ namespace Nivtropy.Presentation.ViewModels
                 return;
 
             _dataViewModel.SetKnownHeight(pointCode, height);
-
-            // Если уже есть рассчитанные данные и включены инкрементальные обновления
-            if (UseIncrementalUpdates && _rows.Count > 0)
-            {
-                var affectedRuns = FindRunsContainingPoint(pointCode);
-                if (affectedRuns.Count > 0 && affectedRuns.Count < Runs.Count)
-                {
-                    // Пересчитываем только затронутые ходы
-                    RecalculateRunsIncremental(affectedRuns);
-                    return;
-                }
-            }
-
-            // Полный пересчёт при первой загрузке или если затронуты все ходы
             UpdateRows();
         }
 
@@ -535,6 +516,11 @@ namespace Nivtropy.Presentation.ViewModels
             {
                 _dialogService.ShowError($"Ошибка при экспорте:\n{ex.Message}", "Ошибка экспорта");
             }
+        }
+
+        private static List<StationDto> MapRowsToDtos(IEnumerable<TraverseRow> rows)
+        {
+            return rows.Select(row => row.ToDto()).ToList();
         }
 
         /// <summary>
@@ -641,8 +627,13 @@ namespace Nivtropy.Presentation.ViewModels
                 }
 
                 var runDtos = Runs.Select(r => r.ToDto()).ToList();
+                UpdateSharedPointsMetadata(_dataViewModel.Records);
+                InitializeRunSystems();
+
                 var items = _calculationService.BuildTraverseRows(records.ToList(), runDtos);
-                ProcessTraverseItems(MapStationsToRows(items));
+                var request = CreateCalculationRequest(items, runDtos);
+                var result = _workflowService.Calculate(request);
+                ApplyCalculationResult(result);
             }
             finally
             {
@@ -704,24 +695,51 @@ namespace Nivtropy.Presentation.ViewModels
                     return;
                 }
 
-                // Тяжёлые вычисления в фоновом потоке
                 var runDtos = Runs.Select(r => r.ToDto()).ToList();
-                var items = await Task.Run(() =>
+                UpdateSharedPointsMetadata(_dataViewModel.Records);
+                InitializeRunSystems();
+
+                var systemsSnapshot = _systems
+                    .Select(system => new TraverseSystemDescriptorDto(system.Id, system.Order))
+                    .ToList();
+                var sharedPointsByRun = _sharedPointsByRun.ToDictionary(
+                    kvp => kvp.Key,
+                    kvp => kvp.Value.ToList());
+                var knownHeightsSnapshot = new Dictionary<string, double>(_dataViewModel.KnownHeights, StringComparer.OrdinalIgnoreCase);
+                var sharedPointStatesSnapshot = new Dictionary<string, bool>(_dataViewModel.SharedPointStates, StringComparer.OrdinalIgnoreCase);
+                var benchmarkSystemsSnapshot = new Dictionary<string, string>(_benchmarkSystems, StringComparer.OrdinalIgnoreCase);
+                var methodOption = SelectedMethod;
+                var classOption = SelectedClass;
+                var adjustmentMode = AdjustmentMode;
+                var orientationSign = MethodOrientationSign;
+
+                var result = await Task.Run(() =>
                 {
                     token.ThrowIfCancellationRequested();
-                    return _calculationService.BuildTraverseRows(records, runDtos);
+                    var items = _calculationService.BuildTraverseRows(records, runDtos);
+                    var request = CreateCalculationRequest(
+                        items,
+                        runDtos,
+                        systemsSnapshot,
+                        sharedPointsByRun,
+                        knownHeightsSnapshot,
+                        sharedPointStatesSnapshot,
+                        benchmarkSystemsSnapshot,
+                        methodOption,
+                        classOption,
+                        adjustmentMode,
+                        orientationSign);
+                    return _workflowService.Calculate(request);
                 }, token);
 
                 token.ThrowIfCancellationRequested();
 
-                // Обновление UI в главном потоке
                 await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
                 {
                     if (token.IsCancellationRequested)
                         return;
 
-                    // Вызываем синхронный метод для обновления (уже в UI потоке)
-                    UpdateRowsFromItems(items);
+                    ApplyCalculationResult(result);
                 });
             }
             catch (OperationCanceledException)
@@ -737,350 +755,7 @@ namespace Nivtropy.Presentation.ViewModels
                 IsCalculating = false;
             }
         }
-
-        /// <summary>
-        /// Обновляет строки из уже построенных items (для использования из async метода)
-        /// </summary>
-        private void UpdateRowsFromItems(List<StationDto> items)
-        {
-            ProcessTraverseItems(MapStationsToRows(items));
-        }
-
-        /// <summary>
-        /// Общая логика обработки items - используется из UpdateRows и UpdateRowsFromItems
-        /// </summary>
-        private void ProcessTraverseItems(List<TraverseRow> items)
-        {
-            _rows.Clear();
-
-            var traverseGroupsDict = items.GroupBy(r => r.LineName)
-                .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.OrdinalIgnoreCase);
-
-            var runsLookup = Runs.ToDictionary(r => r.DisplayName, r => r, StringComparer.OrdinalIgnoreCase);
-
-            UpdateSharedPointsMetadata(_dataViewModel.Records);
-            InitializeRunSystems();
-
-            foreach (var system in _systems.OrderBy(s => s.Order))
-            {
-                ProcessSystem(system, traverseGroupsDict, runsLookup);
-            }
-
-            foreach (var row in items)
-            {
-                if (runsLookup.TryGetValue(row.LineName, out var run) && run.IsActive)
-                    _rows.Add(row);
-            }
-
-            UpdateStatistics();
-            UpdateAvailablePoints();
-            UpdateBenchmarks();
-            RecalculateClosure();
-            UpdateTolerance();
-            CheckArmDifferenceTolerances();
-        }
-
-        /// <summary>
-        /// Обрабатывает одну систему ходов
-        /// </summary>
-        private void ProcessSystem(
-            TraverseSystem system,
-            Dictionary<string, List<TraverseRow>> traverseGroupsDict,
-            Dictionary<string, LineSummary> runsLookup)
-        {
-            var systemTraverseGroups = traverseGroupsDict
-                .Where(kvp => runsLookup.TryGetValue(kvp.Key, out var run) &&
-                              run.SystemId == system.Id && run.IsActive)
-                .ToList();
-
-            if (systemTraverseGroups.Count == 0)
-                return;
-
-            var availableAdjustedHeights = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
-            var availableRawHeights = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
-
-            foreach (var kvp in _dataViewModel.KnownHeights)
-            {
-                if (_benchmarkSystems.TryGetValue(kvp.Key, out var benchSystemId) && benchSystemId == system.Id)
-                {
-                    availableAdjustedHeights[kvp.Key] = kvp.Value;
-                    availableRawHeights[kvp.Key] = kvp.Value;
-                }
-            }
-
-            bool AnchorChecker(string code) => IsAnchorAllowed(code, availableAdjustedHeights.ContainsKey);
-
-            ProcessSystemTraverseGroups(systemTraverseGroups, availableAdjustedHeights, availableRawHeights, AnchorChecker);
-            UpdateArmDifferenceAccumulation(systemTraverseGroups, AnchorChecker);
-        }
-
-        /// <summary>
-        /// Обрабатывает группы ходов одной системы
-        /// </summary>
-        private void ProcessSystemTraverseGroups(
-            List<KeyValuePair<string, List<TraverseRow>>> systemTraverseGroups,
-            Dictionary<string, double> availableAdjustedHeights,
-            Dictionary<string, double> availableRawHeights,
-            Func<string, bool> anchorChecker)
-        {
-            var processedGroups = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-            for (int iteration = 0; iteration < systemTraverseGroups.Count; iteration++)
-            {
-                bool progress = false;
-
-                foreach (var group in systemTraverseGroups)
-                {
-                    if (processedGroups.Contains(group.Key))
-                        continue;
-
-                    var groupItems = group.Value;
-                    bool hasAnchor = groupItems.Any(r =>
-                        (!string.IsNullOrWhiteSpace(r.BackCode) && anchorChecker(r.BackCode!)) ||
-                        (!string.IsNullOrWhiteSpace(r.ForeCode) && anchorChecker(r.ForeCode!)));
-
-                    if (!hasAnchor && iteration < systemTraverseGroups.Count - 1)
-                        continue;
-
-                    if (!hasAnchor)
-                    {
-                        var firstCode = groupItems.Select(r => r.BackCode ?? r.ForeCode)
-                            .FirstOrDefault(c => !string.IsNullOrWhiteSpace(c));
-                        if (!string.IsNullOrWhiteSpace(firstCode))
-                        {
-                            availableAdjustedHeights[firstCode!] = 0.0;
-                            availableRawHeights[firstCode!] = 0.0;
-                        }
-                    }
-
-                    var summaryMap = new Dictionary<LineSummary, RunSummaryDto>();
-                    var dtos = MapRowsToDtos(groupItems, summaryMap);
-                    _calculationService.ApplyCorrections(
-                        dtos,
-                        anchorChecker,
-                        MethodOrientationSign,
-                        AdjustmentMode);
-                    ApplyDtosToRows(groupItems, dtos);
-                    ApplyRunSummaries(summaryMap);
-                    CalculateHeightsForRun(groupItems, availableAdjustedHeights, availableRawHeights, group.Key);
-                    processedGroups.Add(group.Key);
-                    progress = true;
-                }
-
-                if (!progress)
-                    break;
-            }
-        }
-
-        /// <summary>
-        /// Обновляет статистику по строкам
-        /// </summary>
-        private void UpdateStatistics()
-        {
-            StationsCount = _rows.Count;
-            TotalBackDistance = _rows.Sum(r => r.HdBack_m ?? 0);
-            TotalForeDistance = _rows.Sum(r => r.HdFore_m ?? 0);
-            TotalAverageDistance = StationsCount > 0
-                ? (TotalBackDistance + TotalForeDistance) / 2.0
-                : 0;
-        }
-
         #endregion
-
-        #region Incremental Updates
-
-        /// <summary>
-        /// Находит все ходы, содержащие указанную точку
-        /// </summary>
-        /// <param name="pointCode">Код точки</param>
-        /// <returns>Список имён ходов</returns>
-        private List<string> FindRunsContainingPoint(string pointCode)
-        {
-            if (string.IsNullOrWhiteSpace(pointCode))
-                return new List<string>();
-
-            var affectedRuns = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-            foreach (var row in _rows)
-            {
-                if (string.Equals(row.BackCode, pointCode, StringComparison.OrdinalIgnoreCase) ||
-                    string.Equals(row.ForeCode, pointCode, StringComparison.OrdinalIgnoreCase))
-                {
-                    if (!string.IsNullOrWhiteSpace(row.LineName))
-                    {
-                        affectedRuns.Add(row.LineName);
-                    }
-                }
-            }
-
-            return affectedRuns.ToList();
-        }
-
-        /// <summary>
-        /// Пересчитывает высоты только для указанных ходов (инкрементальное обновление)
-        /// </summary>
-        /// <param name="runNames">Список имён ходов для пересчёта</param>
-        private void RecalculateRunsIncremental(IEnumerable<string> runNames)
-        {
-            if (runNames == null || !runNames.Any())
-                return;
-
-            var runNamesSet = new HashSet<string>(runNames, StringComparer.OrdinalIgnoreCase);
-
-            // Получаем строки только затронутых ходов
-            var affectedRows = _rows.Where(r => runNamesSet.Contains(r.LineName)).ToList();
-            if (affectedRows.Count == 0)
-                return;
-
-            // Собираем известные высоты
-            var knownHeights = new Dictionary<string, double>(_dataViewModel.KnownHeights, StringComparer.OrdinalIgnoreCase);
-
-            // Добавляем высоты из связанных точек
-            foreach (var sp in _sharedPoints.Where(p => p.IsEnabled))
-            {
-                if (_dataViewModel.KnownHeights.TryGetValue(sp.Code, out var h))
-                {
-                    knownHeights[sp.Code] = h;
-                }
-            }
-
-            // Группируем по ходам
-            var groupedRows = affectedRows.GroupBy(r => r.LineName);
-
-            foreach (var group in groupedRows)
-            {
-                var runRows = group.OrderBy(r => r.Index).ToList();
-                var summaryMap = new Dictionary<LineSummary, RunSummaryDto>();
-                var dtos = MapRowsToDtos(runRows, summaryMap);
-                _calculationService.RecalculateHeights(
-                    dtos,
-                    code => knownHeights.TryGetValue(code, out var height) ? height : null);
-                ApplyDtosToRows(runRows, dtos);
-            }
-
-            // Обновляем статистику
-            RecalculateClosure();
-            UpdateTolerance();
-        }
-
-        #endregion
-
-        private void RecalculateClosure()
-        {
-            if (StationsCount == 0)
-            {
-                Closure = null;
-                return;
-            }
-
-            // Используем сервис для расчёта невязки
-            Closure = _closureService.CalculateClosure(MapRowsToDtos(_rows.ToList()), MethodOrientationSign);
-        }
-
-        private void UpdateTolerance()
-        {
-            if (!Closure.HasValue || StationsCount == 0)
-            {
-                AllowableClosure = null;
-                MethodTolerance = null;
-                ClassTolerance = null;
-                ClosureVerdict = StationsCount == 0 ? "Нет данных для расчёта." : "Выберите параметры расчёта.";
-                return;
-            }
-
-            // Используем сервис для расчёта допусков
-            MethodTolerance = TryCalculateTolerance(SelectedMethod);
-            ClassTolerance = TryCalculateTolerance(SelectedClass);
-
-            var toleranceCandidates = new[] { MethodTolerance, ClassTolerance }
-                .Where(v => v.HasValue)
-                .Select(v => v!.Value)
-                .ToList();
-
-            AllowableClosure = toleranceCandidates.Count > 0 ? toleranceCandidates.Min() : (double?)null;
-
-            // Генерируем вердикт через сервис
-            ClosureVerdict = _closureService.GenerateVerdict(
-                Closure,
-                AllowableClosure,
-                MethodTolerance,
-                ClassTolerance,
-                SelectedMethod?.Code,
-                SelectedClass?.Code);
-        }
-
-        private bool IsAnchorAllowed(string? code, Func<string, bool> contains)
-        {
-            if (string.IsNullOrWhiteSpace(code))
-                return false;
-
-            return contains(code) && (_dataViewModel.HasKnownHeight(code) || _dataViewModel.IsSharedPointEnabled(code));
-        }
-
-        private List<TraverseRow> MapStationsToRows(IReadOnlyList<StationDto> items)
-        {
-            var summaries = new Dictionary<RunSummaryDto, LineSummary>();
-            var rows = new List<TraverseRow>(items.Count);
-
-            foreach (var dto in items)
-            {
-                LineSummary? summary = null;
-                if (dto.RunSummary != null)
-                {
-                    if (!summaries.TryGetValue(dto.RunSummary, out summary))
-                    {
-                        summary = dto.RunSummary.ToModel();
-                        summaries[dto.RunSummary] = summary;
-                    }
-                }
-
-                rows.Add(dto.ToModel(summary));
-            }
-
-            return rows;
-        }
-
-        private static List<StationDto> MapRowsToDtos(IList<TraverseRow> rows)
-        {
-            return MapRowsToDtos(rows, new Dictionary<LineSummary, RunSummaryDto>());
-        }
-
-        private static List<StationDto> MapRowsToDtos(IList<TraverseRow> rows, Dictionary<LineSummary, RunSummaryDto> summaryMap)
-        {
-            var result = new List<StationDto>(rows.Count);
-            foreach (var row in rows)
-            {
-                var dto = row.ToDto();
-                if (row.LineSummary != null)
-                {
-                    if (!summaryMap.TryGetValue(row.LineSummary, out var runDto))
-                    {
-                        runDto = row.LineSummary.ToDto();
-                        summaryMap[row.LineSummary] = runDto;
-                    }
-                    dto.RunSummary = runDto;
-                }
-                result.Add(dto);
-            }
-            return result;
-        }
-
-        private static void ApplyDtosToRows(IList<TraverseRow> rows, IList<StationDto> dtos)
-        {
-            var count = Math.Min(rows.Count, dtos.Count);
-            for (int i = 0; i < count; i++)
-            {
-                rows[i].ApplyFrom(dtos[i]);
-            }
-        }
-
-        private static void ApplyRunSummaries(Dictionary<LineSummary, RunSummaryDto> summaryMap)
-        {
-            foreach (var kvp in summaryMap)
-            {
-                kvp.Key.ApplyFrom(kvp.Value);
-            }
-        }
 
         private List<SharedPointDto> BuildSharedPointDtos()
         {
@@ -1101,9 +776,101 @@ namespace Nivtropy.Presentation.ViewModels
                 .ToList();
         }
 
-        private bool AllowPropagation(string code)
+        private TraverseCalculationRequest CreateCalculationRequest(
+            IReadOnlyList<StationDto> items,
+            IReadOnlyList<RunSummaryDto> runDtos)
         {
-            return _dataViewModel.HasKnownHeight(code) || _dataViewModel.IsSharedPointEnabled(code);
+            var systemsSnapshot = _systems
+                .Select(system => new TraverseSystemDescriptorDto(system.Id, system.Order))
+                .ToList();
+
+            var sharedPointsByRun = _sharedPointsByRun.ToDictionary(
+                kvp => kvp.Key,
+                kvp => kvp.Value.ToList());
+
+            return CreateCalculationRequest(
+                items,
+                runDtos,
+                systemsSnapshot,
+                sharedPointsByRun,
+                new Dictionary<string, double>(_dataViewModel.KnownHeights, StringComparer.OrdinalIgnoreCase),
+                new Dictionary<string, bool>(_dataViewModel.SharedPointStates, StringComparer.OrdinalIgnoreCase),
+                new Dictionary<string, string>(_benchmarkSystems, StringComparer.OrdinalIgnoreCase),
+                SelectedMethod,
+                SelectedClass,
+                AdjustmentMode,
+                MethodOrientationSign);
+        }
+
+        private static TraverseCalculationRequest CreateCalculationRequest(
+            IReadOnlyList<StationDto> items,
+            IReadOnlyList<RunSummaryDto> runDtos,
+            IReadOnlyList<TraverseSystemDescriptorDto> systemsSnapshot,
+            IReadOnlyDictionary<int, List<string>> sharedPointsByRun,
+            IReadOnlyDictionary<string, double> knownHeights,
+            IReadOnlyDictionary<string, bool> sharedPointStates,
+            IReadOnlyDictionary<string, string> benchmarkSystems,
+            IToleranceOption? methodOption,
+            LevelingClassOption? classOption,
+            AdjustmentMode adjustmentMode,
+            double orientationSign)
+        {
+            return new TraverseCalculationRequest
+            {
+                Stations = items.ToList(),
+                Runs = runDtos.ToList(),
+                Systems = systemsSnapshot.ToList(),
+                SharedPointsByRun = sharedPointsByRun.ToDictionary(kvp => kvp.Key, kvp => kvp.Value.ToList()),
+                KnownHeights = new Dictionary<string, double>(knownHeights, StringComparer.OrdinalIgnoreCase),
+                SharedPointStates = new Dictionary<string, bool>(sharedPointStates, StringComparer.OrdinalIgnoreCase),
+                BenchmarkSystems = new Dictionary<string, string>(benchmarkSystems, StringComparer.OrdinalIgnoreCase),
+                MethodOption = methodOption,
+                ClassOption = classOption,
+                AdjustmentMode = adjustmentMode,
+                MethodOrientationSign = orientationSign
+            };
+        }
+
+        private void ApplyCalculationResult(TraverseCalculationResult result)
+        {
+            _rows.Clear();
+
+            var runLookup = Runs.ToDictionary(r => r.Index);
+            foreach (var runDto in result.Runs)
+            {
+                if (runLookup.TryGetValue(runDto.Index, out var summary))
+                {
+                    summary.ApplyFrom(runDto);
+                }
+            }
+
+            foreach (var station in result.Stations)
+            {
+                if (station.RunSummary?.IsActive == false)
+                    continue;
+
+                LineSummary? summary = null;
+                if (station.RunSummary != null && runLookup.TryGetValue(station.RunSummary.Index, out var existing))
+                {
+                    summary = existing;
+                }
+
+                _rows.Add(station.ToModel(summary));
+            }
+
+            StationsCount = result.StationsCount;
+            TotalBackDistance = result.TotalBackDistance;
+            TotalForeDistance = result.TotalForeDistance;
+            TotalAverageDistance = result.TotalAverageDistance;
+
+            Closure = result.Closure.Closure;
+            AllowableClosure = result.Closure.AllowableClosure;
+            MethodTolerance = result.Closure.MethodTolerance;
+            ClassTolerance = result.Closure.ClassTolerance;
+            ClosureVerdict = result.Closure.Verdict;
+
+            UpdateAvailablePoints();
+            UpdateBenchmarks();
         }
 
         private void UpdateSharedPointsMetadata(IReadOnlyCollection<MeasurementRecord> records)
@@ -1267,561 +1034,4 @@ namespace Nivtropy.Presentation.ViewModels
                 .OrderBy(p => PointCodeHelper.GetSortKey(p.Code))
                 .ToList();
         }
-
-        private double? TryCalculateTolerance(IToleranceOption? option)
-        {
-            if (option == null)
-                return null;
-
-            return option.Mode switch
-            {
-                ToleranceMode.SqrtStations => option.Coefficient * Math.Sqrt(Math.Max(StationsCount, 1)),
-                ToleranceMode.SqrtLength => option.Coefficient * Math.Sqrt(Math.Max(TotalLengthKilometers, 1e-6)),
-                _ => null
-            };
-        }
-
-        /// <summary>
-        /// Рассчитывает высоты точек внутри конкретного хода и добавляет их в словарь доступных высот
-        /// с учётом локального уравнивания и уже пересчитанных смежных ходов.
-        /// </summary>
-        private void CalculateHeightsForRun(
-            List<TraverseRow> items,
-            Dictionary<string, double> availableAdjustedHeights,
-            Dictionary<string, double> availableRawHeights,
-            string runName)
-        {
-            if (items.Count == 0)
-                return;
-
-            // Фаза 1: Сброс предыдущих значений
-            ResetRowHeights(items);
-
-            // Фаза 2: Инициализация alias-менеджера для обработки повторяющихся точек
-            var aliasManager = new RunAliasManager(code => IsAnchorAllowed(code, availableAdjustedHeights.ContainsKey));
-            InitializeAliases(items, aliasManager);
-
-            // Фаза 3: Инициализация локальных словарей высот
-            var adjusted = new Dictionary<string, double>(availableAdjustedHeights, StringComparer.OrdinalIgnoreCase);
-            var raw = new Dictionary<string, double>(availableRawHeights, StringComparer.OrdinalIgnoreCase);
-            UpdateLocalHeightsForDisabledSharedPoints(items, runName, availableAdjustedHeights, availableRawHeights, adjusted, raw);
-
-            // Фаза 4: Итеративное распространение высот
-            PropagateHeightsIteratively(items, adjusted, raw, aliasManager);
-
-            // Фаза 5: Присвоение уравненных высот строкам
-            AssignAdjustedHeightsToRows(items, adjusted, availableAdjustedHeights, aliasManager);
-
-            // Фаза 6: Расчёт Z0 (неуравненных) высот с историей визитов
-            var heightTracker = new RunHeightTracker(raw, availableRawHeights);
-            CalculateRawHeightsForwardPass(items, runName, heightTracker, aliasManager);
-            CalculateRawHeightsBackwardPass(items, adjusted, heightTracker, aliasManager);
-            UpdateVirtualStations(items, adjusted, raw, aliasManager);
-
-            // Фаза 7: Обновление глобальных словарей доступных высот
-            UpdateAvailableHeights(adjusted, availableAdjustedHeights, availableRawHeights, aliasManager, AllowPropagation);
-        }
-
-        /// <summary>
-        /// Сбрасывает высоты для всех строк хода
-        /// </summary>
-        private static void ResetRowHeights(List<TraverseRow> items)
-        {
-            foreach (var row in items)
-            {
-                row.BackHeight = null;
-                row.ForeHeight = null;
-                row.BackHeightZ0 = null;
-                row.ForeHeightZ0 = null;
-                row.IsBackHeightKnown = false;
-                row.IsForeHeightKnown = false;
-            }
-        }
-
-        /// <summary>
-        /// Инициализирует alias'ы для всех точек хода
-        /// </summary>
-        private static void InitializeAliases(List<TraverseRow> items, RunAliasManager aliasManager)
-        {
-            string? previousForeCode = null;
-
-            foreach (var row in items)
-            {
-                if (!string.IsNullOrWhiteSpace(row.BackCode))
-                {
-                    var reusePrevious = previousForeCode != null &&
-                        string.Equals(previousForeCode, row.BackCode, StringComparison.OrdinalIgnoreCase);
-                    var alias = aliasManager.RegisterAlias(row.BackCode!, reusePrevious);
-                    aliasManager.RegisterRowAlias(row, isBack: true, alias);
-                }
-
-                if (!string.IsNullOrWhiteSpace(row.ForeCode))
-                {
-                    var alias = aliasManager.RegisterAlias(row.ForeCode!, reusePrevious: false);
-                    aliasManager.RegisterRowAlias(row, isBack: false, alias);
-                    previousForeCode = row.ForeCode;
-                }
-                else
-                {
-                    aliasManager.ResetPreviousFore();
-                    previousForeCode = null;
-                }
-            }
-        }
-
-        /// <summary>
-        /// Обновляет локальные словари высот для отключённых общих точек
-        /// </summary>
-        private void UpdateLocalHeightsForDisabledSharedPoints(
-            List<TraverseRow> items,
-            string runName,
-            Dictionary<string, double> availableAdjustedHeights,
-            Dictionary<string, double> availableRawHeights,
-            Dictionary<string, double> adjusted,
-            Dictionary<string, double> raw)
-        {
-            var pointsInRun = items.SelectMany(r => new[] { r.BackCode, r.ForeCode })
-                .Where(c => !string.IsNullOrWhiteSpace(c))
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .ToList();
-
-            foreach (var pointCode in pointsInRun)
-            {
-                if (!_dataViewModel.IsSharedPointEnabled(pointCode!))
-                {
-                    var codeWithRun = _dataViewModel.GetPointCodeForRun(pointCode!, runName);
-                    if (availableAdjustedHeights.TryGetValue(codeWithRun, out var adjValue))
-                        adjusted[pointCode!] = adjValue;
-                    if (availableRawHeights.TryGetValue(codeWithRun, out var rawValue))
-                        raw[pointCode!] = rawValue;
-                }
-            }
-        }
-
-        /// <summary>
-        /// Итеративно распространяет высоты внутри хода
-        /// </summary>
-        private static void PropagateHeightsIteratively(
-            List<TraverseRow> items,
-            Dictionary<string, double> adjusted,
-            Dictionary<string, double> raw,
-            RunAliasManager aliasManager)
-        {
-            const int maxIterations = 20;
-
-            for (int iteration = 0; iteration < maxIterations; iteration++)
-            {
-                bool changedRaw = PropagateHeightsWithinRun(items, raw, useAdjusted: false, aliasManager.GetAlias);
-                bool changedAdjusted = PropagateHeightsWithinRun(items, adjusted, useAdjusted: true, aliasManager.GetAlias);
-
-                if (!changedRaw && !changedAdjusted)
-                    break;
-            }
-        }
-
-        /// <summary>
-        /// Присваивает уравненные высоты строкам
-        /// </summary>
-        private void AssignAdjustedHeightsToRows(
-            List<TraverseRow> items,
-            Dictionary<string, double> adjusted,
-            Dictionary<string, double> availableAdjustedHeights,
-            RunAliasManager aliasManager)
-        {
-            foreach (var row in items)
-            {
-                var backAlias = aliasManager.GetAlias(row, isBack: true);
-                if (!string.IsNullOrWhiteSpace(backAlias) && adjusted.TryGetValue(backAlias!, out var backZ))
-                {
-                    row.BackHeight = backZ;
-                    row.IsBackHeightKnown = IsAnchorAllowed(row.BackCode, availableAdjustedHeights.ContainsKey);
-                }
-
-                var foreAlias = aliasManager.GetAlias(row, isBack: false);
-                if (!string.IsNullOrWhiteSpace(foreAlias) && adjusted.TryGetValue(foreAlias!, out var foreZ))
-                {
-                    row.ForeHeight = foreZ;
-                    row.IsForeHeightKnown = IsAnchorAllowed(row.ForeCode, availableAdjustedHeights.ContainsKey);
-                }
-            }
-        }
-
-        /// <summary>
-        /// Прямой проход: расчёт Z0 высот от начала хода
-        /// </summary>
-        private void CalculateRawHeightsForwardPass(
-            List<TraverseRow> items,
-            string runName,
-            RunHeightTracker heightTracker,
-            RunAliasManager aliasManager)
-        {
-            foreach (var row in items)
-            {
-                var delta = row.DeltaH;
-                var backAlias = aliasManager.GetAlias(row, isBack: true);
-                var foreAlias = aliasManager.GetAlias(row, isBack: false);
-
-                // Подхватываем текущее известное значение
-                if (row.BackHeightZ0 == null)
-                {
-                    var existingBack = heightTracker.GetHeight(backAlias);
-                    if (existingBack.HasValue)
-                    {
-                        row.BackHeightZ0 = existingBack;
-                        heightTracker.RecordHeight(backAlias, existingBack.Value);
-                    }
-                }
-
-                if (row.ForeHeightZ0 == null)
-                {
-                    var existingFore = heightTracker.GetHeight(foreAlias);
-                    if (existingFore.HasValue)
-                    {
-                        row.ForeHeightZ0 = existingFore;
-                        heightTracker.RecordHeight(foreAlias, existingFore.Value);
-                    }
-                }
-
-                if (!delta.HasValue)
-                    continue;
-
-                var backHeight = row.BackHeightZ0 ?? heightTracker.GetHeight(backAlias);
-                var foreHeight = row.ForeHeightZ0 ?? heightTracker.GetHeight(foreAlias);
-
-                if (backHeight.HasValue)
-                {
-                    var computedFore = backHeight.Value + delta.Value;
-                    row.ForeHeightZ0 = computedFore;
-                    heightTracker.RecordHeight(foreAlias, computedFore);
-                }
-                else if (foreHeight.HasValue)
-                {
-                    var computedBack = foreHeight.Value - delta.Value;
-                    row.BackHeightZ0 = computedBack;
-                    heightTracker.RecordHeight(backAlias, computedBack);
-                }
-
-                // Фиксируем значения для повторных точек
-                if (backHeight.HasValue && !heightTracker.HasHistory(backAlias))
-                    heightTracker.RecordHeight(backAlias, backHeight.Value);
-                if (foreHeight.HasValue && !heightTracker.HasHistory(foreAlias))
-                    heightTracker.RecordHeight(foreAlias, foreHeight.Value);
-            }
-        }
-
-        /// <summary>
-        /// Обратный проход: распространение Z0 высот от конца хода
-        /// </summary>
-        private static void CalculateRawHeightsBackwardPass(
-            List<TraverseRow> items,
-            Dictionary<string, double> adjusted,
-            RunHeightTracker heightTracker,
-            RunAliasManager aliasManager)
-        {
-            for (int i = items.Count - 1; i >= 0; i--)
-            {
-                var row = items[i];
-                var delta = row.DeltaH;
-                var adjustedDelta = row.AdjustedDeltaH ?? row.DeltaH;
-
-                if (!delta.HasValue)
-                    continue;
-
-                var backAlias = aliasManager.GetAlias(row, isBack: true);
-                var foreAlias = aliasManager.GetAlias(row, isBack: false);
-
-                if (row.ForeHeightZ0.HasValue && !row.BackHeightZ0.HasValue)
-                {
-                    var computedBack = row.ForeHeightZ0.Value - delta.Value;
-                    row.BackHeightZ0 = computedBack;
-                    heightTracker.RecordHeight(backAlias, computedBack);
-
-                    if (!string.IsNullOrWhiteSpace(backAlias) && !adjusted.ContainsKey(backAlias!))
-                    {
-                        var foreAdjusted = row.ForeHeight ?? row.ForeHeightZ0;
-                        if (foreAdjusted.HasValue && adjustedDelta.HasValue)
-                        {
-                            var computedBackAdj = foreAdjusted.Value - adjustedDelta.Value;
-                            adjusted[backAlias!] = computedBackAdj;
-                            row.BackHeight ??= computedBackAdj;
-                        }
-                    }
-                }
-                else if (row.BackHeightZ0.HasValue && !row.ForeHeightZ0.HasValue)
-                {
-                    var computedFore = row.BackHeightZ0.Value + delta.Value;
-                    row.ForeHeightZ0 = computedFore;
-                    heightTracker.RecordHeight(foreAlias, computedFore);
-
-                    if (!string.IsNullOrWhiteSpace(foreAlias) && !adjusted.ContainsKey(foreAlias!))
-                    {
-                        var backAdjusted = row.BackHeight ?? row.BackHeightZ0;
-                        if (backAdjusted.HasValue && adjustedDelta.HasValue)
-                        {
-                            var computedForeAdj = backAdjusted.Value + adjustedDelta.Value;
-                            adjusted[foreAlias!] = computedForeAdj;
-                            row.ForeHeight ??= computedForeAdj;
-                        }
-                    }
-                }
-            }
-        }
-
-        /// <summary>
-        /// Обновляет виртуальные станции (первая точка хода без DeltaH)
-        /// </summary>
-        private static void UpdateVirtualStations(
-            List<TraverseRow> items,
-            Dictionary<string, double> adjusted,
-            Dictionary<string, double> raw,
-            RunAliasManager aliasManager)
-        {
-            foreach (var row in items)
-            {
-                if (!row.DeltaH.HasValue && !string.IsNullOrWhiteSpace(row.BackCode))
-                {
-                    var backAlias = aliasManager.GetAlias(row, isBack: true);
-                    if (!string.IsNullOrWhiteSpace(backAlias) && adjusted.TryGetValue(backAlias!, out var height))
-                    {
-                        row.BackHeight ??= height;
-                        row.BackHeightZ0 ??= raw.TryGetValue(backAlias!, out var rawH) ? rawH : height;
-                    }
-                }
-            }
-        }
-
-        /// <summary>
-        /// Обновляет глобальные словари доступных высот
-        /// </summary>
-        private static void UpdateAvailableHeights(
-            Dictionary<string, double> adjusted,
-            Dictionary<string, double> availableAdjustedHeights,
-            Dictionary<string, double> availableRawHeights,
-            RunAliasManager aliasManager,
-            Func<string, bool> allowPropagation)
-        {
-            foreach (var kvp in adjusted)
-            {
-                if (!aliasManager.IsCopyAlias(kvp.Key) && allowPropagation(kvp.Key))
-                {
-                    availableAdjustedHeights[kvp.Key] = kvp.Value;
-                    availableRawHeights[kvp.Key] = kvp.Value;
-                }
-            }
-        }
-
-        private static bool PropagateHeightsWithinRun(
-            List<TraverseRow> sections,
-            Dictionary<string, double> heights,
-            bool useAdjusted,
-            Func<TraverseRow, bool, string?> aliasSelector)
-        {
-            bool changed = false;
-
-            foreach (var section in sections)
-            {
-                var delta = useAdjusted ? section.AdjustedDeltaH : section.DeltaH;
-                if (!delta.HasValue)
-                    continue;
-
-                var backCode = aliasSelector(section, true);
-                var foreCode = aliasSelector(section, false);
-
-                if (string.IsNullOrWhiteSpace(backCode) || string.IsNullOrWhiteSpace(foreCode))
-                    continue;
-
-                if (heights.TryGetValue(backCode, out var backHeight) && !heights.ContainsKey(foreCode))
-                {
-                    heights[foreCode] = backHeight + delta.Value;
-                    changed = true;
-                }
-                else if (heights.TryGetValue(foreCode, out var foreHeight) && !heights.ContainsKey(backCode))
-                {
-                    heights[backCode] = foreHeight - delta.Value;
-                    changed = true;
-                }
-            }
-
-            return changed;
-        }
-
-
-
-        /// <summary>
-        /// Обновляет накопление разности плеч для каждого хода на основе TraverseRow
-        /// Обновляет существующие LineSummary в DataViewModel.Runs
-        /// </summary>
-        private void UpdateArmDifferenceAccumulation(
-            List<KeyValuePair<string, List<TraverseRow>>> traverseGroups,
-            Func<string, bool> isAnchor)
-        {
-            foreach (var group in traverseGroups)
-            {
-                var lineName = group.Key;
-                var rows = group.Value;
-
-                // Находим индекс существующего LineSummary
-                var existingIndex = -1;
-                LineSummary? existingSummary = null;
-                for (int i = 0; i < _dataViewModel.Runs.Count; i++)
-                {
-                    if (_dataViewModel.Runs[i].DisplayName == lineName)
-                    {
-                        existingIndex = i;
-                        existingSummary = _dataViewModel.Runs[i];
-                        break;
-                    }
-                }
-
-                if (existingSummary == null)
-                    continue;
-
-                // Вычисляем накопление разности плеч и длины для этого хода
-                double? accumulation = null;
-                double? totalDistanceBack = null;
-                double? totalDistanceFore = null;
-
-                foreach (var row in rows)
-                {
-                    if (row.ArmDifference_m.HasValue)
-                    {
-                        accumulation = (accumulation ?? 0) + row.ArmDifference_m.Value;
-                    }
-
-                    if (row.HdBack_m.HasValue)
-                    {
-                        totalDistanceBack = (totalDistanceBack ?? 0) + row.HdBack_m.Value;
-                    }
-
-                    if (row.HdFore_m.HasValue)
-                    {
-                        totalDistanceFore = (totalDistanceFore ?? 0) + row.HdFore_m.Value;
-                    }
-                }
-
-                // Подсчитываем количество известных точек в этом ходе
-                var knownPointsSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                foreach (var row in rows)
-                {
-                    if (!string.IsNullOrWhiteSpace(row.BackCode) && isAnchor(row.BackCode))
-                    {
-                        knownPointsSet.Add(row.BackCode);
-                    }
-                    if (!string.IsNullOrWhiteSpace(row.ForeCode) && isAnchor(row.ForeCode))
-                    {
-                        knownPointsSet.Add(row.ForeCode);
-                    }
-                }
-                var knownPointsCount = knownPointsSet.Count;
-
-                // Обновляем существующий LineSummary вместо создания нового
-                existingSummary.TotalDistanceBack = totalDistanceBack;
-                existingSummary.TotalDistanceFore = totalDistanceFore;
-                existingSummary.ArmDifferenceAccumulation = accumulation;
-                existingSummary.KnownPointsCount = knownPointsCount;
-
-                if (_sharedPointsByRun.TryGetValue(existingSummary.Index, out var sharedCodesForRun))
-                {
-                    existingSummary.SetSharedPoints(sharedCodesForRun);
-                }
-                else
-                {
-                    existingSummary.SetSharedPoints(Array.Empty<string>());
-                }
-            }
-        }
-
-        /// <summary>
-        /// Проверяет допуски разности плеч на станциях и накопление за ход
-        /// </summary>
-        private void CheckArmDifferenceTolerances()
-        {
-            if (SelectedClass == null)
-                return;
-
-            var stationTolerance = SelectedClass.ArmDifferenceToleranceStation;
-            var accumulationTolerance = SelectedClass.ArmDifferenceToleranceAccumulation;
-
-            // Проверка разности плеч на каждой станции
-            foreach (var row in _rows)
-            {
-                if (row.ArmDifference_m.HasValue)
-                {
-                    row.IsArmDifferenceExceeded = Math.Abs(row.ArmDifference_m.Value) > stationTolerance;
-                }
-                else
-                {
-                    row.IsArmDifferenceExceeded = false;
-                }
-            }
-
-            // Проверка накопления разности плеч за ходы
-            var lineGroups = _rows.GroupBy(r => r.LineName);
-            foreach (var group in lineGroups)
-            {
-                var lineName = group.Key;
-                var lineSummary = _dataViewModel.Runs.FirstOrDefault(r => r.DisplayName == lineName);
-
-                if (lineSummary != null && lineSummary.ArmDifferenceAccumulation.HasValue)
-                {
-                    lineSummary.IsArmDifferenceAccumulationExceeded =
-                        Math.Abs(lineSummary.ArmDifferenceAccumulation.Value) > accumulationTolerance;
-                }
-            }
-
-            // Принудительное обновление отображения через сброс коллекции
-            RefreshRowsDisplay();
-        }
-
-        /// <summary>
-        /// Обновляет отображение строк в DataGrid путём принудительного обновления представления коллекции
-        /// </summary>
-        private void RefreshRowsDisplay()
-        {
-            // Используем CollectionView.Refresh() вместо пересоздания коллекции - это эффективнее
-            var view = System.Windows.Data.CollectionViewSource.GetDefaultView(_rows);
-            view?.Refresh();
-        }
     }
-
-    public enum ToleranceMode
-    {
-        SqrtStations,
-        SqrtLength
-    }
-
-    public interface IToleranceOption
-    {
-        string Code { get; }
-        string Description { get; }
-        ToleranceMode Mode { get; }
-        double Coefficient { get; }
-        string Display { get; }
-    }
-
-    public record LevelingMethodOption(string Code, string Description, ToleranceMode Mode, double Coefficient, double OrientationSign) : IToleranceOption
-    {
-        public string Display => Code;
-    }
-
-    public record LevelingClassOption(
-        string Code,
-        string Description,
-        ToleranceMode Mode,
-        double Coefficient,
-        double ArmDiffStation,
-        double ArmDiffAccumulation) : IToleranceOption
-    {
-        public string Display => Code;
-
-        /// <summary>
-        /// Допуск разности плеч на станции (в метрах)
-        /// </summary>
-        public double ArmDifferenceToleranceStation => ArmDiffStation;
-
-        /// <summary>
-        /// Допуск накопления разности плеч за ход (в метрах)
-        /// </summary>
-        public double ArmDifferenceToleranceAccumulation => ArmDiffAccumulation;
-    }
-}

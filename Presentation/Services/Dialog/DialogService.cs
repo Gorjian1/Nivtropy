@@ -1,7 +1,7 @@
 using System.Windows;
 using Nivtropy.Presentation.Views;
 
-namespace Nivtropy.Services.Dialog
+namespace Nivtropy.Presentation.Services.Dialog
 {
     /// <summary>
     /// Реализация сервиса диалогов через WPF MessageBox и InputDialog

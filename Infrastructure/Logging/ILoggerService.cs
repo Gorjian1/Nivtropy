@@ -1,6 +1,6 @@
 using System;
 
-namespace Nivtropy.Services.Logging
+namespace Nivtropy.Infrastructure.Logging
 {
     /// <summary>
     /// Интерфейс сервиса логирования

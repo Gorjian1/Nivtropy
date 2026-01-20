@@ -3,7 +3,8 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
-using Nivtropy.Models;
+using Nivtropy.Application.DTOs;
+using Nivtropy.Application.Export;
 
 namespace Nivtropy.Infrastructure.Export
 {
@@ -15,7 +16,7 @@ namespace Nivtropy.Infrastructure.Export
         /// <summary>
         /// Экспортирует измерения в формат Nivelir и сохраняет в файл
         /// </summary>
-        public void Export(IEnumerable<GeneratedMeasurement> measurements, string filePath)
+        public void Export(IEnumerable<GeneratedMeasurementDto> measurements, string filePath)
         {
             var fileName = Path.GetFileName(filePath);
             var content = ExportToString(measurements, fileName);
@@ -25,7 +26,7 @@ namespace Nivtropy.Infrastructure.Export
         /// <summary>
         /// Экспортирует измерения в формат Nivelir и возвращает содержимое как строку
         /// </summary>
-        public string ExportToString(IEnumerable<GeneratedMeasurement> measurements, string fileName)
+        public string ExportToString(IEnumerable<GeneratedMeasurementDto> measurements, string fileName)
         {
             var sb = new StringBuilder();
             int lineNumber = 1;

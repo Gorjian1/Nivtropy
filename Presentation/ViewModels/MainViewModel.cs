@@ -5,9 +5,8 @@ using System.Windows;
 using System.Windows.Input;
 using Microsoft.Win32;
 using Nivtropy.Presentation.Views;
-using Nivtropy.Services;
-using Nivtropy.Services.Dialog;
-using Nivtropy.Services.Visualization;
+using Nivtropy.Presentation.Services.Dialog;
+using Nivtropy.Presentation.Services.Visualization;
 using Nivtropy.Application.Services;
 using Nivtropy.Presentation.ViewModels.Base;
 

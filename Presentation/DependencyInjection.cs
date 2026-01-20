@@ -2,12 +2,11 @@ using Microsoft.Extensions.DependencyInjection;
 using Nivtropy.Infrastructure.Parsers;
 using Nivtropy.Application.Export;
 using Nivtropy.Infrastructure.Export;
-using Nivtropy.Services.Logging;
+using Nivtropy.Infrastructure.Logging;
 using Nivtropy.Application.Services;
-using Nivtropy.Services.Dialog;
-using Nivtropy.Services.IO;
+using Nivtropy.Presentation.Services.Dialog;
 using Nivtropy.Domain.Services;
-using Nivtropy.Services.Visualization;
+using Nivtropy.Presentation.Services.Visualization;
 using Nivtropy.Presentation.ViewModels;
 using Nivtropy.Presentation.ViewModels.Managers;
 using Nivtropy.Application.Mappers;
@@ -16,7 +15,7 @@ using Nivtropy.Application.Queries;
 using Nivtropy.Application.Persistence;
 using Nivtropy.Infrastructure.Persistence;
 
-namespace Nivtropy.Services
+namespace Nivtropy.Presentation
 {
     /// <summary>
     /// Методы расширения для регистрации сервисов приложения в DI контейнере.
@@ -40,9 +39,6 @@ namespace Nivtropy.Services
             // Сервис диалогов
             services.AddSingleton<IDialogService, DialogService>();
 
-            // Сервис файловых операций
-            services.AddSingleton<IFileService, FileService>();
-
             // Сервисы парсинга и построения данных
             services.AddSingleton<IDataParser, DatParser>();
             // ITraverseBuilder больше не регистрируется - он стал implementation detail TraverseCalculationService
@@ -56,6 +52,7 @@ namespace Nivtropy.Services
             services.AddSingleton<IProfileStatisticsService, ProfileStatisticsService>();
             services.AddSingleton<IRunAnnotationService, RunAnnotationService>();
             services.AddSingleton<ITraverseCalculationService, TraverseCalculationService>();
+            services.AddSingleton<ITraverseCalculationWorkflowService, TraverseCalculationWorkflowService>();
             services.AddSingleton<IDesignCalculationService, DesignCalculationService>();
             services.AddSingleton<INoiseGeneratorService, NoiseGeneratorService>();
 

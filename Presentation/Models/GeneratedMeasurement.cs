@@ -1,7 +1,7 @@
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 
-namespace Nivtropy.Models
+namespace Nivtropy.Presentation.Models
 {
     /// <summary>
     /// Сгенерированное измерение для экспорта

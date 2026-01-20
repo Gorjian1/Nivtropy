@@ -2,7 +2,7 @@ using System;
 using System.IO;
 using System.Text;
 
-namespace Nivtropy.Services.Logging
+namespace Nivtropy.Infrastructure.Logging
 {
     /// <summary>
     /// Реализация сервиса логирования с записью в файл

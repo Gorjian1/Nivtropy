@@ -11,11 +11,11 @@ using System.Text;
 using System.Windows.Input;
 using ClosedXML.Excel;
 using Microsoft.Win32;
-using Nivtropy.Models;
+using Nivtropy.Application.DTOs;
+using Nivtropy.Application.Export;
 using Nivtropy.Presentation.Models;
 using Nivtropy.Application.Services;
-using Nivtropy.Infrastructure.Export;
-using Nivtropy.Services.Dialog;
+using Nivtropy.Presentation.Services.Dialog;
 using Nivtropy.Presentation.ViewModels.Base;
 
 namespace Nivtropy.Presentation.ViewModels
@@ -509,9 +509,32 @@ namespace Nivtropy.Presentation.ViewModels
                 return;
 
             // Используем сервис для экспорта
-            _exportService.Export(_measurements, saveFileDialog.FileName);
+            var exportDtos = _measurements.Select(ToDto).ToList();
+            _exportService.Export(exportDtos, saveFileDialog.FileName);
 
             _dialogService.ShowInfo($"Данные успешно экспортированы в:\n{saveFileDialog.FileName}", "Экспорт завершён");
+        }
+
+        private static GeneratedMeasurementDto ToDto(GeneratedMeasurement measurement)
+        {
+            return new GeneratedMeasurementDto
+            {
+                Index = measurement.Index,
+                LineName = measurement.LineName,
+                PointCode = measurement.PointCode,
+                StationCode = measurement.StationCode,
+                BackPointCode = measurement.BackPointCode,
+                ForePointCode = measurement.ForePointCode,
+                Rb_m = measurement.Rb_m,
+                Rf_m = measurement.Rf_m,
+                HD_Back_m = measurement.HD_Back_m,
+                HD_Fore_m = measurement.HD_Fore_m,
+                Height_m = measurement.Height_m,
+                IsBackSight = measurement.IsBackSight,
+                OriginalHeight = measurement.OriginalHeight,
+                OriginalHD_Back = measurement.OriginalHD_Back,
+                OriginalHD_Fore = measurement.OriginalHD_Fore
+            };
         }
 
         private void RefreshAvailableLines()

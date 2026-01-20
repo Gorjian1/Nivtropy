@@ -6,7 +6,7 @@ using System.Linq;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Nivtropy.Domain.Model;
-using Nivtropy.Services.Logging;
+using Nivtropy.Infrastructure.Logging;
 
 namespace Nivtropy.Infrastructure.Parsers
 {
