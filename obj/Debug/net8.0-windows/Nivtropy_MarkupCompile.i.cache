@@ -12,9 +12,9 @@ TRACE;DEBUG;NET;NET8_0;NETCOREAPP;WINDOWS;WINDOWS7_0;NET5_0_OR_GREATER;NET6_0_OR
 C:\Users\Gorji\source\repos\Nivtropy\App.xaml
 8-1847382306
 11072840850
-109-1599998629
+132478172473
 207-1498050573
 MainWindow.xaml;Presentation\Views\AboutWindow.xaml;Presentation\Views\DataViewControl.xaml;Presentation\Views\InputDialog.xaml;Presentation\Views\SettingsView.xaml;Presentation\Views\SystemsManagementWindow.xaml;Presentation\Views\TraverseDesignView.xaml;Presentation\Views\TraverseJournalView.xaml;
 
-False
+True
 
