@@ -190,7 +190,7 @@ namespace Nivtropy.Infrastructure.Parsers
             // Распознавание ошибочных измерений (помечены ##### или Measurement repeated)
             DetectInvalidMeasurement(record, line);
 
-            var stationCode = ExtractStationCode(modeSegment, line);
+            var stationCode = ExtractStationCodeFromTokens(modeTokens) ?? ExtractStationCode(modeSegment, line);
             if (stationCode != null)
             {
                 // Очистка маркера ##### из кода станции
@@ -205,7 +205,11 @@ namespace Nivtropy.Infrastructure.Parsers
                 autoStation++;
             }
 
-            if (!string.IsNullOrWhiteSpace(record.Target) && record.StationCode != null && modeTokens.Length > 1)
+            if (record.LineMarker != null)
+            {
+                record.Target = null;
+            }
+            else if (!string.IsNullOrWhiteSpace(record.Target) && record.StationCode != null && modeTokens.Length > 1)
             {
                 var stationToken = modeTokens.LastOrDefault(t => string.Equals(t, record.StationCode, StringComparison.OrdinalIgnoreCase));
                 if (stationToken != null)
@@ -269,7 +273,7 @@ namespace Nivtropy.Infrastructure.Parsers
 
             record.Mode = tokens[0];
             if (tokens.Length > 1)
-                record.Target = string.Join(" ", tokens.Skip(1));
+                record.Target = tokens[1];
 
             return tokens;
         }
@@ -305,6 +309,21 @@ namespace Nivtropy.Infrastructure.Parsers
         private static string NormalizeStationCode(string raw)
         {
             return raw.Replace(',', '.').Trim();
+        }
+
+        private static string? ExtractStationCodeFromTokens(string[] tokens)
+        {
+            if (tokens == null || tokens.Length == 0)
+                return null;
+
+            for (int i = tokens.Length - 1; i >= 0; i--)
+            {
+                var token = tokens[i];
+                if (NumberMatchRegex.IsMatch(token))
+                    return NormalizeStationCode(token);
+            }
+
+            return null;
         }
 
         private static void DetectLineMarker(MeasurementRecord record, string line)
