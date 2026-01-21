@@ -54,7 +54,7 @@ namespace Nivtropy.Presentation.Views {
                 return;
             }
             _contentLoaded = true;
-            System.Uri resourceLocater = new System.Uri("/Nivtropy;V1.0.0.0;component/presentation/views/settingsview.xaml", System.UriKind.Relative);
+            System.Uri resourceLocater = new System.Uri("/Nivtropy;component/presentation/views/settingsview.xaml", System.UriKind.Relative);
             
             #line 1 "..\..\..\..\..\Presentation\Views\SettingsView.xaml"
             System.Windows.Application.LoadComponent(this, resourceLocater);
