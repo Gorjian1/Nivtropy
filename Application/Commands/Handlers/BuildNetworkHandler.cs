@@ -107,7 +107,11 @@ public class BuildNetworkHandler
                     mode = modeUpper;
             }
 
+            if (!string.IsNullOrWhiteSpace(record.LineMarker))
+                continue;
+
             bool isBF = mode == "BF";
+            var pointCode = NormalizePointCode(record.Target) ?? NormalizePointCode(record.StationCode);
 
             if (record.Rb_m.HasValue)
             {
@@ -116,13 +120,13 @@ public class BuildNetworkHandler
                     pending = new PendingObservation();
                     if (isBF)
                     {
-                        pending.BackCode = record.StationCode;
+                        pending.BackCode = pointCode;
                         pending.BackReading = record.Rb_m;
                         pending.BackDistance = record.HD_m;
                     }
                     else
                     {
-                        pending.ForeCode = record.StationCode;
+                        pending.ForeCode = pointCode;
                         pending.BackReading = record.Rb_m;
                         pending.ForeDistance = record.HD_m;
                     }
@@ -133,13 +137,13 @@ public class BuildNetworkHandler
                     {
                         pending.BackReading ??= record.Rb_m;
                         pending.BackDistance ??= record.HD_m;
-                        pending.BackCode ??= record.StationCode;
+                        pending.BackCode ??= pointCode;
                     }
                     else
                     {
                         pending.BackReading ??= record.Rb_m;
                         pending.ForeDistance ??= record.HD_m;
-                        pending.ForeCode ??= record.StationCode;
+                        pending.ForeCode ??= pointCode;
                     }
 
                     AddObservationIfComplete(network, run, runName, pending, sharedPointStates, errors);
@@ -156,13 +160,13 @@ public class BuildNetworkHandler
                     pending = new PendingObservation();
                     if (isBF)
                     {
-                        pending.ForeCode = record.StationCode;
+                        pending.ForeCode = pointCode;
                         pending.ForeReading = record.Rf_m;
                         pending.ForeDistance = record.HD_m;
                     }
                     else
                     {
-                        pending.BackCode = record.StationCode;
+                        pending.BackCode = pointCode;
                         pending.ForeReading = record.Rf_m;
                         pending.BackDistance = record.HD_m;
                     }
@@ -173,13 +177,13 @@ public class BuildNetworkHandler
                     {
                         pending.ForeReading ??= record.Rf_m;
                         pending.ForeDistance ??= record.HD_m;
-                        pending.ForeCode ??= record.StationCode;
+                        pending.ForeCode ??= pointCode;
                     }
                     else
                     {
                         pending.ForeReading ??= record.Rf_m;
                         pending.BackDistance ??= record.HD_m;
-                        pending.BackCode ??= record.StationCode;
+                        pending.BackCode ??= pointCode;
                     }
 
                     AddObservationIfComplete(network, run, runName, pending, sharedPointStates, errors);
@@ -239,6 +243,18 @@ public class BuildNetworkHandler
         }
 
         return trimmed;
+    }
+
+    private static string? NormalizePointCode(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+            return null;
+
+        var trimmed = raw.Trim();
+        var token = trimmed.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries)
+            .FirstOrDefault();
+
+        return string.IsNullOrWhiteSpace(token) ? null : token;
     }
 
     private sealed class PendingObservation
