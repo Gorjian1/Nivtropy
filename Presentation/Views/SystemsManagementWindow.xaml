@@ -53,6 +53,7 @@
                              x:Name="SystemsListBox"
                              SelectionChanged="SystemsListBox_SelectionChanged"
                              BorderThickness="0"
+                             ScrollViewer.VerticalScrollBarVisibility="Auto"
                              ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                         <ListBox.ItemTemplate>
                             <DataTemplate>
@@ -164,6 +165,7 @@
                              x:Name="RunsListBox"
                              SelectionMode="Multiple"
                              BorderThickness="0"
+                             ScrollViewer.VerticalScrollBarVisibility="Auto"
                              ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                         <ListBox.ItemTemplate>
                             <DataTemplate>
@@ -171,7 +173,6 @@
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="Auto" />
                                         <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="Auto" />
                                     </Grid.ColumnDefinitions>
 
                                     <CheckBox Grid.Column="0"
@@ -181,17 +182,10 @@
                                               ToolTip="Активен" />
 
                                     <TextBlock Grid.Column="1"
-                                               Text="{Binding Header}"
+                                               Text="{Binding RunListDisplay}"
                                                FontSize="11"
                                                VerticalAlignment="Center"
                                                TextTrimming="CharacterEllipsis" />
-
-                                    <TextBlock Grid.Column="2"
-                                               Text="{Binding CombinedStats}"
-                                               FontSize="9"
-                                               Foreground="#707070"
-                                               Margin="4,0,0,0"
-                                               VerticalAlignment="Center" />
                                 </Grid>
                             </DataTemplate>
                         </ListBox.ItemTemplate>

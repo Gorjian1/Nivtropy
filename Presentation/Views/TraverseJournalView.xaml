@@ -982,9 +982,11 @@
 
                         <Grid>
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="240" />
+                                <ColumnDefinition Width="220" />
                                 <ColumnDefinition Width="12" />
                                 <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="12" />
+                                <ColumnDefinition Width="260" />
                             </Grid.ColumnDefinitions>
 
                             <!-- Левая панель: Список систем -->
@@ -1021,6 +1023,7 @@
                                              SelectedItem="{Binding Calculation.SelectedSystem, Mode=TwoWay}"
                                              SelectionChanged="SystemsListBox_SelectionChanged"
                                              BorderThickness="0"
+                                             ScrollViewer.VerticalScrollBarVisibility="Auto"
                                              ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                                         <ListBox.ItemTemplate>
                                             <DataTemplate>
@@ -1049,7 +1052,7 @@
                                 </Grid>
                             </Border>
 
-                            <!-- Правая панель: Ходы выбранной системы -->
+                            <!-- Центральная панель: Ходы выбранной системы -->
                             <Border Grid.Column="2"
                                     BorderBrush="#FFBCC7D3"
                                     BorderThickness="1"
@@ -1084,6 +1087,7 @@
                                              ItemsSource="{Binding Calculation.Runs}"
                                              SelectionMode="Multiple"
                                              BorderThickness="0"
+                                             ScrollViewer.VerticalScrollBarVisibility="Auto"
                                              ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                                         <ListBox.ItemTemplate>
                                             <DataTemplate>
@@ -1091,7 +1095,6 @@
                                                     <Grid.ColumnDefinitions>
                                                         <ColumnDefinition Width="Auto" />
                                                         <ColumnDefinition Width="*" />
-                                                        <ColumnDefinition Width="Auto" />
                                                     </Grid.ColumnDefinitions>
 
                                                     <CheckBox Grid.Column="0"
@@ -1103,82 +1106,92 @@
                                                               ToolTip="Активен" />
 
                                                     <TextBlock Grid.Column="1"
-                                                               Text="{Binding Header}"
+                                                               Text="{Binding RunListDisplay}"
                                                                FontSize="11"
                                                                VerticalAlignment="Center"
                                                                TextTrimming="CharacterEllipsis" />
-
-                                                    <TextBlock Grid.Column="2"
-                                                               Text="{Binding CombinedStats}"
-                                                               FontSize="9"
-                                                               Foreground="#707070"
-                                                               Margin="4,0,0,0"
-                                                               VerticalAlignment="Center" />
                                                 </Grid>
                                             </DataTemplate>
                                         </ListBox.ItemTemplate>
                                     </ListBox>
                                 </Grid>
                             </Border>
-                        </Grid>
-                    </StackPanel>
-                </Border>
 
-                <!-- СТРОКА 6: Общие точки между ходами -->
-                <Border BorderBrush="#FFBCC7D3"
-                        BorderThickness="1"
-                        CornerRadius="2"
-                        Padding="12"
-                        Background="White">
-                    <Border.Effect>
-                        <DropShadowEffect Color="#40000000" BlurRadius="4" ShadowDepth="1" Direction="270" Opacity="0.3"/>
-                    </Border.Effect>
-                    <StackPanel>
-                        <TextBlock Text="Общие точки между ходами"
-                                   FontWeight="SemiBold"
-                                   FontSize="12"
-                                   Foreground="#2B579A"
-                                   Margin="0,0,0,10" />
+                            <!-- Правая панель: Общие точки между ходами -->
+                            <Border Grid.Column="4"
+                                    BorderBrush="#FFBCC7D3"
+                                    BorderThickness="1"
+                                    CornerRadius="2"
+                                    Background="White">
+                                <Border.Effect>
+                                    <DropShadowEffect Color="#40000000" BlurRadius="4" ShadowDepth="1" Direction="270" Opacity="0.3"/>
+                                </Border.Effect>
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="*" />
+                                    </Grid.RowDefinitions>
 
-                        <ItemsControl ItemsSource="{Binding Calculation.SharedPoints}">
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <Border BorderBrush="#FFE0E0E0" BorderThickness="0,0,0,1" Padding="8,6">
-                                        <Grid>
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="Auto" />
-                                                <ColumnDefinition Width="*" />
-                                            </Grid.ColumnDefinitions>
-                                            <CheckBox Grid.Column="0"
-                                                      IsChecked="{Binding IsEnabled, Mode=TwoWay}"
-                                                      Content="{Binding Code}"
-                                                      VerticalAlignment="Center" />
-                                            <TextBlock Grid.Column="1"
-                                                       Text="{Binding RunsDisplay}"
-                                                       Margin="8,0,0,0"
-                                                       VerticalAlignment="Center"
-                                                       Foreground="#707070" />
-                                        </Grid>
+                                    <!-- Заголовок -->
+                                    <Border Grid.Row="0"
+                                            Background="#FFF8F9FA"
+                                            BorderBrush="#FFE0E0E0"
+                                            BorderThickness="0,0,0,1"
+                                            Padding="10,8">
+                                        <TextBlock Text="Общие точки между ходами"
+                                                   FontWeight="SemiBold"
+                                                   FontSize="12"
+                                                   Foreground="#2B579A" />
                                     </Border>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
 
-                        <TextBlock Text="Нет общих точек"
-                                   Foreground="#707070"
-                                   HorizontalAlignment="Center"
-                                   Margin="0,8,0,0">
-                            <TextBlock.Style>
-                                <Style TargetType="TextBlock">
-                                    <Setter Property="Visibility" Value="Collapsed" />
-                                    <Style.Triggers>
-                                        <DataTrigger Binding="{Binding Calculation.SharedPoints.Count}" Value="0">
-                                            <Setter Property="Visibility" Value="Visible" />
-                                        </DataTrigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </TextBlock.Style>
-                        </TextBlock>
+                                    <!-- Список общих точек -->
+                                    <Grid Grid.Row="1">
+                                        <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                                      HorizontalScrollBarVisibility="Disabled">
+                                            <ItemsControl ItemsSource="{Binding Calculation.SharedPoints}">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <Border BorderBrush="#FFE0E0E0" BorderThickness="0,0,0,1" Padding="8,6">
+                                                            <Grid>
+                                                                <Grid.ColumnDefinitions>
+                                                                    <ColumnDefinition Width="Auto" />
+                                                                    <ColumnDefinition Width="*" />
+                                                                </Grid.ColumnDefinitions>
+                                                                <CheckBox Grid.Column="0"
+                                                                          IsChecked="{Binding IsEnabled, Mode=TwoWay}"
+                                                                          Content="{Binding Code}"
+                                                                          VerticalAlignment="Center" />
+                                                                <TextBlock Grid.Column="1"
+                                                                           Text="{Binding RunsDisplay}"
+                                                                           Margin="8,0,0,0"
+                                                                           VerticalAlignment="Center"
+                                                                           Foreground="#707070" />
+                                                            </Grid>
+                                                        </Border>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </ScrollViewer>
+
+                                        <TextBlock Text="Нет общих точек"
+                                                   Foreground="#707070"
+                                                   HorizontalAlignment="Center"
+                                                   VerticalAlignment="Center">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Visibility" Value="Collapsed" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding Calculation.SharedPoints.Count}" Value="0">
+                                                            <Setter Property="Visibility" Value="Visible" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+                                    </Grid>
+                                </Grid>
+                            </Border>
+                        </Grid>
                     </StackPanel>
                 </Border>
 

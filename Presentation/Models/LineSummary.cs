@@ -158,6 +158,7 @@ namespace Nivtropy.Presentation.Models
         public string DisplayName => !string.IsNullOrWhiteSpace(OriginalLineNumber)
             ? $"Ход {OriginalLineNumber}"
             : $"Ход {Index:D2}";
+        public string RunListDisplay => $"{DisplayName} ({RecordCount})";
         public string RangeDisplay => $"{StartLabel} → {EndLabel}";
         public string Header => $"{DisplayName}: {RangeDisplay}";
 
