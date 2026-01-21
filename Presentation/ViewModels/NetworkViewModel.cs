@@ -354,8 +354,9 @@ namespace Nivtropy.Presentation.ViewModels
             _summary = summary;
 
             UpdateRuns(summary);
+            InitializeSystemsFromRuns();
             UpdateRows(network, summary);
-            UpdateSharedPoints();
+            UpdateSharedPoints(network);
             UpdateAvailablePoints();
             UpdateBenchmarks();
             UpdateSummaryStatistics(summary);
@@ -388,6 +389,8 @@ namespace Nivtropy.Presentation.ViewModels
             _rows.Clear();
 
             var summaries = Runs.ToList();
+            var rawHeights = BuildHeightSnapshot(network, useCorrections: false);
+            var adjustedHeights = BuildHeightSnapshot(network, useCorrections: true);
             for (int i = 0; i < network.Runs.Count; i++)
             {
                 var run = network.Runs[i];
@@ -395,11 +398,12 @@ namespace Nivtropy.Presentation.ViewModels
                     ? summaries[i]
                     : BuildLineSummary(i + 1, summary?.Runs.ElementAtOrDefault(i));
 
-                var rawHeights = BuildRawHeights(run);
-
                 foreach (var observation in run.Observations)
                 {
-                    rawHeights.TryGetValue(observation.Id, out var raw);
+                    rawHeights.TryGetValue(observation.From, out var rawBack);
+                    rawHeights.TryGetValue(observation.To, out var rawFore);
+                    adjustedHeights.TryGetValue(observation.From, out var adjustedBack);
+                    adjustedHeights.TryGetValue(observation.To, out var adjustedFore);
 
                     var row = new TraverseRow
                     {
@@ -411,10 +415,10 @@ namespace Nivtropy.Presentation.ViewModels
                         Rf_m = observation.ForeReading.Meters,
                         HdBack_m = observation.BackDistance.Meters,
                         HdFore_m = observation.ForeDistance.Meters,
-                        BackHeight = observation.From.Height.IsKnown ? observation.From.Height.Value : null,
-                        ForeHeight = observation.To.Height.IsKnown ? observation.To.Height.Value : null,
-                        BackHeightZ0 = raw.backHeight,
-                        ForeHeightZ0 = raw.foreHeight,
+                        BackHeight = adjustedBack,
+                        ForeHeight = adjustedFore,
+                        BackHeightZ0 = rawBack,
+                        ForeHeightZ0 = rawFore,
                         IsBackHeightKnown = observation.From.Type == PointType.Benchmark,
                         IsForeHeightKnown = observation.To.Type == PointType.Benchmark,
                         Correction = observation.Correction,
@@ -451,12 +455,12 @@ namespace Nivtropy.Presentation.ViewModels
             }
         }
 
-        private void UpdateSharedPoints()
+        private void UpdateSharedPoints(LevelingNetwork network)
         {
             _sharedPoints.Clear();
             _sharedPointLookup.Clear();
 
-            var sharedUsage = BuildSharedPointUsage();
+            var sharedUsage = BuildSharedPointUsage(network);
             foreach (var (code, runIndexes) in sharedUsage)
             {
                 var enabled = _dataViewModel.IsSharedPointEnabled(code);
@@ -467,38 +471,29 @@ namespace Nivtropy.Presentation.ViewModels
             }
         }
 
-        private Dictionary<string, List<int>> BuildSharedPointUsage()
+        private Dictionary<string, List<int>> BuildSharedPointUsage(LevelingNetwork network)
         {
             var usage = new Dictionary<string, List<int>>(StringComparer.OrdinalIgnoreCase);
-            var groups = _dataViewModel.Runs.ToList();
+            var runIndexLookup = network.Runs
+                .Select((run, index) => (run, index: index + 1))
+                .ToDictionary(x => x.run, x => x.index);
 
-            foreach (var run in groups)
+            foreach (var point in network.SharedPoints)
             {
-                var runRecords = _dataViewModel.Records
-                    .Where(r => r.LineSummary?.Index == run.Index)
-                    .Select(r => r.Target ?? r.StationCode)
-                    .Where(code => !string.IsNullOrWhiteSpace(code))
-                    .Select(code => code!.Trim())
-                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                var runIndexes = point.ConnectedRuns
+                    .Select(run => runIndexLookup.TryGetValue(run, out var idx) ? idx : 0)
+                    .Where(idx => idx > 0)
+                    .Distinct()
+                    .OrderBy(idx => idx)
                     .ToList();
 
-                foreach (var code in runRecords)
-                {
-                    if (!usage.TryGetValue(code, out var list))
-                    {
-                        list = new List<int>();
-                        usage[code] = list;
-                    }
+                if (runIndexes.Count < 2)
+                    continue;
 
-                    if (!list.Contains(run.Index))
-                    {
-                        list.Add(run.Index);
-                    }
-                }
+                usage[point.Code.ToString()] = runIndexes;
             }
 
             return usage
-                .Where(kvp => kvp.Value.Count > 1)
                 .OrderBy(kvp => PointCodeHelper.GetSortKey(kvp.Key))
                 .ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
         }
@@ -612,35 +607,91 @@ namespace Nivtropy.Presentation.ViewModels
             }
         }
 
-        private static Dictionary<Guid, (double? backHeight, double? foreHeight)> BuildRawHeights(Run run)
+        private static Dictionary<Point, double> BuildHeightSnapshot(LevelingNetwork network, bool useCorrections)
         {
-            var result = new Dictionary<Guid, (double? backHeight, double? foreHeight)>();
-            double? running = null;
+            var result = new Dictionary<Point, double>();
+            var queue = new Queue<Point>();
 
-            foreach (var obs in run.Observations)
+            foreach (var benchmark in network.Benchmarks)
             {
-                if (obs.From.Type == PointType.Benchmark && obs.From.Height.IsKnown)
-                    running = obs.From.Height.Value;
+                if (!benchmark.Height.IsKnown)
+                    continue;
 
-                double? back = running;
-                double? fore = null;
+                result[benchmark] = benchmark.Height.Value;
+                queue.Enqueue(benchmark);
+            }
 
-                if (back.HasValue)
+            while (queue.Count > 0)
+            {
+                var current = queue.Dequeue();
+                if (!result.TryGetValue(current, out var currentHeight))
+                    continue;
+
+                foreach (var obs in current.OutgoingObservations)
                 {
-                    fore = back + obs.DeltaH;
-                    running = fore;
+                    if (result.ContainsKey(obs.To))
+                        continue;
+
+                    var delta = useCorrections ? obs.AdjustedDeltaH : obs.DeltaH;
+                    var newHeight = currentHeight + delta;
+                    result[obs.To] = newHeight;
+                    queue.Enqueue(obs.To);
                 }
 
-                if (obs.To.Type == PointType.Benchmark && obs.To.Height.IsKnown)
+                foreach (var obs in current.IncomingObservations)
                 {
-                    fore ??= obs.To.Height.Value;
-                    running = obs.To.Height.Value;
-                }
+                    if (result.ContainsKey(obs.From))
+                        continue;
 
-                result[obs.Id] = (back, fore);
+                    var delta = useCorrections ? obs.AdjustedDeltaH : obs.DeltaH;
+                    var newHeight = currentHeight - delta;
+                    result[obs.From] = newHeight;
+                    queue.Enqueue(obs.From);
+                }
             }
 
             return result;
+        }
+
+        private void InitializeSystemsFromRuns()
+        {
+            var defaultSystem = _systems.FirstOrDefault(s => s.Id == ITraverseSystemsManager.DEFAULT_SYSTEM_ID);
+            if (defaultSystem == null)
+            {
+                defaultSystem = new TraverseSystem(ITraverseSystemsManager.DEFAULT_SYSTEM_ID, ITraverseSystemsManager.DEFAULT_SYSTEM_NAME, order: 0);
+                _systems.Add(defaultSystem);
+            }
+
+            foreach (var system in _systems)
+            {
+                foreach (var runIndex in system.RunIndexes.ToList())
+                {
+                    system.RemoveRun(runIndex);
+                }
+            }
+
+            foreach (var run in Runs)
+            {
+                if (string.IsNullOrWhiteSpace(run.SystemId))
+                {
+                    run.SystemId = ITraverseSystemsManager.DEFAULT_SYSTEM_ID;
+                }
+
+                var system = _systems.FirstOrDefault(s => s.Id == run.SystemId);
+                if (system == null)
+                {
+                    system = new TraverseSystem(run.SystemId, run.SystemId, _systems.Count);
+                    _systems.Add(system);
+                }
+
+                system.AddRun(run.Index);
+            }
+
+            if (_selectedSystem == null || !_systems.Contains(_selectedSystem))
+            {
+                _selectedSystem = defaultSystem;
+                OnPropertyChanged(nameof(SelectedSystem));
+            }
         }
 
         private static LineSummary BuildLineSummary(int index, NetworkRunSummaryDto? runSummary)

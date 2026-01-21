@@ -23,7 +23,7 @@ namespace Nivtropy.Infrastructure.Parsers
         private static readonly Regex EndLineRegex = new(@"\bEnd-Line\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
         private static readonly Regex ContLineRegex = new(@"\bCont-Line\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
         private static readonly Regex MeasurementRepeatedRegex = new(@"\bMeasurement\s+repeated\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
-        private static readonly Regex RunNumberRegex = new(@"\b(?:BF|FB)\s+(\d+)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        private static readonly Regex RunNumberRegex = new(@"\b(BF|FB)\s+(\d+)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
         // Скомпилированные regex для парсинга
         private static readonly Regex ForFormatLineRegex = new(@"^\s*For\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
@@ -182,7 +182,7 @@ namespace Nivtropy.Infrastructure.Parsers
 
             var measurementIndex = FindFirstMeasurementIndex(line, measurementPatterns.Values);
             var modeSegment = ExtractModeSegment(line, adrMatch, measurementIndex);
-            var modeTokens = PopulateModeAndTarget(record, modeSegment);
+            PopulateModeAndTarget(record, modeSegment);
 
             // Распознавание маркеров хода (Start-Line, End-Line, Cont-Line)
             DetectLineMarker(record, line);
@@ -205,14 +205,9 @@ namespace Nivtropy.Infrastructure.Parsers
                 autoStation++;
             }
 
-            if (!string.IsNullOrWhiteSpace(record.Target) && record.StationCode != null && modeTokens.Length > 1)
+            if (!string.IsNullOrWhiteSpace(record.LineMarker))
             {
-                var stationToken = modeTokens.LastOrDefault(t => string.Equals(t, record.StationCode, StringComparison.OrdinalIgnoreCase));
-                if (stationToken != null)
-                {
-                    var targetTokens = modeTokens.Skip(1).Where(t => !string.Equals(t, stationToken, StringComparison.OrdinalIgnoreCase)).ToArray();
-                    record.Target = targetTokens.Length == 0 ? null : string.Join(" ", targetTokens);
-                }
+                record.Target = null;
             }
 
             PopulateMeasurements(record, line, measurementPatterns);
@@ -269,7 +264,7 @@ namespace Nivtropy.Infrastructure.Parsers
 
             record.Mode = tokens[0];
             if (tokens.Length > 1)
-                record.Target = string.Join(" ", tokens.Skip(1));
+                record.Target = tokens[1];
 
             return tokens;
         }
@@ -318,7 +313,8 @@ namespace Nivtropy.Infrastructure.Parsers
                 var runMatch = RunNumberRegex.Match(line);
                 if (runMatch.Success)
                 {
-                    record.OriginalLineNumber = runMatch.Groups[1].Value;
+                    record.Mode = runMatch.Groups[1].Value.ToUpperInvariant();
+                    record.OriginalLineNumber = runMatch.Groups[2].Value;
                 }
             }
             else if (EndLineRegex.IsMatch(line))
