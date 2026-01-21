@@ -265,24 +265,44 @@ namespace Nivtropy.Presentation.ViewModels
             _journalRows.Clear();
             foreach (var traverseRow in _calculationViewModel.Rows)
             {
+                bool isVirtualStation = string.IsNullOrWhiteSpace(traverseRow.ForeCode) && !traverseRow.DeltaH.HasValue;
+                if (isVirtualStation)
+                {
+                    continue;
+                }
+
                 _journalRows.Add(new JournalRow
                 {
+                    RowType = JournalRowType.BackPoint,
+                    StationNumber = traverseRow.Index,
                     LineName = traverseRow.LineName,
-                    Index = traverseRow.Index,
-                    BackCode = traverseRow.BackCode,
-                    ForeCode = traverseRow.ForeCode,
-                    Rb_m = traverseRow.Rb_m,
-                    Rf_m = traverseRow.Rf_m,
-                    HdBack_m = traverseRow.HdBack_m,
-                    HdFore_m = traverseRow.HdFore_m,
+                    LineSummary = traverseRow.LineSummary,
+                    PointCode = traverseRow.BackCode,
+                    Z0 = traverseRow.BackHeightZ0,
+                    Z = traverseRow.BackHeight
+                });
+
+                _journalRows.Add(new JournalRow
+                {
+                    RowType = JournalRowType.Elevation,
+                    StationNumber = traverseRow.Index,
+                    LineName = traverseRow.LineName,
+                    LineSummary = traverseRow.LineSummary,
+                    StationLength = traverseRow.StationLength_m,
                     DeltaH = traverseRow.DeltaH,
                     Correction = traverseRow.Correction,
-                    AdjustedDeltaH = traverseRow.AdjustedDeltaH,
-                    BackHeight = traverseRow.BackHeight,
-                    ForeHeight = traverseRow.ForeHeight,
-                    BackHeightZ0 = traverseRow.BackHeightZ0,
-                    ForeHeightZ0 = traverseRow.ForeHeightZ0,
-                    LineSummary = traverseRow.LineSummary
+                    AdjustedDeltaH = traverseRow.AdjustedDeltaH
+                });
+
+                _journalRows.Add(new JournalRow
+                {
+                    RowType = JournalRowType.ForePoint,
+                    StationNumber = traverseRow.Index,
+                    LineName = traverseRow.LineName,
+                    LineSummary = traverseRow.LineSummary,
+                    PointCode = traverseRow.ForeCode,
+                    Z0 = traverseRow.ForeHeightZ0,
+                    Z = traverseRow.ForeHeight
                 });
             }
 

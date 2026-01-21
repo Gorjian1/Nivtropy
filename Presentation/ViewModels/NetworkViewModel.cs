@@ -418,7 +418,7 @@ namespace Nivtropy.Presentation.ViewModels
                         IsBackHeightKnown = observation.From.Type == PointType.Benchmark,
                         IsForeHeightKnown = observation.To.Type == PointType.Benchmark,
                         Correction = observation.Correction,
-                        CorrectionMode = observation.Correction != 0 ? CorrectionDisplayMode.Auto : CorrectionDisplayMode.None,
+                        CorrectionMode = observation.Correction != 0 ? CorrectionDisplayMode.Single : CorrectionDisplayMode.None,
                         LineSummary = lineSummary
                     };
 
