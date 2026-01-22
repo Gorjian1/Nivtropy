@@ -21,6 +21,8 @@ namespace Nivtropy.Presentation.Visualization
         private const double RunNodeSize = 18;
         private const double RunNodeDotSize = 6;
         private const double KnownNodeSize = 12;
+        private const double ArrowLength = 10;
+        private const double ArrowWidth = 6;
         private const int LayoutIterations = 120;
         private const double LayoutCooling = 0.95;
         private const double RepulsionStrength = 26000;
@@ -127,6 +129,7 @@ namespace Nivtropy.Presentation.Visualization
                 var knownCodes = GetKnownPointCodes(calc, run);
                 foreach (var code in knownCodes)
                 {
+                    runNode.HasKnownPoint = true;
                     if (!nodes.TryGetValue(code, out var knownNode))
                     {
                         knownNode = new GraphNode(code, code, NodeKind.KnownPoint)
@@ -352,25 +355,34 @@ namespace Nivtropy.Presentation.Visualization
         private void DrawRunConnection(Canvas canvas, GraphEdge edge, Point from, Point to)
         {
             var isActive = edge.From.IsActive && edge.To.IsActive;
+            var strokeColor = isActive ? Color.FromRgb(70, 70, 70) : Color.FromRgb(150, 150, 150);
+            var thickness = isActive ? 1.6 : 1.2;
             var line = new Line
             {
                 X1 = from.X,
                 Y1 = from.Y,
                 X2 = to.X,
                 Y2 = to.Y,
-                Stroke = new SolidColorBrush(isActive ? Color.FromRgb(70, 70, 70) : Color.FromRgb(150, 150, 150)),
-                StrokeThickness = isActive ? 2.2 : 1.6,
+                Stroke = new SolidColorBrush(strokeColor),
+                StrokeThickness = thickness,
                 StrokeDashArray = isActive ? null : new DoubleCollection { 4, 2 },
                 StrokeStartLineCap = PenLineCap.Round,
                 StrokeEndLineCap = PenLineCap.Round,
                 ToolTip = BuildSharedEdgeTooltip(edge)
             };
             canvas.Children.Add(line);
+
+            if (edge.From.HasKnownPoint ^ edge.To.HasKnownPoint)
+            {
+                var arrowFrom = edge.From.HasKnownPoint ? from : to;
+                var arrowTo = edge.From.HasKnownPoint ? to : from;
+                DrawArrow(canvas, arrowFrom, arrowTo, strokeColor, thickness, line.ToolTip?.ToString() ?? string.Empty);
+            }
         }
 
         private void DrawKnownPointConnection(Canvas canvas, GraphEdge edge, Point from, Point to)
         {
-            DrawDoubleLine(canvas, from, to, Color.FromRgb(40, 40, 40), 1.8, BuildKnownEdgeTooltip(edge));
+            DrawDoubleLine(canvas, from, to, Color.FromRgb(40, 40, 40), 1.4, BuildKnownEdgeTooltip(edge));
         }
 
         private void DrawNodes(Canvas canvas, Graph graph, Dictionary<string, Point> positions)
@@ -445,6 +457,32 @@ namespace Nivtropy.Presentation.Visualization
 
             canvas.Children.Add(line1);
             canvas.Children.Add(line2);
+        }
+
+        private void DrawArrow(Canvas canvas, Point from, Point to, Color stroke, double thickness, string toolTip)
+        {
+            var direction = to - from;
+            if (direction.Length < 1)
+                return;
+
+            direction.Normalize();
+            var perpendicular = new Vector(-direction.Y, direction.X);
+
+            var tip = to;
+            var basePoint = to - direction * ArrowLength;
+            var left = basePoint + perpendicular * (ArrowWidth / 2);
+            var right = basePoint - perpendicular * (ArrowWidth / 2);
+
+            var arrow = new Polygon
+            {
+                Points = new PointCollection { tip, left, right },
+                Fill = new SolidColorBrush(stroke),
+                Stroke = new SolidColorBrush(stroke),
+                StrokeThickness = thickness,
+                ToolTip = toolTip
+            };
+
+            canvas.Children.Add(arrow);
         }
 
         private void DrawTriangle(Canvas canvas, Point center, double size, Color fill, string tip)
@@ -549,6 +587,7 @@ namespace Nivtropy.Presentation.Visualization
             public NodeKind Kind { get; }
             public int Degree { get; set; }
             public bool IsActive { get; set; }
+            public bool HasKnownPoint { get; set; }
             public LineSummary? Run { get; set; }
             public Color Color { get; set; } = Colors[0];
         }
