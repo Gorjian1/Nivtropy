@@ -35,21 +35,8 @@
 
         <!-- ЛЕВАЯ ПАНЕЛЬ: Таблица журнала -->
         <Grid Grid.Column="0">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto" />
-                <RowDefinition Height="*" />
-            </Grid.RowDefinitions>
-
-            <!-- Заголовок таблицы -->
-            <TextBlock Grid.Row="0"
-                       Text="Журнал нивелирного хода"
-                       FontSize="14"
-                       FontWeight="SemiBold"
-                       Margin="8,8,8,8"
-                       VerticalAlignment="Center" />
-
             <!-- Таблица журнала -->
-            <Border Grid.Row="1" Margin="8" BorderBrush="#FFB0B0B0" BorderThickness="1">
+            <Border Margin="8" BorderBrush="#FFB0B0B0" BorderThickness="1">
             <DataGrid ItemsSource="{Binding Source={StaticResource StationsGrouped}}"
                       AutoGenerateColumns="False"
                       CanUserAddRows="False"
