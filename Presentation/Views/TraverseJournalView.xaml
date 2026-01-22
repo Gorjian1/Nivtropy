@@ -971,7 +971,7 @@
                                 <ColumnDefinition Width="12" />
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="12" />
-                                <ColumnDefinition Width="260" />
+                                <ColumnDefinition Width="200" />
                             </Grid.ColumnDefinitions>
 
                             <!-- Левая панель: Список систем -->
@@ -1100,7 +1100,7 @@
                                 </Grid>
                             </Border>
 
-                            <!-- Правая панель: Общие точки между ходами -->
+                            <!-- Правая панель: Общие точки -->
                             <Border Grid.Column="4"
                                     BorderBrush="#FFBCC7D3"
                                     BorderThickness="1"
@@ -1121,7 +1121,7 @@
                                             BorderBrush="#FFE0E0E0"
                                             BorderThickness="0,0,0,1"
                                             Padding="10,8">
-                                        <TextBlock Text="Общие точки между ходами"
+                                        <TextBlock Text="Общие точки"
                                                    FontWeight="SemiBold"
                                                    FontSize="12"
                                                    Foreground="#2B579A" />
