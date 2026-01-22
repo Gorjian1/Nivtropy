@@ -17,13 +17,14 @@ namespace Nivtropy.Presentation.Visualization
     /// </summary>
     public class TraverseSystemVisualizationService : ITraverseSystemVisualizationService
     {
-        private const double Padding = 20;
+        private const double Padding = 24;
         private const double RunNodeSize = 18;
+        private const double RunNodeDotSize = 6;
         private const double KnownNodeSize = 12;
         private const int LayoutIterations = 120;
         private const double LayoutCooling = 0.95;
-        private const double RepulsionStrength = 22000;
-        private const double AttractionStrength = 0.05;
+        private const double RepulsionStrength = 26000;
+        private const double AttractionStrength = 0.08;
 
         private static readonly Color[] Colors =
         {
@@ -69,6 +70,7 @@ namespace Nivtropy.Presentation.Visualization
                 return;
 
             var positions = LayoutGraph(graph, w, h);
+            positions = StretchToCanvas(positions, w, h, Padding);
 
             DrawEdges(canvas, graph, positions);
             DrawNodes(canvas, graph, positions);
@@ -241,7 +243,7 @@ namespace Nivtropy.Presentation.Visualization
             foreach (var node in nodes)
             {
                 var angle = random.NextDouble() * 2 * Math.PI;
-                var radius = Math.Min(w, h) * 0.25;
+                var radius = Math.Min(w, h) * 0.4;
                 positions[node.Id] = new Point(
                     centerX + radius * Math.Cos(angle),
                     centerY + radius * Math.Sin(angle));
@@ -295,6 +297,36 @@ namespace Nivtropy.Presentation.Visualization
             }
 
             return positions;
+        }
+
+        private static Dictionary<string, Point> StretchToCanvas(
+            Dictionary<string, Point> positions,
+            double width,
+            double height,
+            double padding)
+        {
+            if (positions.Count == 0)
+                return positions;
+
+            var minX = positions.Values.Min(p => p.X);
+            var maxX = positions.Values.Max(p => p.X);
+            var minY = positions.Values.Min(p => p.Y);
+            var maxY = positions.Values.Max(p => p.Y);
+
+            var spanX = Math.Max(1.0, maxX - minX);
+            var spanY = Math.Max(1.0, maxY - minY);
+
+            var scaleX = (width - padding * 2) / spanX;
+            var scaleY = (height - padding * 2) / spanY;
+            var scale = Math.Min(scaleX, scaleY);
+
+            var offsetX = padding - minX * scale + (width - padding * 2 - spanX * scale) / 2;
+            var offsetY = padding - minY * scale + (height - padding * 2 - spanY * scale) / 2;
+
+            return positions.ToDictionary(
+                kvp => kvp.Key,
+                kvp => new Point(kvp.Value.X * scale + offsetX, kvp.Value.Y * scale + offsetY),
+                StringComparer.OrdinalIgnoreCase);
         }
 
         private void DrawEdges(Canvas canvas, Graph graph, Dictionary<string, Point> positions)
@@ -355,7 +387,7 @@ namespace Nivtropy.Presentation.Visualization
                     continue;
                 }
 
-                DrawCircle(canvas, pos, RunNodeSize, node.Color, $"Ход: {node.Label}");
+                DrawRunNode(canvas, pos, RunNodeSize, RunNodeDotSize, node.Color, $"Ход: {node.Label}");
                 DrawLabel(canvas, node.Label, pos.X + 10, pos.Y - 8, node.Color);
             }
         }
@@ -444,6 +476,29 @@ namespace Nivtropy.Presentation.Visualization
                 StrokeThickness = 1.6,
                 ToolTip = tip
             }.At(center.X - size / 2, center.Y - size / 2));
+        }
+
+        private void DrawRunNode(Canvas canvas, Point center, double size, double dotSize, Color color, string tip)
+        {
+            canvas.Children.Add(new Ellipse
+            {
+                Width = size,
+                Height = size,
+                Fill = Brushes.White,
+                Stroke = new SolidColorBrush(color),
+                StrokeThickness = 2,
+                ToolTip = tip
+            }.At(center.X - size / 2, center.Y - size / 2));
+
+            canvas.Children.Add(new Ellipse
+            {
+                Width = dotSize,
+                Height = dotSize,
+                Fill = new SolidColorBrush(color),
+                Stroke = Brushes.White,
+                StrokeThickness = 1,
+                ToolTip = tip
+            }.At(center.X - dotSize / 2, center.Y - dotSize / 2));
         }
 
         private void DrawDoubleCircle(Canvas canvas, Point center, double size, Color fill, string tip)
