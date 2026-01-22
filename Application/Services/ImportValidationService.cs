@@ -32,7 +32,7 @@ namespace Nivtropy.Application.Services
             int lineNumber = 1;
             int lineIndex = 1;
             string? currentLine = BuildLineLabel(lineIndex, null);
-            int stationsInLine = 0;
+            var stationCounter = new StationCounter();
             double? prevForeReading = null;
             MeasurementRecord? previous = null;
 
@@ -47,25 +47,31 @@ namespace Nivtropy.Application.Services
                 if (previous != null && ShouldStartNewLine(previous, record))
                 {
                     // Новый ход
-                    if (currentLine != null && stationsInLine < 2)
+                    if (currentLine != null && stationCounter.Count < 2)
                     {
                         result.AddWarning($"Ход '{currentLine}' содержит менее 2 станций", lineNumber);
                     }
                     lineIndex++;
                     currentLine = BuildLineLabel(lineIndex, record.OriginalLineNumber);
-                    stationsInLine = 0;
+                    stationCounter.ResetForNewLine();
                     prevForeReading = null;
                 }
                 else if (record.LineMarker == "Start-Line")
                 {
                     currentLine = BuildLineLabel(lineIndex, record.OriginalLineNumber);
+                    stationCounter.ResetPending();
+                    prevForeReading = null;
                 }
 
                 // Проверяем последовательность измерений
-                if (record.Rb_m.HasValue && record.Rf_m.HasValue)
+                if (record.LineMarker == "End-Line")
                 {
-                    stationsInLine++;
+                    stationCounter.ResetPending();
+                    prevForeReading = null;
+                }
 
+                if (stationCounter.TryAddStation(record, out var foreReading))
+                {
                     // Проверка непрерывности (задний отсчёт текущей станции должен быть близок к переднему предыдущей)
                     if (prevForeReading.HasValue && record.Rb_m.HasValue)
                     {
@@ -73,7 +79,7 @@ namespace Nivtropy.Application.Services
                         // Здесь можно добавить проверку если нужно
                     }
 
-                    prevForeReading = record.Rf_m;
+                    prevForeReading = foreReading ?? record.Rf_m;
                 }
 
                 previous = record;
@@ -81,7 +87,7 @@ namespace Nivtropy.Application.Services
             }
 
             // Финальная проверка последнего хода
-            if (currentLine != null && stationsInLine < 2)
+            if (currentLine != null && stationCounter.Count < 2)
             {
                 result.AddWarning($"Ход '{currentLine}' содержит менее 2 станций");
             }
@@ -222,6 +228,77 @@ namespace Nivtropy.Application.Services
             else if (value > MaxHorizontalDistance)
             {
                 result.AddWarning($"Слишком большое плечо: {value:F2} м (макс. {MaxHorizontalDistance} м)", lineNumber, fieldName);
+            }
+        }
+
+        internal sealed class StationCounter
+        {
+            private bool _waitingRb;
+            private bool _waitingRf;
+            private double? _pendingRf;
+
+            public int Count { get; private set; }
+
+            public void ResetForNewLine()
+            {
+                Count = 0;
+                ResetPending();
+            }
+
+            public void ResetPending()
+            {
+                _waitingRb = false;
+                _waitingRf = false;
+                _pendingRf = null;
+            }
+
+            public bool TryAddStation(MeasurementRecord record, out double? foreReading)
+            {
+                foreReading = null;
+
+                if (record.IsInvalidMeasurement || record.LineMarker == "Measurement-Repeated")
+                    return false;
+
+                var hasRb = record.Rb_m.HasValue;
+                var hasRf = record.Rf_m.HasValue;
+
+                if (!hasRb && !hasRf)
+                    return false;
+
+                if (hasRb && hasRf)
+                {
+                    Count++;
+                    ResetPending();
+                    foreReading = record.Rf_m;
+                    return true;
+                }
+
+                if (hasRb)
+                {
+                    if (_waitingRf)
+                    {
+                        Count++;
+                        _waitingRf = false;
+                        foreReading = _pendingRf;
+                        _pendingRf = null;
+                        return true;
+                    }
+
+                    _waitingRb = true;
+                    return false;
+                }
+
+                if (_waitingRb)
+                {
+                    Count++;
+                    _waitingRb = false;
+                    foreReading = record.Rf_m;
+                    return true;
+                }
+
+                _waitingRf = true;
+                _pendingRf = record.Rf_m;
+                return false;
             }
         }
     }
