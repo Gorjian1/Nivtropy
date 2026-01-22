@@ -48,6 +48,7 @@ namespace Nivtropy.Presentation.ViewModels
         private readonly ObservableCollection<TraverseSystem> _systems = new();
         private readonly Dictionary<string, SharedPointLinkItem> _sharedPointLookup = new(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, string> _benchmarkSystems = new(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, string> _systemNameLookup = new(StringComparer.OrdinalIgnoreCase);
 
         private LevelingNetwork? _network;
         private Guid _networkId;
@@ -354,6 +355,7 @@ namespace Nivtropy.Presentation.ViewModels
             _summary = summary;
 
             UpdateRuns(summary);
+            AssignSystemsByConnectivity(network);
             InitializeSystemsFromRuns();
             UpdateRows(network, summary);
             UpdateSharedPoints();
@@ -666,20 +668,8 @@ namespace Nivtropy.Presentation.ViewModels
 
         private void InitializeSystemsFromRuns()
         {
-            var defaultSystem = _systems.FirstOrDefault(s => s.Id == ITraverseSystemsManager.DEFAULT_SYSTEM_ID);
-            if (defaultSystem == null)
-            {
-                defaultSystem = new TraverseSystem(ITraverseSystemsManager.DEFAULT_SYSTEM_ID, ITraverseSystemsManager.DEFAULT_SYSTEM_NAME, order: 0);
-                _systems.Add(defaultSystem);
-            }
-
-            foreach (var system in _systems)
-            {
-                foreach (var runIndex in system.RunIndexes.ToList())
-                {
-                    system.RemoveRun(runIndex);
-                }
-            }
+            _systems.Clear();
+            var systemLookup = new Dictionary<string, TraverseSystem>(StringComparer.OrdinalIgnoreCase);
 
             foreach (var run in Runs)
             {
@@ -688,20 +678,81 @@ namespace Nivtropy.Presentation.ViewModels
                     run.SystemId = ITraverseSystemsManager.DEFAULT_SYSTEM_ID;
                 }
 
-                var system = _systems.FirstOrDefault(s => s.Id == run.SystemId);
-                if (system == null)
+                if (!systemLookup.TryGetValue(run.SystemId, out var system))
                 {
-                    system = new TraverseSystem(run.SystemId, run.SystemId, _systems.Count);
+                    var name = _systemNameLookup.TryGetValue(run.SystemId, out var systemName)
+                        ? systemName
+                        : run.SystemId;
+                    system = new TraverseSystem(run.SystemId, name, systemLookup.Count);
+                    systemLookup[run.SystemId] = system;
                     _systems.Add(system);
                 }
 
                 system.AddRun(run.Index);
             }
 
+            if (_systems.Count == 0)
+            {
+                var defaultSystem = new TraverseSystem(
+                    ITraverseSystemsManager.DEFAULT_SYSTEM_ID,
+                    ITraverseSystemsManager.DEFAULT_SYSTEM_NAME,
+                    order: 0);
+                _systems.Add(defaultSystem);
+            }
+
             if (_selectedSystem == null || !_systems.Contains(_selectedSystem))
             {
-                _selectedSystem = defaultSystem;
+                _selectedSystem = _systems.FirstOrDefault();
                 OnPropertyChanged(nameof(SelectedSystem));
+            }
+        }
+
+        private void AssignSystemsByConnectivity(LevelingNetwork network)
+        {
+            _systemNameLookup.Clear();
+
+            var components = network.FindConnectedComponents().ToList();
+            if (components.Count == 0)
+                return;
+
+            var componentLookup = new Dictionary<int, string>();
+            if (components.Count == 1)
+            {
+                componentLookup[0] = ITraverseSystemsManager.DEFAULT_SYSTEM_ID;
+                _systemNameLookup[ITraverseSystemsManager.DEFAULT_SYSTEM_ID] = ITraverseSystemsManager.DEFAULT_SYSTEM_NAME;
+            }
+            else
+            {
+                for (int i = 0; i < components.Count; i++)
+                {
+                    var systemId = $"system-{i + 1}";
+                    componentLookup[i] = systemId;
+                    _systemNameLookup[systemId] = $"Система {i + 1}";
+                }
+            }
+
+            var pointComponentIndex = new Dictionary<Point, int>();
+            for (int i = 0; i < components.Count; i++)
+            {
+                foreach (var point in components[i])
+                {
+                    pointComponentIndex[point] = i;
+                }
+            }
+
+            for (int i = 0; i < network.Runs.Count && i < Runs.Count; i++)
+            {
+                var run = network.Runs[i];
+                var summary = Runs[i];
+                var samplePoint = run.Points.FirstOrDefault();
+                if (samplePoint == null)
+                    continue;
+
+                if (pointComponentIndex.TryGetValue(samplePoint, out var componentIndex) &&
+                    componentLookup.TryGetValue(componentIndex, out var systemId))
+                {
+                    summary.SystemId = systemId;
+                }
             }
         }
 
