@@ -376,7 +376,7 @@ namespace Nivtropy.Presentation.Visualization
             {
                 var arrowFrom = edge.From.HasKnownPoint ? from : to;
                 var arrowTo = edge.From.HasKnownPoint ? to : from;
-                DrawArrow(canvas, arrowFrom, arrowTo, strokeColor, thickness, line.ToolTip?.ToString() ?? string.Empty);
+                DrawArrowAtMidpoint(canvas, arrowFrom, arrowTo, strokeColor, thickness, line.ToolTip?.ToString() ?? string.Empty);
             }
         }
 
@@ -459,7 +459,7 @@ namespace Nivtropy.Presentation.Visualization
             canvas.Children.Add(line2);
         }
 
-        private void DrawArrow(Canvas canvas, Point from, Point to, Color stroke, double thickness, string toolTip)
+        private void DrawArrowAtMidpoint(Canvas canvas, Point from, Point to, Color stroke, double thickness, string toolTip)
         {
             var direction = to - from;
             if (direction.Length < 1)
@@ -468,8 +468,9 @@ namespace Nivtropy.Presentation.Visualization
             direction.Normalize();
             var perpendicular = new Vector(-direction.Y, direction.X);
 
-            var tip = to;
-            var basePoint = to - direction * ArrowLength;
+            var center = new Point((from.X + to.X) / 2, (from.Y + to.Y) / 2);
+            var tip = center + direction * (ArrowLength / 2);
+            var basePoint = center - direction * (ArrowLength / 2);
             var left = basePoint + perpendicular * (ArrowWidth / 2);
             var right = basePoint - perpendicular * (ArrowWidth / 2);
 
