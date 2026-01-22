@@ -11,20 +11,22 @@ using Nivtropy.Presentation.ViewModels;
 namespace Nivtropy.Presentation.Visualization
 {
     /// <summary>
-    /// Сервис визуализации нивелирной сети как графа.
-    /// Узлы: реперы (▲) и связующие точки (●)
-    /// Рёбра: разомкнутые ходы (линии) и замкнутые ходы (петли)
+    /// Сервис визуализации системы нивелирных ходов как графа.
+    /// Узлы: ходы и известные точки (реперы).
+    /// Рёбра: связи между ходами по общим точкам и привязки к известным точкам.
     /// </summary>
     public class TraverseSystemVisualizationService : ITraverseSystemVisualizationService
     {
-        private const double Padding = 20;
-        private const double NodeRadius = 6;
+        private const double Padding = 24;
+        private const double RunNodeSize = 18;
+        private const double RunNodeDotSize = 6;
         private const double KnownNodeSize = 12;
-        private const double SharedNodeSize = 12;
+        private const double ArrowLength = 10;
+        private const double ArrowWidth = 6;
         private const int LayoutIterations = 120;
         private const double LayoutCooling = 0.95;
-        private const double RepulsionStrength = 22000;
-        private const double AttractionStrength = 0.05;
+        private const double RepulsionStrength = 26000;
+        private const double AttractionStrength = 0.08;
 
         private static readonly Color[] Colors =
         {
@@ -70,6 +72,7 @@ namespace Nivtropy.Presentation.Visualization
                 return;
 
             var positions = LayoutGraph(graph, w, h);
+            positions = StretchToCanvas(positions, w, h, Padding);
 
             DrawEdges(canvas, graph, positions);
             DrawNodes(canvas, graph, positions);
@@ -79,39 +82,68 @@ namespace Nivtropy.Presentation.Visualization
         {
             var nodes = new Dictionary<string, GraphNode>(StringComparer.OrdinalIgnoreCase);
             var edges = new List<GraphEdge>();
+            var runNodes = new Dictionary<int, GraphNode>();
 
-            var shared = new HashSet<string>(
-                calc.SharedPoints.Where(p => p.IsEnabled).Select(p => p.Code),
+            var enabledSharedPoints = new HashSet<string>(
+                calc.SharedPoints.Where(p => p.IsEnabled).Select(p => NormalizeCode(p.Code)),
                 StringComparer.OrdinalIgnoreCase);
+
+            var sharedUsage = BuildSharedPointUsage(calc, enabledSharedPoints);
+            var runPairs = BuildRunPairConnections(sharedUsage);
+
+            int colorIndex = 0;
+            foreach (var run in runs)
+            {
+                var runNode = new GraphNode(
+                    $"run:{run.Index}",
+                    run.DisplayName,
+                    NodeKind.Run)
+                {
+                    Run = run,
+                    IsActive = run.IsActive,
+                    Color = Colors[colorIndex++ % Colors.Length]
+                };
+
+                nodes[runNode.Id] = runNode;
+                runNodes[run.Index] = runNode;
+            }
+
+            foreach (var pair in runPairs.Values)
+            {
+                if (!runNodes.TryGetValue(pair.LeftRunIndex, out var left) ||
+                    !runNodes.TryGetValue(pair.RightRunIndex, out var right))
+                    continue;
+
+                edges.Add(new GraphEdge(
+                    left,
+                    right,
+                    EdgeKind.SharedRunConnection,
+                    pair.SharedPointCodes));
+            }
 
             foreach (var run in runs)
             {
-                var runRows = calc.Rows
-                    .Where(r => r.LineSummary?.Index == run.Index ||
-                                string.Equals(r.LineName, run.DisplayName, StringComparison.OrdinalIgnoreCase))
-                    .OrderBy(r => r.Index)
-                    .ToList();
+                if (!runNodes.TryGetValue(run.Index, out var runNode))
+                    continue;
 
-                foreach (var row in runRows)
+                var knownCodes = GetKnownPointCodes(calc, run);
+                foreach (var code in knownCodes)
                 {
-                    if (string.IsNullOrWhiteSpace(row.BackCode) || string.IsNullOrWhiteSpace(row.ForeCode))
-                        continue;
-
-                    var fromId = NormalizeCode(row.BackCode);
-                    var toId = NormalizeCode(row.ForeCode);
-                    if (string.IsNullOrWhiteSpace(fromId) || string.IsNullOrWhiteSpace(toId))
-                        continue;
-
-                    var fromNode = GetOrCreateNode(nodes, fromId, calc, shared);
-                    var toNode = GetOrCreateNode(nodes, toId, calc, shared);
+                    runNode.HasKnownPoint = true;
+                    if (!nodes.TryGetValue(code, out var knownNode))
+                    {
+                        knownNode = new GraphNode(code, code, NodeKind.KnownPoint)
+                        {
+                            IsActive = true
+                        };
+                        nodes[code] = knownNode;
+                    }
 
                     edges.Add(new GraphEdge(
-                        fromNode,
-                        toNode,
-                        run,
-                        row.Index,
-                        row.DeltaH,
-                        row.StationLength_m));
+                        runNode,
+                        knownNode,
+                        EdgeKind.KnownPointConnection,
+                        new List<string> { code }));
                 }
             }
 
@@ -125,25 +157,82 @@ namespace Nivtropy.Presentation.Visualization
         }
 
         private static string NormalizeCode(string? code)
+            => string.IsNullOrWhiteSpace(code) ? string.Empty : code.Trim();
+
+        private static Dictionary<string, HashSet<int>> BuildSharedPointUsage(NetworkViewModel calc, HashSet<string> enabledSharedPoints)
         {
-            return string.IsNullOrWhiteSpace(code) ? string.Empty : code.Trim();
+            var usage = new Dictionary<string, HashSet<int>>(StringComparer.OrdinalIgnoreCase);
+
+            void AddUsage(string? code, int runIndex)
+            {
+                if (runIndex == 0 || string.IsNullOrWhiteSpace(code))
+                    return;
+
+                var trimmed = NormalizeCode(code);
+                if (!enabledSharedPoints.Contains(trimmed))
+                    return;
+
+                if (!usage.TryGetValue(trimmed, out var set))
+                {
+                    set = new HashSet<int>();
+                    usage[trimmed] = set;
+                }
+
+                set.Add(runIndex);
+            }
+
+            foreach (var row in calc.Rows)
+            {
+                var runIndex = row.LineSummary?.Index ?? 0;
+                AddUsage(row.BackCode, runIndex);
+                AddUsage(row.ForeCode, runIndex);
+            }
+
+            return usage;
         }
 
-        private static GraphNode GetOrCreateNode(
-            Dictionary<string, GraphNode> nodes,
-            string code,
-            NetworkViewModel calc,
-            HashSet<string> shared)
+        private static Dictionary<string, RunPairConnection> BuildRunPairConnections(Dictionary<string, HashSet<int>> sharedUsage)
         {
-            if (nodes.TryGetValue(code, out var existing))
-                return existing;
+            var connections = new Dictionary<string, RunPairConnection>(StringComparer.OrdinalIgnoreCase);
 
-            bool isKnown = calc.HasKnownHeight(code);
-            bool isShared = shared.Contains(code);
+            foreach (var (code, runIndexes) in sharedUsage)
+            {
+                var runs = runIndexes.OrderBy(index => index).ToList();
+                if (runs.Count < 2)
+                    continue;
 
-            var node = new GraphNode(code, code, isKnown, isShared);
-            nodes[code] = node;
-            return node;
+                for (int i = 0; i < runs.Count - 1; i++)
+                {
+                    for (int j = i + 1; j < runs.Count; j++)
+                    {
+                        var key = $"{runs[i]}:{runs[j]}";
+                        if (!connections.TryGetValue(key, out var connection))
+                        {
+                            connection = new RunPairConnection(runs[i], runs[j]);
+                            connections[key] = connection;
+                        }
+
+                        connection.SharedPointCodes.Add(code);
+                    }
+                }
+            }
+
+            return connections;
+        }
+
+        private static HashSet<string> GetKnownPointCodes(NetworkViewModel calc, LineSummary run)
+        {
+            var knownCodes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var row in calc.Rows.Where(r => r.LineSummary?.Index == run.Index))
+            {
+                if (row.IsBackHeightKnown && !string.IsNullOrWhiteSpace(row.BackCode))
+                    knownCodes.Add(NormalizeCode(row.BackCode));
+                if (row.IsForeHeightKnown && !string.IsNullOrWhiteSpace(row.ForeCode))
+                    knownCodes.Add(NormalizeCode(row.ForeCode));
+            }
+
+            return knownCodes;
         }
 
         private Dictionary<string, Point> LayoutGraph(Graph graph, double w, double h)
@@ -157,7 +246,7 @@ namespace Nivtropy.Presentation.Visualization
             foreach (var node in nodes)
             {
                 var angle = random.NextDouble() * 2 * Math.PI;
-                var radius = Math.Min(w, h) * 0.25;
+                var radius = Math.Min(w, h) * 0.4;
                 positions[node.Id] = new Point(
                     centerX + radius * Math.Cos(angle),
                     centerY + radius * Math.Sin(angle));
@@ -213,39 +302,87 @@ namespace Nivtropy.Presentation.Visualization
             return positions;
         }
 
+        private static Dictionary<string, Point> StretchToCanvas(
+            Dictionary<string, Point> positions,
+            double width,
+            double height,
+            double padding)
+        {
+            if (positions.Count == 0)
+                return positions;
+
+            var minX = positions.Values.Min(p => p.X);
+            var maxX = positions.Values.Max(p => p.X);
+            var minY = positions.Values.Min(p => p.Y);
+            var maxY = positions.Values.Max(p => p.Y);
+
+            var spanX = Math.Max(1.0, maxX - minX);
+            var spanY = Math.Max(1.0, maxY - minY);
+
+            var scaleX = (width - padding * 2) / spanX;
+            var scaleY = (height - padding * 2) / spanY;
+            var scale = Math.Min(scaleX, scaleY);
+
+            var offsetX = padding - minX * scale + (width - padding * 2 - spanX * scale) / 2;
+            var offsetY = padding - minY * scale + (height - padding * 2 - spanY * scale) / 2;
+
+            return positions.ToDictionary(
+                kvp => kvp.Key,
+                kvp => new Point(kvp.Value.X * scale + offsetX, kvp.Value.Y * scale + offsetY),
+                StringComparer.OrdinalIgnoreCase);
+        }
+
         private void DrawEdges(Canvas canvas, Graph graph, Dictionary<string, Point> positions)
         {
-            var runPalette = new Dictionary<string, Color>(StringComparer.OrdinalIgnoreCase);
-            int idx = 0;
-
             foreach (var edge in graph.Edges)
             {
                 if (!positions.TryGetValue(edge.From.Id, out var from) ||
                     !positions.TryGetValue(edge.To.Id, out var to))
                     continue;
 
-                if (!runPalette.TryGetValue(edge.Run.DisplayName, out var color))
+                switch (edge.Kind)
                 {
-                    color = Colors[idx++ % Colors.Length];
-                    runPalette[edge.Run.DisplayName] = color;
+                    case EdgeKind.SharedRunConnection:
+                        DrawRunConnection(canvas, edge, from, to);
+                        break;
+                    case EdgeKind.KnownPointConnection:
+                        DrawKnownPointConnection(canvas, edge, from, to);
+                        break;
                 }
-
-                var stroke = edge.Run.IsActive ? color : Color.FromRgb(150, 150, 150);
-                var line = new Line
-                {
-                    X1 = from.X,
-                    Y1 = from.Y,
-                    X2 = to.X,
-                    Y2 = to.Y,
-                    Stroke = new SolidColorBrush(stroke),
-                    StrokeThickness = edge.Run.IsActive ? 2.2 : 1.6,
-                    StrokeDashArray = edge.Run.IsActive ? null : new DoubleCollection { 4, 2 },
-                    StrokeStartLineCap = PenLineCap.Round,
-                    StrokeEndLineCap = PenLineCap.Round,
-                    ToolTip = BuildEdgeTooltip(edge)
-                };
-                canvas.Children.Add(line);
             }
+        }
+
+        private void DrawRunConnection(Canvas canvas, GraphEdge edge, Point from, Point to)
+        {
+            var isActive = edge.From.IsActive && edge.To.IsActive;
+            var strokeColor = isActive ? Color.FromRgb(70, 70, 70) : Color.FromRgb(150, 150, 150);
+            var thickness = isActive ? 1.6 : 1.2;
+            var line = new Line
+            {
+                X1 = from.X,
+                Y1 = from.Y,
+                X2 = to.X,
+                Y2 = to.Y,
+                Stroke = new SolidColorBrush(strokeColor),
+                StrokeThickness = thickness,
+                StrokeDashArray = isActive ? null : new DoubleCollection { 4, 2 },
+                StrokeStartLineCap = PenLineCap.Round,
+                StrokeEndLineCap = PenLineCap.Round,
+                ToolTip = BuildSharedEdgeTooltip(edge)
+            };
+            canvas.Children.Add(line);
+
+            if (edge.From.HasKnownPoint ^ edge.To.HasKnownPoint)
+            {
+                var arrowFrom = edge.From.HasKnownPoint ? from : to;
+                var arrowTo = edge.From.HasKnownPoint ? to : from;
+                DrawArrowAtMidpoint(canvas, arrowFrom, arrowTo, strokeColor, thickness, line.ToolTip?.ToString() ?? string.Empty);
+            }
+        }
+
+        private void DrawKnownPointConnection(Canvas canvas, GraphEdge edge, Point from, Point to)
+        {
+            DrawDoubleLine(canvas, from, to, Color.FromRgb(40, 40, 40), 1.4, BuildKnownEdgeTooltip(edge));
         }
 
         private void DrawNodes(Canvas canvas, Graph graph, Dictionary<string, Point> positions)
@@ -255,31 +392,98 @@ namespace Nivtropy.Presentation.Visualization
                 if (!positions.TryGetValue(node.Id, out var pos))
                     continue;
 
-                if (node.IsKnown)
+                if (node.Kind == NodeKind.KnownPoint)
                 {
                     DrawTriangle(canvas, pos, KnownNodeSize, System.Windows.Media.Colors.Black, $"{node.Label}\nИзвестная высота");
-                }
-                else if (node.IsShared)
-                {
-                    DrawDoubleCircle(canvas, pos, SharedNodeSize, System.Windows.Media.Colors.OrangeRed, $"{node.Label}\nОбщая точка");
-                }
-                else
-                {
-                    DrawCircle(canvas, pos, NodeRadius * 2, System.Windows.Media.Colors.DodgerBlue, $"{node.Label}");
+                    DrawLabel(canvas, node.Label, pos.X + 10, pos.Y - 8);
+                    continue;
                 }
 
-                if (node.IsKnown || node.IsShared || node.Degree > 2)
-                {
-                    DrawLabel(canvas, node.Label, pos.X + 10, pos.Y - 8);
-                }
+                DrawRunNode(canvas, pos, RunNodeSize, RunNodeDotSize, node.Color, $"Ход: {node.Label}");
+                DrawLabel(canvas, node.Label, pos.X + 10, pos.Y - 8, node.Color);
             }
         }
 
-        private static string BuildEdgeTooltip(GraphEdge edge)
+        private static string BuildSharedEdgeTooltip(GraphEdge edge)
         {
-            var delta = edge.DeltaH.HasValue ? edge.DeltaH.Value.ToString("F4") : "—";
-            var length = edge.LengthMeters.HasValue ? edge.LengthMeters.Value.ToString("F2") : "—";
-            return $"Ход: {edge.Run.DisplayName}\nСтанция: {edge.StationIndex}\nΔh: {delta} м\nL: {length} м";
+            var sharedPoints = edge.SharedPointCodes.Count > 0
+                ? string.Join(", ", edge.SharedPointCodes.OrderBy(code => code, StringComparer.OrdinalIgnoreCase))
+                : "—";
+
+            return $"Связь ходов: {edge.From.Label} ↔ {edge.To.Label}\nОбщие точки: {sharedPoints}";
+        }
+
+        private static string BuildKnownEdgeTooltip(GraphEdge edge)
+        {
+            var point = edge.SharedPointCodes.FirstOrDefault() ?? "—";
+            return $"Привязка к известной точке: {point}\nХод: {edge.From.Label}";
+        }
+
+        private void DrawDoubleLine(Canvas canvas, Point from, Point to, Color stroke, double thickness, string toolTip)
+        {
+            var vector = to - from;
+            if (vector.Length < 1)
+                return;
+
+            var offset = new Vector(-vector.Y, vector.X);
+            offset.Normalize();
+            offset *= 2.0;
+
+            var line1 = new Line
+            {
+                X1 = from.X + offset.X,
+                Y1 = from.Y + offset.Y,
+                X2 = to.X + offset.X,
+                Y2 = to.Y + offset.Y,
+                Stroke = new SolidColorBrush(stroke),
+                StrokeThickness = thickness,
+                StrokeStartLineCap = PenLineCap.Round,
+                StrokeEndLineCap = PenLineCap.Round,
+                ToolTip = toolTip
+            };
+
+            var line2 = new Line
+            {
+                X1 = from.X - offset.X,
+                Y1 = from.Y - offset.Y,
+                X2 = to.X - offset.X,
+                Y2 = to.Y - offset.Y,
+                Stroke = new SolidColorBrush(stroke),
+                StrokeThickness = thickness,
+                StrokeStartLineCap = PenLineCap.Round,
+                StrokeEndLineCap = PenLineCap.Round,
+                ToolTip = toolTip
+            };
+
+            canvas.Children.Add(line1);
+            canvas.Children.Add(line2);
+        }
+
+        private void DrawArrowAtMidpoint(Canvas canvas, Point from, Point to, Color stroke, double thickness, string toolTip)
+        {
+            var direction = to - from;
+            if (direction.Length < 1)
+                return;
+
+            direction.Normalize();
+            var perpendicular = new Vector(-direction.Y, direction.X);
+
+            var center = new Point((from.X + to.X) / 2, (from.Y + to.Y) / 2);
+            var tip = center + direction * (ArrowLength / 2);
+            var basePoint = center - direction * (ArrowLength / 2);
+            var left = basePoint + perpendicular * (ArrowWidth / 2);
+            var right = basePoint - perpendicular * (ArrowWidth / 2);
+
+            var arrow = new Polygon
+            {
+                Points = new PointCollection { tip, left, right },
+                Fill = new SolidColorBrush(stroke),
+                Stroke = new SolidColorBrush(stroke),
+                StrokeThickness = thickness,
+                ToolTip = toolTip
+            };
+
+            canvas.Children.Add(arrow);
         }
 
         private void DrawTriangle(Canvas canvas, Point center, double size, Color fill, string tip)
@@ -311,6 +515,29 @@ namespace Nivtropy.Presentation.Visualization
                 StrokeThickness = 1.6,
                 ToolTip = tip
             }.At(center.X - size / 2, center.Y - size / 2));
+        }
+
+        private void DrawRunNode(Canvas canvas, Point center, double size, double dotSize, Color color, string tip)
+        {
+            canvas.Children.Add(new Ellipse
+            {
+                Width = size,
+                Height = size,
+                Fill = Brushes.White,
+                Stroke = new SolidColorBrush(color),
+                StrokeThickness = 2,
+                ToolTip = tip
+            }.At(center.X - size / 2, center.Y - size / 2));
+
+            canvas.Children.Add(new Ellipse
+            {
+                Width = dotSize,
+                Height = dotSize,
+                Fill = new SolidColorBrush(color),
+                Stroke = Brushes.White,
+                StrokeThickness = 1,
+                ToolTip = tip
+            }.At(center.X - dotSize / 2, center.Y - dotSize / 2));
         }
 
         private void DrawDoubleCircle(Canvas canvas, Point center, double size, Color fill, string tip)
@@ -349,39 +576,62 @@ namespace Nivtropy.Presentation.Visualization
 
         private sealed class GraphNode
         {
-            public GraphNode(string id, string label, bool isKnown, bool isShared)
+            public GraphNode(string id, string label, NodeKind kind)
             {
                 Id = id;
                 Label = label;
-                IsKnown = isKnown;
-                IsShared = isShared;
+                Kind = kind;
             }
 
             public string Id { get; }
             public string Label { get; }
-            public bool IsKnown { get; }
-            public bool IsShared { get; }
+            public NodeKind Kind { get; }
             public int Degree { get; set; }
+            public bool IsActive { get; set; }
+            public bool HasKnownPoint { get; set; }
+            public LineSummary? Run { get; set; }
+            public Color Color { get; set; } = Colors[0];
         }
 
         private sealed class GraphEdge
         {
-            public GraphEdge(GraphNode from, GraphNode to, LineSummary run, int stationIndex, double? deltaH, double? lengthMeters)
+            public GraphEdge(GraphNode from, GraphNode to, EdgeKind kind, List<string> sharedPointCodes)
             {
                 From = from;
                 To = to;
-                Run = run;
-                StationIndex = stationIndex;
-                DeltaH = deltaH;
-                LengthMeters = lengthMeters;
+                Kind = kind;
+                SharedPointCodes = sharedPointCodes;
             }
 
             public GraphNode From { get; }
             public GraphNode To { get; }
-            public LineSummary Run { get; }
-            public int StationIndex { get; }
-            public double? DeltaH { get; }
-            public double? LengthMeters { get; }
+            public EdgeKind Kind { get; }
+            public List<string> SharedPointCodes { get; }
+        }
+
+        private sealed class RunPairConnection
+        {
+            public RunPairConnection(int leftRunIndex, int rightRunIndex)
+            {
+                LeftRunIndex = leftRunIndex;
+                RightRunIndex = rightRunIndex;
+            }
+
+            public int LeftRunIndex { get; }
+            public int RightRunIndex { get; }
+            public List<string> SharedPointCodes { get; } = new();
+        }
+
+        private enum NodeKind
+        {
+            Run,
+            KnownPoint
+        }
+
+        private enum EdgeKind
+        {
+            SharedRunConnection,
+            KnownPointConnection
         }
     }
 
