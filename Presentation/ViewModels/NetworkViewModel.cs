@@ -356,7 +356,7 @@ namespace Nivtropy.Presentation.ViewModels
             UpdateRuns(summary);
             InitializeSystemsFromRuns();
             UpdateRows(network, summary);
-            UpdateSharedPoints(network);
+            UpdateSharedPoints();
             UpdateAvailablePoints();
             UpdateBenchmarks();
             UpdateSummaryStatistics(summary);
@@ -455,12 +455,12 @@ namespace Nivtropy.Presentation.ViewModels
             }
         }
 
-        private void UpdateSharedPoints(LevelingNetwork network)
+        private void UpdateSharedPoints()
         {
             _sharedPoints.Clear();
             _sharedPointLookup.Clear();
 
-            var sharedUsage = BuildSharedPointUsage(network);
+            var sharedUsage = BuildSharedPointUsage();
             foreach (var (code, runIndexes) in sharedUsage)
             {
                 var enabled = _dataViewModel.IsSharedPointEnabled(code);
@@ -471,31 +471,42 @@ namespace Nivtropy.Presentation.ViewModels
             }
         }
 
-        private Dictionary<string, List<int>> BuildSharedPointUsage(LevelingNetwork network)
+        private Dictionary<string, List<int>> BuildSharedPointUsage()
         {
-            var usage = new Dictionary<string, List<int>>(StringComparer.OrdinalIgnoreCase);
-            var runIndexLookup = network.Runs
-                .Select((run, index) => (run, index: index + 1))
-                .ToDictionary(x => x.run, x => x.index);
+            var usage = new Dictionary<string, HashSet<int>>(StringComparer.OrdinalIgnoreCase);
 
-            foreach (var point in network.SharedPoints)
+            void AddUsage(string? code, int runIndex)
             {
-                var runIndexes = point.ConnectedRuns
-                    .Select(run => runIndexLookup.TryGetValue(run, out var idx) ? idx : 0)
-                    .Where(idx => idx > 0)
-                    .Distinct()
-                    .OrderBy(idx => idx)
-                    .ToList();
+                if (runIndex == 0 || string.IsNullOrWhiteSpace(code))
+                    return;
 
-                if (runIndexes.Count < 2)
+                var trimmed = code.Trim();
+                if (!usage.TryGetValue(trimmed, out var set))
+                {
+                    set = new HashSet<int>();
+                    usage[trimmed] = set;
+                }
+
+                set.Add(runIndex);
+            }
+
+            foreach (var record in _dataViewModel.Records)
+            {
+                if (!string.IsNullOrWhiteSpace(record.LineMarker))
                     continue;
 
-                usage[point.Code.ToString()] = runIndexes;
+                var runIndex = record.LineSummary?.Index ?? 0;
+                AddUsage(record.Target, runIndex);
+                AddUsage(record.StationCode, runIndex);
             }
 
             return usage
+                .Where(kvp => kvp.Value.Count > 1)
                 .OrderBy(kvp => PointCodeHelper.GetSortKey(kvp.Key))
-                .ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
+                .ToDictionary(
+                    kvp => kvp.Key,
+                    kvp => kvp.Value.OrderBy(idx => idx).ToList(),
+                    StringComparer.OrdinalIgnoreCase);
         }
 
         private void UpdateAvailablePoints()
