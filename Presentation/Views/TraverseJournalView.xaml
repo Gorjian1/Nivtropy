@@ -30,8 +30,7 @@
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="7*" MinWidth="400" />
-            <ColumnDefinition Width="Auto" />
-            <ColumnDefinition Width="3*" MinWidth="280" />
+            <ColumnDefinition Width="3*" MinWidth="340" />
         </Grid.ColumnDefinitions>
 
         <!-- ЛЕВАЯ ПАНЕЛЬ: Таблица журнала -->
@@ -433,19 +432,12 @@
         </Grid>
         <!-- Конец левой панели -->
 
-        <!-- GridSplitter для изменения размера панелей -->
-        <GridSplitter Grid.Column="1"
-                      Width="5"
-                      HorizontalAlignment="Stretch"
-                      VerticalAlignment="Stretch"
-                      Background="#FFE0E0E0"
-                      ShowsPreview="False" />
-
         <!-- ПРАВАЯ ПАНЕЛЬ: Настройки и информация -->
-        <ScrollViewer Grid.Column="2"
+        <ScrollViewer Grid.Column="1"
                       VerticalScrollBarVisibility="Auto"
                       HorizontalScrollBarVisibility="Disabled"
-                      Padding="8">
+                      Padding="8"
+                      Margin="12,0,0,0">
             <ScrollViewer.Background>
                 <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
                     <GradientStop Color="#FFF5F7F9" Offset="0"/>

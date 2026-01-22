@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Text;
 using Nivtropy.Application.Export;
 using Nivtropy.Constants;
@@ -11,7 +12,7 @@ namespace Nivtropy.Infrastructure.Export
         {
             var csv = new StringBuilder();
 
-            foreach (var run in network.Runs)
+            foreach (var run in network.Runs.Where(r => r.IsActive))
             {
                 csv.AppendLine($"===== НАЧАЛО ХОДА: {run.Name} =====");
 
