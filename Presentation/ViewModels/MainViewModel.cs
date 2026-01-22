@@ -29,8 +29,8 @@ namespace Nivtropy.Presentation.ViewModels
         public MainViewModel(
             DataViewModel dataViewModel,
             SettingsViewModel settingsViewModel,
-            TraverseCalculationViewModel calculationViewModel,
-            TraverseJournalViewModel journalViewModel,
+            NetworkViewModel calculationViewModel,
+            NetworkJournalViewModel journalViewModel,
             DataGeneratorViewModel dataGeneratorViewModel,
             IProfileVisualizationService profileVisualizationService,
             IProfileStatisticsService profileStatisticsService,
@@ -56,8 +56,8 @@ namespace Nivtropy.Presentation.ViewModels
         }
 
         public DataViewModel DataViewModel { get; }
-        public TraverseCalculationViewModel CalculationViewModel { get; }
-        public TraverseJournalViewModel JournalViewModel { get; }
+        public NetworkViewModel CalculationViewModel { get; }
+        public NetworkJournalViewModel JournalViewModel { get; }
         public DataGeneratorViewModel DataGeneratorViewModel { get; }
         public SettingsViewModel SettingsViewModel { get; }
 

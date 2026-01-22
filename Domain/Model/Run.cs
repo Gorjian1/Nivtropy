@@ -123,7 +123,7 @@ public class Run
         }
 
         // Теоретическое превышение
-        var theoretical = StartPoint!.Height - EndPoint!.Height;
+        var theoretical = EndPoint!.Height - StartPoint!.Height;
 
         // Измеренное превышение
         var measured = DeltaHSum;

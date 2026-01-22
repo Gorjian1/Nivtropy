@@ -235,8 +235,11 @@ namespace Nivtropy.Presentation.ViewModels
 
             foreach (var record in Records)
             {
+                if (!string.IsNullOrWhiteSpace(record.LineMarker))
+                    continue;
+
                 // Проверяем Target (целевая точка) и StationCode (код станции)
-                var recordPointCode = record.Target ?? record.StationCode;
+                var recordPointCode = NormalizePointCode(record.Target);
 
                 if (string.Equals(recordPointCode, pointCode, StringComparison.OrdinalIgnoreCase))
                 {
@@ -263,6 +266,16 @@ namespace Nivtropy.Presentation.ViewModels
                     isFirst = false;
                 }
             }
+        }
+
+        private static string? NormalizePointCode(string? raw)
+        {
+            if (string.IsNullOrWhiteSpace(raw))
+                return null;
+
+            var trimmed = raw.Trim();
+            var tokens = trimmed.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
+            return tokens.Length > 0 ? tokens[0] : null;
         }
 
         /// <summary>

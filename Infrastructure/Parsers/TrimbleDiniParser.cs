@@ -21,7 +21,7 @@ namespace Nivtropy.Infrastructure.Parsers
         private static readonly Regex StartLineRegex = new(@"\bStart-Line\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
         private static readonly Regex EndLineRegex = new(@"\bEnd-Line\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
         private static readonly Regex MeasurementRepeatedRegex = new(@"\bMeasurement\s+repeated\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
-        private static readonly Regex RunNumberRegex = new(@"\b(?:BF|FB)\s+(\d+)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        private static readonly Regex RunNumberRegex = new(@"\b(BF|FB)\s+(\d+)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
         // Regex для определения формата
         private static readonly Regex TrimbleDiniLineRegex = new(@"^\d+\s+", RegexOptions.Compiled);
@@ -88,8 +88,8 @@ namespace Nivtropy.Infrastructure.Parsers
                 var runMatch = RunNumberRegex.Match(line);
                 if (runMatch.Success)
                 {
-                    record.StationCode = runMatch.Groups[1].Value;
-                    record.OriginalLineNumber = runMatch.Groups[1].Value;
+                    record.Mode = runMatch.Groups[1].Value.ToUpperInvariant();
+                    record.OriginalLineNumber = runMatch.Groups[2].Value;
                 }
                 return record;
             }

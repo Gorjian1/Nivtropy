@@ -13,7 +13,6 @@
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
         <converters:MethodDeltaConverter x:Key="MethodDeltaConverter" />
-        <converters:EnumToBoolConverter x:Key="EnumToBoolConverter" />
         <converters:GroupClosureConverter x:Key="GroupClosureConverter" />
         <converters:ArmDifferenceExceededToBrushConverter x:Key="ArmDifferenceExceededToBrushConverter" />
         <converters:GridLineColorConverter x:Key="GridLineColorConverter" />
@@ -31,8 +30,7 @@
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="7*" MinWidth="400" />
-            <ColumnDefinition Width="Auto" />
-            <ColumnDefinition Width="3*" MinWidth="280" />
+            <ColumnDefinition Width="3*" MinWidth="340" />
         </Grid.ColumnDefinitions>
 
         <!-- ЛЕВАЯ ПАНЕЛЬ: Таблица журнала -->
@@ -434,19 +432,12 @@
         </Grid>
         <!-- Конец левой панели -->
 
-        <!-- GridSplitter для изменения размера панелей -->
-        <GridSplitter Grid.Column="1"
-                      Width="5"
-                      HorizontalAlignment="Stretch"
-                      VerticalAlignment="Stretch"
-                      Background="#FFE0E0E0"
-                      ShowsPreview="False" />
-
         <!-- ПРАВАЯ ПАНЕЛЬ: Настройки и информация -->
-        <ScrollViewer Grid.Column="2"
+        <ScrollViewer Grid.Column="1"
                       VerticalScrollBarVisibility="Auto"
                       HorizontalScrollBarVisibility="Disabled"
-                      Padding="8">
+                      Padding="8"
+                      Margin="12,0,0,0">
             <ScrollViewer.Background>
                 <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
                     <GradientStop Color="#FFF5F7F9" Offset="0"/>
@@ -560,31 +551,14 @@
                                        FontWeight="SemiBold"
                                        Margin="0,0,0,6" />
 
-                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-
-                                <RadioButton Content="нет"
-                                             GroupName="AdjMode"
-                                             Margin="0,0,10,0"
-                                             IsChecked="{Binding Calculation.AdjustmentMode,
-                                                                 Converter={StaticResource EnumToBoolConverter},
-                                                                 ConverterParameter={x:Static enums:AdjustmentMode.None},
-                                                                 Mode=TwoWay}" />
-
-                                <RadioButton Content="локальное"
-                                             GroupName="AdjMode"
-                                             Margin="0,0,10,0"
-                                             IsChecked="{Binding Calculation.AdjustmentMode,
-                                                                 Converter={StaticResource EnumToBoolConverter},
-                                                                 ConverterParameter={x:Static enums:AdjustmentMode.Local},
-                                                                 Mode=TwoWay}" />
-
-                                <RadioButton Content="сеть (МНК)"
-                                             GroupName="AdjMode"
-                                             IsChecked="{Binding Calculation.AdjustmentMode,
-                                                                 Converter={StaticResource EnumToBoolConverter},
-                                                                 ConverterParameter={x:Static enums:AdjustmentMode.Network},
-                                                                 Mode=TwoWay}" />
-                            </StackPanel>
+                            <ComboBox SelectedValue="{Binding Calculation.AdjustmentMode, Mode=TwoWay}"
+                                      SelectedValuePath="Tag"
+                                      FontSize="11"
+                                      Height="24">
+                                <ComboBoxItem Content="нет" Tag="{x:Static enums:AdjustmentMode.None}" />
+                                <ComboBoxItem Content="локальное" Tag="{x:Static enums:AdjustmentMode.Local}" />
+                                <ComboBoxItem Content="сеть (МНК)" Tag="{x:Static enums:AdjustmentMode.Network}" />
+                            </ComboBox>
                         </StackPanel>
                     </Border>
 
@@ -660,79 +634,70 @@
                         <!-- Одна строка: Система + Точки + Высота + кнопки -->
                         <Grid Margin="0,0,0,8">
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="95" />
-                                <ColumnDefinition Width="4" />
-                                <ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="75" />
-                                <ColumnDefinition Width="4" />
-                                <ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="70" />
-                                <ColumnDefinition Width="4" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="8" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="8" />
+                                <ColumnDefinition Width="110" />
+                                <ColumnDefinition Width="8" />
                                 <ColumnDefinition Width="Auto" />
                                 <ColumnDefinition Width="4" />
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
 
-                            <!-- Метка "Система:" -->
-                            <TextBlock Grid.Column="0"
-                                       Text="Система:"
-                                       FontSize="10"
-                                       VerticalAlignment="Center"
-                                       Margin="0,0,4,0" />
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Text="Система"
+                                           FontSize="9"
+                                           FontWeight="SemiBold"
+                                           Foreground="#2B579A"
+                                           Margin="0,0,0,4" />
+                                <ComboBox ItemsSource="{Binding Calculation.Systems}"
+                                          SelectedItem="{Binding Calculation.SelectedSystem, Mode=TwoWay}"
+                                          DisplayMemberPath="DisplayName"
+                                          ToolTip="Выберите систему ходов для установки реперов"
+                                          FontSize="10"
+                                          Height="24"
+                                          Background="White"
+                                          BorderBrush="#FFACACAC" />
+                            </StackPanel>
 
-                            <!-- ComboBox системы -->
-                            <ComboBox Grid.Column="1"
-                                      ItemsSource="{Binding Calculation.Systems}"
-                                      SelectedItem="{Binding Calculation.SelectedSystem, Mode=TwoWay}"
-                                      DisplayMemberPath="DisplayName"
-                                      ToolTip="Выберите систему ходов для установки реперов"
-                                      FontSize="10"
-                                      Height="24"
-                                      Background="White"
-                                      BorderBrush="#FFACACAC" />
+                            <StackPanel Grid.Column="2">
+                                <TextBlock Text="Точки"
+                                           FontSize="9"
+                                           FontWeight="SemiBold"
+                                           Foreground="#2B579A"
+                                           Margin="0,0,0,4" />
+                                <ComboBox ItemsSource="{Binding Calculation.AvailablePoints}"
+                                          SelectedItem="{Binding Calculation.SelectedPoint, Mode=TwoWay}"
+                                          DisplayMemberPath="DisplayName"
+                                          ToolTip="Выберите точку для установки известной высоты"
+                                          FontSize="10"
+                                          Height="24"
+                                          Background="White"
+                                          BorderBrush="#FFACACAC"
+                                          VerticalContentAlignment="Center" />
+                            </StackPanel>
 
-                            <!-- Метка "Точки:" -->
-                            <TextBlock Grid.Column="3"
-                                       Text="Точки:"
-                                       FontSize="10"
-                                       VerticalAlignment="Center"
-                                       Margin="0,0,4,0" />
-
-                            <!-- Комбобокс с точками -->
-                            <ComboBox Grid.Column="4"
-                                      ItemsSource="{Binding Calculation.AvailablePoints}"
-                                      SelectedItem="{Binding Calculation.SelectedPoint, Mode=TwoWay}"
-                                      DisplayMemberPath="DisplayName"
-                                      ToolTip="Выберите точку для установки известной высоты"
-                                      FontSize="10"
-                                      Height="24"
-                                      Background="White"
-                                      BorderBrush="#FFACACAC"
-                                      VerticalContentAlignment="Center" />
-
-                            <!-- Метка "Высота:" -->
-                            <TextBlock Grid.Column="6"
-                                       Text="Высота:"
-                                       FontSize="10"
-                                       VerticalAlignment="Center"
-                                       Margin="0,0,4,0" />
-
-                            <!-- Поле ввода высоты -->
-                            <TextBox x:Name="BenchmarkHeightTextBox"
-                                     Grid.Column="7"
-                                     Text="{Binding Calculation.NewBenchmarkHeight, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                     ToolTip="Введите известную высоту репера (Enter для добавления)"
-                                     KeyDown="BenchmarkHeightTextBox_KeyDown"
-                                     VerticalContentAlignment="Center"
-                                     FontSize="10"
-                                     Padding="4,2"
-                                     Height="24"
-                                     Background="White"
-                                     BorderBrush="#FFACACAC" />
+                            <StackPanel Grid.Column="4">
+                                <TextBlock Text="Высота"
+                                           FontSize="9"
+                                           FontWeight="SemiBold"
+                                           Foreground="#2B579A"
+                                           Margin="0,0,0,4" />
+                                <TextBox x:Name="BenchmarkHeightTextBox"
+                                         Text="{Binding Calculation.NewBenchmarkHeight, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                         ToolTip="Введите известную высоту репера (Enter для добавления)"
+                                         KeyDown="BenchmarkHeightTextBox_KeyDown"
+                                         VerticalContentAlignment="Center"
+                                         FontSize="10"
+                                         Padding="4,2"
+                                         Height="24"
+                                         Background="White"
+                                         BorderBrush="#FFACACAC" />
+                            </StackPanel>
 
                             <!-- Кнопка + -->
-                            <Button Grid.Column="9"
+                            <Button Grid.Column="6"
                                     Content="+"
                                     FontSize="16"
                                     FontWeight="Bold"
@@ -744,7 +709,8 @@
                                     Foreground="White"
                                     BorderThickness="1"
                                     BorderBrush="#FF5A9F5A"
-                                    Cursor="Hand">
+                                    Cursor="Hand"
+                                    VerticalAlignment="Bottom">
                                 <Button.Style>
                                     <Style TargetType="Button">
                                         <Setter Property="Background">
@@ -773,14 +739,15 @@
 
                             <!-- Кнопка ▼ для показа/скрытия списка -->
                             <ToggleButton x:Name="ToggleBenchmarksButton"
-                                          Grid.Column="11"
+                                          Grid.Column="8"
                                           Width="26"
                                           Height="26"
                                           Padding="0"
                                           BorderBrush="#FFACACAC"
                                           BorderThickness="1"
                                           Cursor="Hand"
-                                          ToolTip="Показать/скрыть список реперов">
+                                          ToolTip="Показать/скрыть список реперов"
+                                          VerticalAlignment="Bottom">
                                 <ToggleButton.Style>
                                     <Style TargetType="ToggleButton">
                                         <Setter Property="Background">
@@ -1000,7 +967,9 @@
 
                         <Grid>
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="240" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="12" />
+                                <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="12" />
                                 <ColumnDefinition Width="*" />
                             </Grid.ColumnDefinitions>
@@ -1109,7 +1078,6 @@
                                                     <Grid.ColumnDefinitions>
                                                         <ColumnDefinition Width="Auto" />
                                                         <ColumnDefinition Width="*" />
-                                                        <ColumnDefinition Width="Auto" />
                                                     </Grid.ColumnDefinitions>
 
                                                     <CheckBox Grid.Column="0"
@@ -1121,82 +1089,91 @@
                                                               ToolTip="Активен" />
 
                                                     <TextBlock Grid.Column="1"
-                                                               Text="{Binding Header}"
+                                                               Text="{Binding DisplayNameWithPointCount}"
                                                                FontSize="11"
                                                                VerticalAlignment="Center"
                                                                TextTrimming="CharacterEllipsis" />
-
-                                                    <TextBlock Grid.Column="2"
-                                                               Text="{Binding CombinedStats}"
-                                                               FontSize="9"
-                                                               Foreground="#707070"
-                                                               Margin="4,0,0,0"
-                                                               VerticalAlignment="Center" />
                                                 </Grid>
                                             </DataTemplate>
                                         </ListBox.ItemTemplate>
                                     </ListBox>
                                 </Grid>
                             </Border>
-                        </Grid>
-                    </StackPanel>
-                </Border>
 
-                <!-- СТРОКА 6: Общие точки между ходами -->
-                <Border BorderBrush="#FFBCC7D3"
-                        BorderThickness="1"
-                        CornerRadius="2"
-                        Padding="12"
-                        Background="White">
-                    <Border.Effect>
-                        <DropShadowEffect Color="#40000000" BlurRadius="4" ShadowDepth="1" Direction="270" Opacity="0.3"/>
-                    </Border.Effect>
-                    <StackPanel>
-                        <TextBlock Text="Общие точки между ходами"
-                                   FontWeight="SemiBold"
-                                   FontSize="12"
-                                   Foreground="#2B579A"
-                                   Margin="0,0,0,10" />
+                            <!-- Правая панель: Общие точки -->
+                            <Border Grid.Column="4"
+                                    BorderBrush="#FFBCC7D3"
+                                    BorderThickness="1"
+                                    CornerRadius="2"
+                                    Background="White">
+                                <Border.Effect>
+                                    <DropShadowEffect Color="#40000000" BlurRadius="4" ShadowDepth="1" Direction="270" Opacity="0.3"/>
+                                </Border.Effect>
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="*" />
+                                    </Grid.RowDefinitions>
 
-                        <ItemsControl ItemsSource="{Binding Calculation.SharedPoints}">
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <Border BorderBrush="#FFE0E0E0" BorderThickness="0,0,0,1" Padding="8,6">
-                                        <Grid>
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="Auto" />
-                                                <ColumnDefinition Width="*" />
-                                            </Grid.ColumnDefinitions>
-                                            <CheckBox Grid.Column="0"
-                                                      IsChecked="{Binding IsEnabled, Mode=TwoWay}"
-                                                      Content="{Binding Code}"
-                                                      VerticalAlignment="Center" />
-                                            <TextBlock Grid.Column="1"
-                                                       Text="{Binding RunsDisplay}"
-                                                       Margin="8,0,0,0"
-                                                       VerticalAlignment="Center"
-                                                       Foreground="#707070" />
-                                        </Grid>
+                                    <!-- Заголовок -->
+                                    <Border Grid.Row="0"
+                                            Background="#FFF8F9FA"
+                                            BorderBrush="#FFE0E0E0"
+                                            BorderThickness="0,0,0,1"
+                                            Padding="10,8">
+                                        <TextBlock Text="Общие точки"
+                                                   FontWeight="SemiBold"
+                                                   FontSize="12"
+                                                   Foreground="#2B579A" />
                                     </Border>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
 
-                        <TextBlock Text="Нет общих точек"
-                                   Foreground="#707070"
-                                   HorizontalAlignment="Center"
-                                   Margin="0,8,0,0">
-                            <TextBlock.Style>
-                                <Style TargetType="TextBlock">
-                                    <Setter Property="Visibility" Value="Collapsed" />
-                                    <Style.Triggers>
-                                        <DataTrigger Binding="{Binding Calculation.SharedPoints.Count}" Value="0">
-                                            <Setter Property="Visibility" Value="Visible" />
-                                        </DataTrigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </TextBlock.Style>
-                        </TextBlock>
+                                    <StackPanel Grid.Row="1">
+                                        <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                                      HorizontalScrollBarVisibility="Disabled">
+                                            <ItemsControl ItemsSource="{Binding Calculation.SharedPoints}">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <Border BorderBrush="#FFE0E0E0" BorderThickness="0,0,0,1" Padding="8,6">
+                                                            <Grid>
+                                                                <Grid.ColumnDefinitions>
+                                                                    <ColumnDefinition Width="Auto" />
+                                                                    <ColumnDefinition Width="*" />
+                                                                </Grid.ColumnDefinitions>
+                                                                <CheckBox Grid.Column="0"
+                                                                          IsChecked="{Binding IsEnabled, Mode=TwoWay}"
+                                                                          Content="{Binding Code}"
+                                                                          VerticalAlignment="Center" />
+                                                                <TextBlock Grid.Column="1"
+                                                                           Text="{Binding RunsDisplay}"
+                                                                           Margin="8,0,0,0"
+                                                                           VerticalAlignment="Center"
+                                                                           Foreground="#707070" />
+                                                            </Grid>
+                                                        </Border>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </ScrollViewer>
+
+                                        <TextBlock Text="Нет общих точек"
+                                                   Foreground="#707070"
+                                                   HorizontalAlignment="Center"
+                                                   Margin="0,8,0,0">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Visibility" Value="Collapsed" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding Calculation.SharedPoints.Count}" Value="0">
+                                                            <Setter Property="Visibility" Value="Visible" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+                        </Grid>
                     </StackPanel>
                 </Border>
 

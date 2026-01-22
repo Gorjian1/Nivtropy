@@ -13,6 +13,6 @@ namespace Nivtropy.Presentation.Visualization
         /// </summary>
         /// <param name="canvas">Canvas для рисования</param>
         /// <param name="viewModel">ViewModel с данными о ходах</param>
-        void DrawSystemVisualization(Canvas canvas, TraverseJournalViewModel viewModel);
+        void DrawSystemVisualization(Canvas canvas, NetworkJournalViewModel viewModel);
     }
 }

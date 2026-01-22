@@ -61,7 +61,7 @@ public class ProportionalClosureDistributor : IClosureDistributor
             if (startIdx >= 0 && endIdx >= 0 && endIdx >= startIdx)
             {
                 // Вычисляем невязку секции
-                var theoretical = startPoint.Height - endPoint.Height;
+                var theoretical = endPoint.Height - startPoint.Height;
                 var measured = run.Observations
                     .Skip(startIdx)
                     .Take(endIdx - startIdx + 1)

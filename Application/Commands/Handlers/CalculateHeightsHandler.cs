@@ -44,7 +44,7 @@ public class CalculateHeightsHandler
             var toleranceMm = 10.0 * Math.Sqrt(run.TotalLength.Kilometers);
             run.CalculateClosure(toleranceMm);
 
-            if (command.Mode == AdjustmentMode.Local && run.Closure?.IsWithinTolerance == true)
+            if (command.Mode == AdjustmentMode.Local && run.Closure != null)
             {
                 _closureDistributor.DistributeClosureWithSections(run);
             }
