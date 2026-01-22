@@ -464,7 +464,8 @@
                             BorderThickness="1"
                             CornerRadius="2"
                             Padding="8"
-                            Background="White">
+                            Background="White"
+                            Height="50">
                         <Border.Effect>
                             <DropShadowEffect Color="#40000000" BlurRadius="3" ShadowDepth="1" Direction="270" Opacity="0.25"/>
                         </Border.Effect>
@@ -501,7 +502,8 @@
                             BorderThickness="1"
                             CornerRadius="2"
                             Padding="8"
-                            Background="White">
+                            Background="White"
+                            Height="50">
                         <Border.Effect>
                             <DropShadowEffect Color="#40000000" BlurRadius="3" ShadowDepth="1" Direction="270" Opacity="0.25"/>
                         </Border.Effect>
@@ -539,7 +541,8 @@
                             BorderThickness="1"
                             CornerRadius="2"
                             Padding="8"
-                            Background="White">
+                            Background="White"
+                            Height="50">
                         <Border.Effect>
                             <DropShadowEffect Color="#40000000" BlurRadius="3" ShadowDepth="1" Direction="270" Opacity="0.25"/>
                         </Border.Effect>
@@ -574,7 +577,8 @@
                             HorizontalContentAlignment="Center"
                             VerticalContentAlignment="Center"
                             Cursor="Hand"
-                            ToolTip="Экспорт в Excel">
+                            ToolTip="Экспорт в Excel"
+                            VerticalAlignment="Center">
                         <Button.Style>
                             <Style TargetType="Button">
                                 <Setter Property="Background">
@@ -634,79 +638,69 @@
                         <!-- Одна строка: Система + Точки + Высота + кнопки -->
                         <Grid Margin="0,0,0,8">
                             <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="8" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="8" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="8" />
                                 <ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="95" />
-                                <ColumnDefinition Width="4" />
-                                <ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="75" />
-                                <ColumnDefinition Width="4" />
-                                <ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="70" />
-                                <ColumnDefinition Width="4" />
-                                <ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="4" />
+                                <ColumnDefinition Width="6" />
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
 
-                            <!-- Метка "Система:" -->
-                            <TextBlock Grid.Column="0"
-                                       Text="Система:"
-                                       FontSize="10"
-                                       VerticalAlignment="Center"
-                                       Margin="0,0,4,0" />
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Text="Система"
+                                           FontSize="9"
+                                           Foreground="#2B579A"
+                                           FontWeight="SemiBold"
+                                           Margin="0,0,0,4" />
+                                <ComboBox ItemsSource="{Binding Calculation.Systems}"
+                                          SelectedItem="{Binding Calculation.SelectedSystem, Mode=TwoWay}"
+                                          DisplayMemberPath="DisplayName"
+                                          ToolTip="Выберите систему ходов для установки реперов"
+                                          FontSize="10"
+                                          Height="24"
+                                          Background="White"
+                                          BorderBrush="#FFACACAC" />
+                            </StackPanel>
 
-                            <!-- ComboBox системы -->
-                            <ComboBox Grid.Column="1"
-                                      ItemsSource="{Binding Calculation.Systems}"
-                                      SelectedItem="{Binding Calculation.SelectedSystem, Mode=TwoWay}"
-                                      DisplayMemberPath="DisplayName"
-                                      ToolTip="Выберите систему ходов для установки реперов"
-                                      FontSize="10"
-                                      Height="24"
-                                      Background="White"
-                                      BorderBrush="#FFACACAC" />
+                            <StackPanel Grid.Column="2">
+                                <TextBlock Text="Точки"
+                                           FontSize="9"
+                                           Foreground="#2B579A"
+                                           FontWeight="SemiBold"
+                                           Margin="0,0,0,4" />
+                                <ComboBox ItemsSource="{Binding Calculation.AvailablePoints}"
+                                          SelectedItem="{Binding Calculation.SelectedPoint, Mode=TwoWay}"
+                                          DisplayMemberPath="DisplayName"
+                                          ToolTip="Выберите точку для установки известной высоты"
+                                          FontSize="10"
+                                          Height="24"
+                                          Background="White"
+                                          BorderBrush="#FFACACAC"
+                                          VerticalContentAlignment="Center" />
+                            </StackPanel>
 
-                            <!-- Метка "Точки:" -->
-                            <TextBlock Grid.Column="3"
-                                       Text="Точки:"
-                                       FontSize="10"
-                                       VerticalAlignment="Center"
-                                       Margin="0,0,4,0" />
+                            <StackPanel Grid.Column="4">
+                                <TextBlock Text="Высота"
+                                           FontSize="9"
+                                           Foreground="#2B579A"
+                                           FontWeight="SemiBold"
+                                           Margin="0,0,0,4" />
+                                <TextBox x:Name="BenchmarkHeightTextBox"
+                                         Text="{Binding Calculation.NewBenchmarkHeight, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                         ToolTip="Введите известную высоту репера (Enter для добавления)"
+                                         KeyDown="BenchmarkHeightTextBox_KeyDown"
+                                         VerticalContentAlignment="Center"
+                                         FontSize="10"
+                                         Padding="4,2"
+                                         Height="24"
+                                         Background="White"
+                                         BorderBrush="#FFACACAC" />
+                            </StackPanel>
 
-                            <!-- Комбобокс с точками -->
-                            <ComboBox Grid.Column="4"
-                                      ItemsSource="{Binding Calculation.AvailablePoints}"
-                                      SelectedItem="{Binding Calculation.SelectedPoint, Mode=TwoWay}"
-                                      DisplayMemberPath="DisplayName"
-                                      ToolTip="Выберите точку для установки известной высоты"
-                                      FontSize="10"
-                                      Height="24"
-                                      Background="White"
-                                      BorderBrush="#FFACACAC"
-                                      VerticalContentAlignment="Center" />
-
-                            <!-- Метка "Высота:" -->
-                            <TextBlock Grid.Column="6"
-                                       Text="Высота:"
-                                       FontSize="10"
-                                       VerticalAlignment="Center"
-                                       Margin="0,0,4,0" />
-
-                            <!-- Поле ввода высоты -->
-                            <TextBox x:Name="BenchmarkHeightTextBox"
-                                     Grid.Column="7"
-                                     Text="{Binding Calculation.NewBenchmarkHeight, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                     ToolTip="Введите известную высоту репера (Enter для добавления)"
-                                     KeyDown="BenchmarkHeightTextBox_KeyDown"
-                                     VerticalContentAlignment="Center"
-                                     FontSize="10"
-                                     Padding="4,2"
-                                     Height="24"
-                                     Background="White"
-                                     BorderBrush="#FFACACAC" />
-
-                            <!-- Кнопка + -->
-                            <Button Grid.Column="9"
+                            <Button Grid.Column="6"
                                     Content="+"
                                     FontSize="16"
                                     FontWeight="Bold"
@@ -718,7 +712,8 @@
                                     Foreground="White"
                                     BorderThickness="1"
                                     BorderBrush="#FF5A9F5A"
-                                    Cursor="Hand">
+                                    Cursor="Hand"
+                                    VerticalAlignment="Bottom">
                                 <Button.Style>
                                     <Style TargetType="Button">
                                         <Setter Property="Background">
@@ -745,16 +740,16 @@
                                 </Button.Style>
                             </Button>
 
-                            <!-- Кнопка ▼ для показа/скрытия списка -->
                             <ToggleButton x:Name="ToggleBenchmarksButton"
-                                          Grid.Column="11"
+                                          Grid.Column="8"
                                           Width="26"
                                           Height="26"
                                           Padding="0"
                                           BorderBrush="#FFACACAC"
                                           BorderThickness="1"
                                           Cursor="Hand"
-                                          ToolTip="Показать/скрыть список реперов">
+                                          ToolTip="Показать/скрыть список реперов"
+                                          VerticalAlignment="Bottom">
                                 <ToggleButton.Style>
                                     <Style TargetType="ToggleButton">
                                         <Setter Property="Background">
@@ -974,7 +969,7 @@
 
                         <Grid>
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="220" />
+                                <ColumnDefinition Width="180" />
                                 <ColumnDefinition Width="12" />
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="12" />
